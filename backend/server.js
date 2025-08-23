@@ -79,11 +79,13 @@ const patientRoutes = require('./src/routes/patients');
 const doctorRoutes = require('./src/routes/doctors');
 const institutionRoutes = require('./src/routes/institutions');
 const appointmentRoutes = require('./src/routes/appointments');
+const conditionRoutes = require('./src/routes/conditions');
 
 app.use('/api/patients', patientRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/institutions', institutionRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/conditions', conditionRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
