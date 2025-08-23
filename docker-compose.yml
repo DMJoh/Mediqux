@@ -54,29 +54,8 @@ services:
     networks:
       - medical_network
 
-  # Database admin interface
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    ports:
-      - "8081:80"  # Changed to avoid conflict with frontend
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    networks:
-      - medical_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   postgres_data:
-    driver: local
-  pgadmin_data:
     driver: local
 
 networks:
