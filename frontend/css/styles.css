@@ -1,0 +1,97 @@
+/* Custom styles for Medical Management System */
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Navigation customization */
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+/* Card enhancements */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Status indicators */
+.status-online {
+    color: #28a745;
+}
+
+.status-offline {
+    color: #dc3545;
+}
+
+/* Form validation styles */
+.form-control.is-invalid {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.form-control.is-valid {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.invalid-feedback {
+    display: none;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.form-control.is-invalid ~ .invalid-feedback {
+    display: block;
+}
+
+/* Form enhancements */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Button customizations */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Medical-specific color scheme */
+.bg-medical-primary {
+    background-color: #2c5282;
+}
+
+.text-medical-primary {
+    color: #2c5282;
+}
+
+/* Table enhancements */
+.table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}

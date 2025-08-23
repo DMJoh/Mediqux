@@ -25,6 +25,30 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
+// Test database connection
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const db = require('./src/database/db');
+    const result = await db.query('SELECT NOW() as current_time, version() as postgres_version');
+    res.json({
+      success: true,
+      message: 'Database connection successful',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Database test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Database connection failed',
+      details: error.message
+    });
+  }
+});
+
+// Routes
+const patientRoutes = require('./src/routes/patients');
+app.use('/api/patients', patientRoutes);
+
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
   res.json({ 
