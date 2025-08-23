@@ -47,7 +47,10 @@ app.get('/api/test-db', async (req, res) => {
 
 // Routes
 const patientRoutes = require('./src/routes/patients');
+const doctorRoutes = require('./src/routes/doctors');
+
 app.use('/api/patients', patientRoutes);
+app.use('/api/doctors', doctorRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
