@@ -35,19 +35,43 @@ function validatePhone(event) {
     
     if (value !== cleaned) {
         input.value = cleaned;
-        showAlert('Phone number can only contain numbers, +, spaces, and hyphens', 'warning');
+        showFieldError(input, 'Phone number can only contain numbers, +, spaces, and hyphens');
+    } else {
+        clearFieldError(input);
     }
 }
 
-// Email validation - must contain @
+// Email validation - must contain @ (real-time)
 function validateEmail(event) {
     const input = event.target;
     const value = input.value.trim();
     
     if (value && !value.includes('@')) {
-        input.setCustomValidity('Email must contain @ symbol');
+        showFieldError(input, 'Email must contain @ symbol');
     } else {
-        input.setCustomValidity('');
+        clearFieldError(input);
+    }
+}
+
+// Show field-specific error
+function showFieldError(input, message) {
+    input.classList.add('is-invalid');
+    input.classList.remove('is-valid');
+    
+    // Find the error div for this field
+    const errorDiv = input.parentNode.querySelector('.invalid-feedback');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+    }
+}
+
+// Clear field-specific error
+function clearFieldError(input) {
+    input.classList.remove('is-invalid');
+    if (input.value.trim()) {
+        input.classList.add('is-valid');
+    } else {
+        input.classList.remove('is-valid');
     }
 }
 
@@ -178,6 +202,9 @@ function openAddPatientModal() {
     document.getElementById('savePatientBtn').innerHTML = '<i class="bi bi-save"></i> Save Patient';
     document.getElementById('patientForm').reset();
     document.getElementById('patientId').value = '';
+    
+    // Clear any previous validation states
+    clearAllFieldErrors();
 }
 
 // Edit patient
@@ -226,46 +253,63 @@ async function savePatient() {
     console.log('Save patient button clicked');
     const form = document.getElementById('patientForm');
     
-    // Custom validation for email
-    const email = document.getElementById('email').value.trim();
-    if (email && !email.includes('@')) {
-        showAlert('Please enter a valid email address with @ symbol', 'danger');
-        document.getElementById('email').focus();
-        return;
+    // Clear all previous validation states
+    clearAllFieldErrors();
+    
+    let hasErrors = false;
+    
+    // Validate required fields
+    const firstName = document.getElementById('firstName');
+    const lastName = document.getElementById('lastName');
+    
+    if (!firstName.value.trim()) {
+        showFieldError(firstName, 'First name is required');
+        hasErrors = true;
     }
     
-    // Custom validation for phone numbers
-    const phone = document.getElementById('phone').value.trim();
-    const emergencyPhone = document.getElementById('emergencyContactPhone').value.trim();
+    if (!lastName.value.trim()) {
+        showFieldError(lastName, 'Last name is required');
+        hasErrors = true;
+    }
+    
+    // Validate email
+    const email = document.getElementById('email');
+    if (email.value.trim() && !email.value.includes('@')) {
+        showFieldError(email, 'Please enter a valid email address with @ symbol');
+        hasErrors = true;
+    }
+    
+    // Validate phone numbers
+    const phone = document.getElementById('phone');
+    const emergencyPhone = document.getElementById('emergencyContactPhone');
     
     const phoneRegex = /^[\d\+\s\-]+$/;
-    if (phone && !phoneRegex.test(phone)) {
-        showAlert('Phone number can only contain numbers, +, spaces, and hyphens', 'danger');
-        document.getElementById('phone').focus();
-        return;
+    
+    if (phone.value.trim() && !phoneRegex.test(phone.value.trim())) {
+        showFieldError(phone, 'Phone number can only contain numbers, +, spaces, and hyphens');
+        hasErrors = true;
     }
     
-    if (emergencyPhone && !phoneRegex.test(emergencyPhone)) {
-        showAlert('Emergency contact phone can only contain numbers, +, spaces, and hyphens', 'danger');
-        document.getElementById('emergencyContactPhone').focus();
-        return;
+    if (emergencyPhone.value.trim() && !phoneRegex.test(emergencyPhone.value.trim())) {
+        showFieldError(emergencyPhone, 'Phone number can only contain numbers, +, spaces, and hyphens');
+        hasErrors = true;
     }
     
-    if (!form.checkValidity()) {
-        form.reportValidity();
+    // If there are validation errors, stop here
+    if (hasErrors) {
         return;
     }
     
     const patientData = {
-        first_name: document.getElementById('firstName').value.trim(),
-        last_name: document.getElementById('lastName').value.trim(),
+        first_name: firstName.value.trim(),
+        last_name: lastName.value.trim(),
         date_of_birth: document.getElementById('dateOfBirth').value || null,
         gender: document.getElementById('gender').value || null,
-        phone: phone || null,
-        email: email || null,
+        phone: phone.value.trim() || null,
+        email: email.value.trim() || null,
         address: document.getElementById('address').value.trim() || null,
         emergency_contact_name: document.getElementById('emergencyContactName').value.trim() || null,
-        emergency_contact_phone: emergencyPhone || null
+        emergency_contact_phone: emergencyPhone.value.trim() || null
     };
     
     console.log('Patient data to save:', patientData);
@@ -311,6 +355,15 @@ async function savePatient() {
             '<i class="bi bi-save"></i> Update Patient' : 
             '<i class="bi bi-save"></i> Save Patient';
     }
+}
+
+// Clear all field errors
+function clearAllFieldErrors() {
+    const form = document.getElementById('patientForm');
+    const inputs = form.querySelectorAll('.form-control');
+    inputs.forEach(input => {
+        input.classList.remove('is-invalid', 'is-valid');
+    });
 }
 
 // View patient details (placeholder for future enhancement)
