@@ -2,6 +2,27 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
 
+// Get all available institutions for dropdown (must be before /:id route)
+router.get('/institutions/available', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT id, name, type FROM institutions 
+      ORDER BY name
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching institutions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch institutions'
+    });
+  }
+});
+
 // Get all doctors with their institutions
 router.get('/', async (req, res) => {
   try {
@@ -240,27 +261,6 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete doctor'
-    });
-  }
-});
-
-// Get all available institutions for dropdown
-router.get('/institutions/available', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT id, name, type FROM institutions 
-      ORDER BY name
-    `);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching institutions:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch institutions'
     });
   }
 });

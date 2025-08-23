@@ -124,6 +124,7 @@ async function loadAvailableInstitutions() {
         }
     } catch (error) {
         console.error('Error loading institutions:', error);
+        // Continue without institutions - they're optional
     }
 }
 
@@ -265,7 +266,7 @@ function openAddDoctorModal() {
 // Clear all field errors
 function clearAllFieldErrors() {
     const form = document.getElementById('doctorForm');
-    const inputs = form.querySelectorAll('.form-control');
+    const inputs = form.querySelectorAll('.form-control, .form-select');
     inputs.forEach(input => {
         input.classList.remove('is-invalid', 'is-valid');
     });
@@ -301,4 +302,143 @@ async function editDoctor(id) {
             document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Doctor';
             document.getElementById('saveDoctorBtn').innerHTML = '<i class="bi bi-save"></i> Update Doctor';
             
-            
+            // Clear validation states and show modal
+            clearAllFieldErrors();
+            new bootstrap.Modal(document.getElementById('doctorModal')).show();
+        }
+    } catch (error) {
+        showAlert('Error loading doctor details: ' + error.message, 'danger');
+    }
+}
+
+// Save doctor (create or update)
+async function saveDoctor() {
+    console.log('Save doctor button clicked');
+    const form = document.getElementById('doctorForm');
+    
+    // Clear all previous validation states
+    clearAllFieldErrors();
+    
+    let hasErrors = false;
+    
+    // Validate required fields
+    const firstName = document.getElementById('firstName');
+    const lastName = document.getElementById('lastName');
+    
+    if (!firstName.value.trim()) {
+        showFieldError(firstName, 'First name is required');
+        hasErrors = true;
+    }
+    
+    if (!lastName.value.trim()) {
+        showFieldError(lastName, 'Last name is required');
+        hasErrors = true;
+    }
+    
+    // Validate email
+    const email = document.getElementById('email');
+    if (email.value.trim() && !email.value.includes('@')) {
+        showFieldError(email, 'Please enter a valid email address with @ symbol');
+        hasErrors = true;
+    }
+    
+    // Validate phone number
+    const phone = document.getElementById('phone');
+    const phoneRegex = /^[\d\+\s\-]+$/;
+    
+    if (phone.value.trim() && !phoneRegex.test(phone.value.trim())) {
+        showFieldError(phone, 'Phone number can only contain numbers, +, spaces, and hyphens');
+        hasErrors = true;
+    }
+    
+    // If there are validation errors, stop here
+    if (hasErrors) {
+        return;
+    }
+    
+    // Get selected institutions
+    const institutionSelect = document.getElementById('institutions');
+    const selectedInstitutions = Array.from(institutionSelect.selectedOptions).map(option => option.value);
+    
+    const doctorData = {
+        first_name: firstName.value.trim(),
+        last_name: lastName.value.trim(),
+        specialty: document.getElementById('specialty').value.trim() || null,
+        license_number: document.getElementById('licenseNumber').value.trim() || null,
+        phone: phone.value.trim() || null,
+        email: email.value.trim() || null,
+        institution_ids: selectedInstitutions
+    };
+    
+    console.log('Doctor data to save:', doctorData);
+    
+    try {
+        const saveBtn = document.getElementById('saveDoctorBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+        
+        let response;
+        if (currentEditingId) {
+            // Update existing doctor
+            console.log('Updating doctor:', currentEditingId);
+            response = await apiCall(`/doctors/${currentEditingId}`, {
+                method: 'PUT',
+                body: JSON.stringify(doctorData)
+            });
+        } else {
+            // Create new doctor
+            console.log('Creating new doctor');
+            response = await apiCall('/doctors', {
+                method: 'POST',
+                body: JSON.stringify(doctorData)
+            });
+        }
+        
+        console.log('Save response:', response);
+        
+        if (response.success) {
+            showAlert(response.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('doctorModal')).hide();
+            loadDoctors(); // Reload the doctor list
+        } else {
+            showAlert(response.error || 'Failed to save doctor', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving doctor:', error);
+        showAlert('Error saving doctor: ' + error.message, 'danger');
+    } finally {
+        const saveBtn = document.getElementById('saveDoctorBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = currentEditingId ? 
+            '<i class="bi bi-save"></i> Update Doctor' : 
+            '<i class="bi bi-save"></i> Save Doctor';
+    }
+}
+
+// View doctor details (placeholder for future enhancement)
+function viewDoctor(id) {
+    showAlert('Doctor details view will be implemented next', 'info');
+    // TODO: Implement detailed doctor view
+}
+
+// Delete doctor
+async function deleteDoctor(id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiCall(`/doctors/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.success) {
+            showAlert(response.message, 'success');
+            loadDoctors(); // Reload the doctor list
+        } else {
+            showAlert(response.error || 'Failed to delete doctor', 'danger');
+        }
+    } catch (error) {
+        showAlert('Error deleting doctor: ' + error.message, 'danger');
+    }
+}
