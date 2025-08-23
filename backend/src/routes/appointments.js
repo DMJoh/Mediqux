@@ -2,6 +2,67 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
 
+// Get upcoming appointments (for dashboard) - must be before /:id route
+router.get('/dashboard/upcoming', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        a.id,
+        a.appointment_date,
+        a.type,
+        a.status,
+        p.first_name as patient_first_name,
+        p.last_name as patient_last_name,
+        d.first_name as doctor_first_name,
+        d.last_name as doctor_last_name
+      FROM appointments a
+      LEFT JOIN patients p ON a.patient_id = p.id
+      LEFT JOIN doctors d ON a.doctor_id = d.id
+      WHERE a.appointment_date >= NOW() 
+        AND a.status = 'scheduled'
+      ORDER BY a.appointment_date ASC
+      LIMIT 5
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching upcoming appointments:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch upcoming appointments'
+    });
+  }
+});
+
+// Get appointment statistics - must be before /:id route
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        COUNT(*) as total_appointments,
+        COUNT(CASE WHEN status = 'scheduled' AND appointment_date >= NOW() THEN 1 END) as upcoming,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
+        COUNT(CASE WHEN appointment_date::date = CURRENT_DATE THEN 1 END) as today
+      FROM appointments
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching appointment statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch appointment statistics'
+    });
+  }
+});
+
 // Get all appointments with patient, doctor, and institution details
 router.get('/', async (req, res) => {
   try {
@@ -281,67 +342,6 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete appointment'
-    });
-  }
-});
-
-// Get upcoming appointments (for dashboard)
-router.get('/dashboard/upcoming', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT 
-        a.id,
-        a.appointment_date,
-        a.type,
-        a.status,
-        p.first_name as patient_first_name,
-        p.last_name as patient_last_name,
-        d.first_name as doctor_first_name,
-        d.last_name as doctor_last_name
-      FROM appointments a
-      LEFT JOIN patients p ON a.patient_id = p.id
-      LEFT JOIN doctors d ON a.doctor_id = d.id
-      WHERE a.appointment_date >= NOW() 
-        AND a.status = 'scheduled'
-      ORDER BY a.appointment_date ASC
-      LIMIT 5
-    `);
-    
-    res.json({
-      success: true,
-      data: result.rows
-    });
-  } catch (error) {
-    console.error('Error fetching upcoming appointments:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch upcoming appointments'
-    });
-  }
-});
-
-// Get appointment statistics
-router.get('/stats/summary', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT 
-        COUNT(*) as total_appointments,
-        COUNT(CASE WHEN status = 'scheduled' AND appointment_date >= NOW() THEN 1 END) as upcoming,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
-        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
-        COUNT(CASE WHEN appointment_date::date = CURRENT_DATE THEN 1 END) as today
-      FROM appointments
-    `);
-    
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error fetching appointment statistics:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch appointment statistics'
     });
   }
 });

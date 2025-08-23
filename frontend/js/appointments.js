@@ -99,6 +99,7 @@ async function loadAppointments() {
 
 // Load dropdown data (patients, doctors, institutions)
 async function loadDropdownData() {
+    console.log('Loading dropdown data...');
     try {
         const [patientsResponse, doctorsResponse, institutionsResponse] = await Promise.allSettled([
             apiCall('/patients'),
@@ -106,9 +107,16 @@ async function loadDropdownData() {
             apiCall('/institutions')
         ]);
         
+        console.log('Dropdown responses:', { patientsResponse, doctorsResponse, institutionsResponse });
+        
         // Load patients
         if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
             patients = patientsResponse.value.data;
+            populatePatientDropdowns();
+            console.log(`Loaded ${patients.length} patients`);
+        } else {
+            console.error('Failed to load patients for dropdown');
+            patients = [];
             populatePatientDropdowns();
         }
         
@@ -116,15 +124,32 @@ async function loadDropdownData() {
         if (doctorsResponse.status === 'fulfilled' && doctorsResponse.value.success) {
             doctors = doctorsResponse.value.data;
             populateDoctorDropdowns();
+            console.log(`Loaded ${doctors.length} doctors`);
+        } else {
+            console.error('Failed to load doctors for dropdown');
+            doctors = [];
+            populateDoctorDropdowns();
         }
         
         // Load institutions
         if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
             institutions = institutionsResponse.value.data;
             populateInstitutionDropdowns();
+            console.log(`Loaded ${institutions.length} institutions`);
+        } else {
+            console.error('Failed to load institutions for dropdown');
+            institutions = [];
+            populateInstitutionDropdowns();
         }
     } catch (error) {
         console.error('Error loading dropdown data:', error);
+        // Initialize empty dropdowns to prevent errors
+        patients = [];
+        doctors = [];
+        institutions = [];
+        populatePatientDropdowns();
+        populateDoctorDropdowns();
+        populateInstitutionDropdowns();
     }
 }
 
@@ -141,6 +166,11 @@ async function loadAppointmentStats() {
         }
     } catch (error) {
         console.error('Error loading appointment stats:', error);
+        // Set defaults
+        document.getElementById('totalAppointmentsCount').textContent = '0';
+        document.getElementById('upcomingCount').textContent = '0';
+        document.getElementById('completedCount').textContent = '0';
+        document.getElementById('todayCount').textContent = '0';
     }
 }
 
@@ -149,9 +179,388 @@ function populatePatientDropdowns() {
     const modalSelect = document.getElementById('patientId');
     const filterSelect = document.getElementById('patientFilter');
     
+    if (!modalSelect || !filterSelect) {
+        console.error('Patient dropdown elements not found');
+        return;
+    }
+    
     const options = patients.map(patient => 
         `<option value="${patient.id}">${patient.first_name} ${patient.last_name}</option>`
     ).join('');
     
     modalSelect.innerHTML = '<option value="">Select Patient</option>' + options;
-    filterSelect.innerHTML = '<option value="">All Patients</option>' +
+    filterSelect.innerHTML = '<option value="">All Patients</option>' + options;
+    
+    console.log(`Populated patient dropdowns with ${patients.length} patients`);
+}
+
+// Populate doctor dropdowns
+function populateDoctorDropdowns() {
+    const modalSelect = document.getElementById('doctorId');
+    const filterSelect = document.getElementById('doctorFilter');
+    
+    if (!modalSelect || !filterSelect) {
+        console.error('Doctor dropdown elements not found');
+        return;
+    }
+    
+    const options = doctors.map(doctor => 
+        `<option value="${doctor.id}">Dr. ${doctor.first_name} ${doctor.last_name}${doctor.specialty ? ` - ${doctor.specialty}` : ''}</option>`
+    ).join('');
+    
+    modalSelect.innerHTML = '<option value="">Select Doctor (Optional)</option>' + options;
+    filterSelect.innerHTML = '<option value="">All Doctors</option>' + options;
+    
+    console.log(`Populated doctor dropdowns with ${doctors.length} doctors`);
+}
+
+// Populate institution dropdowns
+function populateInstitutionDropdowns() {
+    const modalSelect = document.getElementById('institutionId');
+    
+    if (!modalSelect) {
+        console.error('Institution dropdown element not found');
+        return;
+    }
+    
+    const options = institutions.map(institution => 
+        `<option value="${institution.id}">${institution.name}${institution.type ? ` (${institution.type})` : ''}</option>`
+    ).join('');
+    
+    modalSelect.innerHTML = '<option value="">Select Institution (Optional)</option>' + options;
+    
+    console.log(`Populated institution dropdown with ${institutions.length} institutions`);
+}
+
+// Display appointments in table
+function displayAppointments() {
+    const tbody = document.getElementById('appointmentsTableBody');
+    const tableDiv = document.getElementById('appointmentsTable');
+    const noAppointments = document.getElementById('noAppointments');
+    
+    if (filteredAppointments.length === 0) {
+        tableDiv.style.display = 'none';
+        noAppointments.style.display = 'block';
+        return;
+    }
+    
+    tableDiv.style.display = 'block';
+    noAppointments.style.display = 'none';
+    
+    tbody.innerHTML = filteredAppointments.map(appointment => {
+        const appointmentDate = new Date(appointment.appointment_date);
+        const now = new Date();
+        const isPast = appointmentDate < now;
+        
+        // Status badge styling
+        let statusBadge = '';
+        switch (appointment.status) {
+            case 'scheduled':
+                statusBadge = `<span class="badge bg-${isPast ? 'warning' : 'success'}">${isPast ? 'Overdue' : 'Scheduled'}</span>`;
+                break;
+            case 'completed':
+                statusBadge = '<span class="badge bg-info">Completed</span>';
+                break;
+            case 'cancelled':
+                statusBadge = '<span class="badge bg-danger">Cancelled</span>';
+                break;
+            default:
+                statusBadge = `<span class="badge bg-secondary">${appointment.status || 'Unknown'}</span>`;
+        }
+        
+        return `
+            <tr class="${isPast && appointment.status === 'scheduled' ? 'table-warning' : ''}">
+                <td>
+                    <strong>${appointmentDate.toLocaleDateString()}</strong><br>
+                    <small class="text-muted">${appointmentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</small>
+                </td>
+                <td>
+                    <strong>${appointment.patient_first_name || 'Unknown'} ${appointment.patient_last_name || 'Patient'}</strong>
+                    ${appointment.patient_phone ? `<br><small class="text-muted"><i class="bi bi-telephone"></i> ${appointment.patient_phone}</small>` : ''}
+                </td>
+                <td>
+                    ${appointment.doctor_first_name ? 
+                        `<strong>Dr. ${appointment.doctor_first_name} ${appointment.doctor_last_name}</strong>
+                         ${appointment.doctor_specialty ? `<br><small class="text-muted">${appointment.doctor_specialty}</small>` : ''}` : 
+                        '<small class="text-muted">No doctor assigned</small>'
+                    }
+                </td>
+                <td>
+                    ${appointment.institution_name ? 
+                        `<strong>${appointment.institution_name}</strong>
+                         ${appointment.institution_type ? `<br><small class="text-muted">${appointment.institution_type}</small>` : ''}` : 
+                        '<small class="text-muted">No institution</small>'
+                    }
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark">${appointment.type || 'General'}</span>
+                </td>
+                <td>
+                    ${statusBadge}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary" onclick="editAppointment('${appointment.id}')" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-outline-info" onclick="viewAppointment('${appointment.id}')" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteAppointment('${appointment.id}', '${appointmentDate.toLocaleDateString()}')" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Filter appointments based on search and filters
+function filterAppointments() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const patientFilter = document.getElementById('patientFilter').value;
+    const doctorFilter = document.getElementById('doctorFilter').value;
+    
+    filteredAppointments = allAppointments.filter(appointment => {
+        const matchesSearch = !searchTerm || 
+            (appointment.patient_first_name && appointment.patient_first_name.toLowerCase().includes(searchTerm)) ||
+            (appointment.patient_last_name && appointment.patient_last_name.toLowerCase().includes(searchTerm)) ||
+            (appointment.doctor_first_name && appointment.doctor_first_name.toLowerCase().includes(searchTerm)) ||
+            (appointment.doctor_last_name && appointment.doctor_last_name.toLowerCase().includes(searchTerm)) ||
+            (appointment.institution_name && appointment.institution_name.toLowerCase().includes(searchTerm)) ||
+            (appointment.type && appointment.type.toLowerCase().includes(searchTerm)) ||
+            (appointment.notes && appointment.notes.toLowerCase().includes(searchTerm));
+        
+        const matchesStatus = !statusFilter || appointment.status === statusFilter;
+        const matchesPatient = !patientFilter || appointment.patient_id === patientFilter;
+        const matchesDoctor = !doctorFilter || appointment.doctor_id === doctorFilter;
+        
+        return matchesSearch && matchesStatus && matchesPatient && matchesDoctor;
+    });
+    
+    displayAppointments();
+    updateAppointmentCount();
+}
+
+// Clear all filters
+function clearFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('patientFilter').value = '';
+    document.getElementById('doctorFilter').value = '';
+    filteredAppointments = [...allAppointments];
+    displayAppointments();
+    updateAppointmentCount();
+}
+
+// Update appointment count badge
+function updateAppointmentCount() {
+    document.getElementById('appointmentCount').textContent = filteredAppointments.length;
+}
+
+// Show/hide loading spinner
+function showLoading(show) {
+    document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+}
+
+// Open modal for adding new appointment
+function openAddAppointmentModal() {
+    currentEditingId = null;
+    document.getElementById('modalTitle').innerHTML = '<i class="bi bi-calendar-plus"></i> Schedule Appointment';
+    document.getElementById('saveAppointmentBtn').innerHTML = '<i class="bi bi-save"></i> Save Appointment';
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('appointmentId').value = '';
+    document.getElementById('status').value = 'scheduled';
+    document.getElementById('diagnosisSection').style.display = 'none';
+    
+    // Set minimum date to today
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('appointmentDateTime').min = localDateTime;
+    
+    // Clear any previous validation states
+    clearAllFieldErrors();
+}
+
+// Clear all field errors
+function clearAllFieldErrors() {
+    const form = document.getElementById('appointmentForm');
+    const inputs = form.querySelectorAll('.form-control, .form-select');
+    inputs.forEach(input => {
+        input.classList.remove('is-invalid', 'is-valid');
+    });
+}
+
+// Edit appointment
+async function editAppointment(id) {
+    try {
+        const response = await apiCall(`/appointments/${id}`);
+        
+        if (response.success) {
+            const appointment = response.data;
+            currentEditingId = id;
+            
+            // Populate form
+            document.getElementById('appointmentId').value = appointment.id;
+            document.getElementById('patientId').value = appointment.patient_id || '';
+            document.getElementById('doctorId').value = appointment.doctor_id || '';
+            document.getElementById('institutionId').value = appointment.institution_id || '';
+            
+            // Format datetime for input
+            const appointmentDate = new Date(appointment.appointment_date);
+            const localDateTime = new Date(appointmentDate.getTime() - appointmentDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            document.getElementById('appointmentDateTime').value = localDateTime;
+            
+            document.getElementById('appointmentType').value = appointment.type || '';
+            document.getElementById('status').value = appointment.status || 'scheduled';
+            document.getElementById('notes').value = appointment.notes || '';
+            document.getElementById('diagnosis').value = appointment.diagnosis || '';
+            
+            // Show diagnosis section if completed
+            const diagnosisSection = document.getElementById('diagnosisSection');
+            if (appointment.status === 'completed') {
+                diagnosisSection.style.display = 'block';
+            } else {
+                diagnosisSection.style.display = 'none';
+            }
+            
+            // Update modal title
+            document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Appointment';
+            document.getElementById('saveAppointmentBtn').innerHTML = '<i class="bi bi-save"></i> Update Appointment';
+            
+            // Clear validation states and show modal
+            clearAllFieldErrors();
+            new bootstrap.Modal(document.getElementById('appointmentModal')).show();
+        }
+    } catch (error) {
+        showAlert('Error loading appointment details: ' + error.message, 'danger');
+    }
+}
+
+// Save appointment (create or update)
+async function saveAppointment() {
+    console.log('Save appointment button clicked');
+    const form = document.getElementById('appointmentForm');
+    
+    // Clear all previous validation states
+    clearAllFieldErrors();
+    
+    let hasErrors = false;
+    
+    // Validate required fields
+    const patientId = document.getElementById('patientId');
+    const appointmentDateTime = document.getElementById('appointmentDateTime');
+    
+    if (!patientId.value) {
+        showFieldError(patientId, 'Please select a patient');
+        hasErrors = true;
+    }
+    
+    if (!appointmentDateTime.value) {
+        showFieldError(appointmentDateTime, 'Please select appointment date and time');
+        hasErrors = true;
+    }
+    
+    // Validate appointment time is not in the past (for new scheduled appointments)
+    if (appointmentDateTime.value && !currentEditingId) {
+        const selectedDate = new Date(appointmentDateTime.value);
+        const now = new Date();
+        
+        if (selectedDate < now && document.getElementById('status').value === 'scheduled') {
+            showFieldError(appointmentDateTime, 'Cannot schedule appointment in the past');
+            hasErrors = true;
+        }
+    }
+    
+    // If there are validation errors, stop here
+    if (hasErrors) {
+        return;
+    }
+    
+    const appointmentData = {
+        patient_id: patientId.value,
+        doctor_id: document.getElementById('doctorId').value || null,
+        institution_id: document.getElementById('institutionId').value || null,
+        appointment_date: appointmentDateTime.value,
+        type: document.getElementById('appointmentType').value || null,
+        status: document.getElementById('status').value,
+        notes: document.getElementById('notes').value.trim() || null,
+        diagnosis: document.getElementById('diagnosis').value.trim() || null
+    };
+    
+    console.log('Appointment data to save:', appointmentData);
+    
+    try {
+        const saveBtn = document.getElementById('saveAppointmentBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+        
+        let response;
+        if (currentEditingId) {
+            // Update existing appointment
+            console.log('Updating appointment:', currentEditingId);
+            response = await apiCall(`/appointments/${currentEditingId}`, {
+                method: 'PUT',
+                body: JSON.stringify(appointmentData)
+            });
+        } else {
+            // Create new appointment
+            console.log('Creating new appointment');
+            response = await apiCall('/appointments', {
+                method: 'POST',
+                body: JSON.stringify(appointmentData)
+            });
+        }
+        
+        console.log('Save response:', response);
+        
+        if (response.success) {
+            showAlert(response.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('appointmentModal')).hide();
+            loadAppointments(); // Reload the appointment list
+            loadAppointmentStats(); // Reload stats
+        } else {
+            showAlert(response.error || 'Failed to save appointment', 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving appointment:', error);
+        showAlert('Error saving appointment: ' + error.message, 'danger');
+    } finally {
+        const saveBtn = document.getElementById('saveAppointmentBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = currentEditingId ? 
+            '<i class="bi bi-save"></i> Update Appointment' : 
+            '<i class="bi bi-save"></i> Save Appointment';
+    }
+}
+
+// View appointment details (placeholder for future enhancement)
+function viewAppointment(id) {
+    showAlert('Appointment details view will be implemented next', 'info');
+    // TODO: Implement detailed appointment view with prescriptions
+}
+
+// Delete appointment
+async function deleteAppointment(id, date) {
+    if (!confirm(`Are you sure you want to delete the appointment on ${date}?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiCall(`/appointments/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.success) {
+            showAlert(response.message, 'success');
+            loadAppointments(); // Reload the appointment list
+            loadAppointmentStats(); // Reload stats
+        } else {
+            showAlert(response.error || 'Failed to delete appointment', 'danger');
+        }
+    } catch (error) {
+        showAlert('Error deleting appointment: ' + error.message, 'danger');
+    }
+}

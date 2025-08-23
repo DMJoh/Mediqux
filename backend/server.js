@@ -25,6 +25,35 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
+// Test appointment functionality
+app.get('/api/test-appointments', async (req, res) => {
+  try {
+    const db = require('./src/database/db');
+    
+    // Test basic query
+    const appointmentResult = await db.query('SELECT COUNT(*) as count FROM appointments');
+    const patientResult = await db.query('SELECT COUNT(*) as count FROM patients');
+    const doctorResult = await db.query('SELECT COUNT(*) as count FROM doctors');
+    
+    res.json({
+      success: true,
+      message: 'Appointment system test successful',
+      data: {
+        appointments: appointmentResult.rows[0].count,
+        patients: patientResult.rows[0].count,
+        doctors: doctorResult.rows[0].count
+      }
+    });
+  } catch (error) {
+    console.error('Appointment test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Appointment system test failed',
+      details: error.message
+    });
+  }
+});
+
 // Test database connection
 app.get('/api/test-db', async (req, res) => {
   try {

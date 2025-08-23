@@ -95,3 +95,42 @@ body {
     opacity: 0.6;
     pointer-events: none;
 }
+
+/* Appointment specific styles */
+.table-warning {
+    --bs-table-bg: #fff3cd;
+    --bs-table-striped-bg: #f9ecb8;
+    --bs-table-striped-color: #000;
+    --bs-table-active-bg: #f7e49a;
+    --bs-table-active-color: #000;
+    --bs-table-hover-bg: #f8e892;
+    --bs-table-hover-color: #000;
+    color: #000;
+}
+
+/* Badge enhancements */
+.badge {
+    font-size: 0.75em;
+}
+
+/* Modal enhancements */
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-title {
+    font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-sm > .btn {
+        padding: 0.25rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
