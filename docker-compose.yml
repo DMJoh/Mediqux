@@ -1,0 +1,84 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: medical_app
+      POSTGRES_USER: medboy
+      POSTGRES_PASSWORD: SpaceMed@123
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - medical_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medboy -d medical_app"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API server
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres  # Use service name for container communication
+      - DB_PORT=5432
+      - DB_NAME=medical_app
+      - DB_USER=medboy
+      - DB_PASSWORD=SpaceMed@123
+    volumes:
+      - ./backend:/app
+      - /app/node_modules  # Anonymous volume to preserve node_modules
+      - ./uploads:/app/uploads  # For PDF uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medical_network
+
+  # Frontend web server
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    networks:
+      - medical_network
+
+  # Database admin interface
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "8081:80"  # Changed to avoid conflict with frontend
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - medical_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  medical_network:
+    driver: bridge
