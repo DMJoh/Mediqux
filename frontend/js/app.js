@@ -115,10 +115,11 @@ async function loadDashboardStats() {
     
     try {
         // Load actual counts from APIs
-        const [patientsResponse, doctorsResponse, institutionsResponse] = await Promise.allSettled([
+        const [patientsResponse, doctorsResponse, institutionsResponse, appointmentsResponse] = await Promise.allSettled([
             apiCall('/patients'),
             apiCall('/doctors'),
-            apiCall('/institutions')
+            apiCall('/institutions'),
+            apiCall('/appointments/stats/summary')
         ]);
         
         // Update patient count
@@ -142,8 +143,12 @@ async function loadDashboardStats() {
             document.getElementById('totalInstitutions').textContent = '0';
         }
         
-        // Appointments - placeholder for now
-        document.getElementById('totalAppointments').textContent = '0';
+        // Update appointment count
+        if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
+            document.getElementById('totalAppointments').textContent = appointmentsResponse.value.data.total_appointments || 0;
+        } else {
+            document.getElementById('totalAppointments').textContent = '0';
+        }
         
     } catch (error) {
         stats.forEach(stat => {
