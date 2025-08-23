@@ -103,7 +103,7 @@ async function checkSystemHealth() {
 
 // Load dashboard stats with loading states
 async function loadDashboardStats() {
-    const stats = ['totalPatients', 'totalDoctors', 'totalAppointments', 'totalReports'];
+    const stats = ['totalPatients', 'totalDoctors', 'totalInstitutions', 'totalAppointments'];
     
     // Show loading state
     stats.forEach(stat => {
@@ -114,16 +114,37 @@ async function loadDashboardStats() {
     });
     
     try {
-        // Placeholder - will implement actual API calls as we build features
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+        // Load actual counts from APIs
+        const [patientsResponse, doctorsResponse, institutionsResponse] = await Promise.allSettled([
+            apiCall('/patients'),
+            apiCall('/doctors'),
+            apiCall('/institutions')
+        ]);
         
-        // Reset to 0 for now
-        stats.forEach(stat => {
-            const element = document.getElementById(stat);
-            if (element) {
-                element.textContent = '0';
-            }
-        });
+        // Update patient count
+        if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
+            document.getElementById('totalPatients').textContent = patientsResponse.value.count || 0;
+        } else {
+            document.getElementById('totalPatients').textContent = '0';
+        }
+        
+        // Update doctor count
+        if (doctorsResponse.status === 'fulfilled' && doctorsResponse.value.success) {
+            document.getElementById('totalDoctors').textContent = doctorsResponse.value.count || 0;
+        } else {
+            document.getElementById('totalDoctors').textContent = '0';
+        }
+        
+        // Update institution count
+        if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
+            document.getElementById('totalInstitutions').textContent = institutionsResponse.value.count || 0;
+        } else {
+            document.getElementById('totalInstitutions').textContent = '0';
+        }
+        
+        // Appointments - placeholder for now
+        document.getElementById('totalAppointments').textContent = '0';
+        
     } catch (error) {
         stats.forEach(stat => {
             const element = document.getElementById(stat);

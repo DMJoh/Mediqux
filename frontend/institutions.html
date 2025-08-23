@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institutions - Medical Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html"><i class="bi bi-heart-pulse"></i> Medical Manager</a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="index.html">Dashboard</a>
+                <a class="nav-link" href="patients.html">Patients</a>
+                <a class="nav-link" href="doctors.html">Doctors</a>
+                <a class="nav-link active" href="institutions.html">Institutions</a>
+                <a class="nav-link" href="appointments.html">Appointments</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="bi bi-building"></i> Institution Management</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#institutionModal" onclick="openAddInstitutionModal()">
+                        <i class="bi bi-plus-circle"></i> Add New Institution
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search institutions by name, type, or address...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="typeFilter">
+                    <option value="">All Types</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Institutions Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Institution List 
+                    <span id="institutionCount" class="badge bg-primary ms-2">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading institutions...</p>
+                </div>
+                
+                <div id="institutionsTable" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Address</th>
+                                    <th>Contact</th>
+                                    <th>Doctors</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="institutionsTableBody">
+                                <!-- Institutions will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noInstitutions" style="display: none;" class="text-center py-5">
+                    <i class="bi bi-building display-1 text-muted"></i>
+                    <h3 class="text-muted">No Institutions Found</h3>
+                    <p class="text-muted">Start by adding your first institution.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#institutionModal" onclick="openAddInstitutionModal()">
+                        <i class="bi bi-plus-circle"></i> Add Institution
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Institution Modal -->
+    <div class="modal fade" id="institutionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="bi bi-plus-circle"></i> Add New Institution
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="institutionForm">
+                        <input type="hidden" id="institutionId" name="institutionId">
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Institution Name *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                    <div class="invalid-feedback" id="nameError">
+                                        Institution name is required
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="type" class="form-label">Type</label>
+                                    <select class="form-select" id="type" name="type">
+                                        <option value="">Select Type</option>
+                                        <option value="Hospital">Hospital</option>
+                                        <option value="Clinic">Clinic</option>
+                                        <option value="Laboratory">Laboratory</option>
+                                        <option value="Pharmacy">Pharmacy</option>
+                                        <option value="Diagnostic Center">Diagnostic Center</option>
+                                        <option value="Nursing Home">Nursing Home</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="2"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           pattern="[\d\+\s\-]+" 
+                                           title="Only numbers, +, spaces, and hyphens allowed">
+                                    <div class="invalid-feedback" id="phoneError">
+                                        Phone number can only contain numbers, +, spaces, and hyphens
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email"
+                                           title="Please enter a valid email address">
+                                    <div class="invalid-feedback" id="emailError">
+                                        Please enter a valid email address with @ symbol
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="website" class="form-label">Website</label>
+                            <input type="url" class="form-control" id="website" name="website" 
+                                   placeholder="https://example.com">
+                            <div class="invalid-feedback" id="websiteError">
+                                Please enter a valid website URL
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveInstitutionBtn" onclick="saveInstitution()">
+                        <i class="bi bi-save"></i> Save Institution
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+    <script src="js/institutions.js"></script>
+</body>
+</html>
