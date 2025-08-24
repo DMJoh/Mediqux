@@ -189,20 +189,64 @@ function displayMedications() {
         // Format dosage forms
         const forms = medication.dosage_forms || [];
         const formsDisplay = forms.length > 0 
-            ? forms.map(form => `<span class="badge bg-secondary me-1">${form}</span>`).join('')
-            : '<small class="text-muted">Not specified</small>';
+            ? forms.map(form => `<span class="badge bg-secondary me-1 mb-1">${form}</span>`).join('')
+            : '';
         
-        // Format active ingredients or strengths
-        const ingredients = medication.active_ingredients || [];
+        // Format active ingredients
+        let ingredients = medication.active_ingredients || [];
+        
+        // Handle case where active_ingredients comes back as a string (JSONB)
+        if (typeof ingredients === 'string') {
+            try {
+                ingredients = JSON.parse(ingredients);
+            } catch (e) {
+                console.warn('Failed to parse active_ingredients:', ingredients);
+                ingredients = [];
+            }
+        }
+        
+        // Ensure ingredients is always an array
+        if (!Array.isArray(ingredients)) {
+            ingredients = [];
+        }
+        
+        // Format overall strengths
         const strengths = medication.strengths || [];
         
-        let strengthsDisplay = '';
+        // Combine all strength/form information
+        let combinedDisplay = '';
+        
+        // Always show dosage forms first - make them more prominent
+        if (forms.length > 0) {
+            combinedDisplay += '<div class="mb-2">';
+            combinedDisplay += '<small class="text-muted d-block"><i class="bi bi-prescription2"></i> Forms:</small>';
+            combinedDisplay += '<div class="mt-1">' + formsDisplay + '</div>';
+            combinedDisplay += '</div>';
+        }
+        
+        // Show active ingredients if available
         if (ingredients.length > 0) {
-            strengthsDisplay = '<br><div class="mt-1">' + 
-                ingredients.map(ing => `<small class="text-success d-block">• ${ing.name}: ${ing.dosage}</small>`).join('') +
-                '</div>';
-        } else if (strengths.length > 0) {
-            strengthsDisplay = '<br>' + strengths.map(strength => `<small class="text-muted">${strength}</small>`).join(', ');
+            combinedDisplay += '<div class="mt-2">';
+            combinedDisplay += '<small class="text-muted d-block"><i class="bi bi-capsule"></i> Contents:</small>';
+            combinedDisplay += ingredients.map(ing => 
+                `<small class="text-success d-block ms-2">• ${ing.name}: <strong>${ing.dosage}</strong></small>`
+            ).join('');
+            combinedDisplay += '</div>';
+        }
+        
+        // Show overall strengths if available (and different from ingredients)
+        if (strengths.length > 0) {
+            combinedDisplay += '<div class="mt-2">';
+            combinedDisplay += '<small class="text-muted d-block"><i class="bi bi-info-circle"></i> Overall:</small>';
+            combinedDisplay += strengths.map(strength => 
+                `<small class="text-primary d-block ms-2"><strong>${strength}</strong></small>`
+            ).join('');
+            combinedDisplay += '</div>';
+        }
+        
+        // If nothing is specified
+        if (!forms.length && !ingredients.length && !strengths.length) {
+            combinedDisplay = '<small class="text-muted">Not specified</small>';
         }
         
         return `
@@ -215,8 +259,7 @@ function displayMedications() {
                     ${medication.generic_name || '<small class="text-muted">Not specified</small>'}
                 </td>
                 <td>
-                    ${formsDisplay}
-                    ${strengthsDisplay}
+                    ${combinedDisplay}
                 </td>
                 <td>
                     ${medication.manufacturer || '<small class="text-muted">Not specified</small>'}
@@ -311,6 +354,8 @@ function updateSelectedForms() {
     const container = document.getElementById('selectedForms');
     const hiddenInput = document.getElementById('dosageForms');
     
+    console.log('Updating selected forms display:', selectedForms);
+    
     container.innerHTML = selectedForms.map(form => 
         `<span class="badge bg-primary me-1 mb-1">
             ${form}
@@ -319,6 +364,7 @@ function updateSelectedForms() {
     ).join('');
     
     hiddenInput.value = JSON.stringify(selectedForms);
+    console.log('Hidden input value set to:', hiddenInput.value);
 }
 
 // Add strength
@@ -414,6 +460,7 @@ function updateSelectedIngredients() {
 
 // Open modal for adding new medication
 function openAddMedicationModal() {
+    console.log('Opening add medication modal');
     currentEditingId = null;
     selectedForms = [];
     selectedStrengths = [];
@@ -444,10 +491,12 @@ function clearAllFieldErrors() {
 // Edit medication
 async function editMedication(id) {
     try {
+        console.log('Editing medication with ID:', id);
         const response = await apiCall(`/medications/${id}`);
         
         if (response.success) {
             const medication = response.data;
+            console.log('Received medication data for editing:', medication);
             currentEditingId = id;
             
             // Populate form
@@ -458,12 +507,35 @@ async function editMedication(id) {
             document.getElementById('description').value = medication.description || '';
             
             // Set selected forms, strengths, and ingredients
-            selectedForms = medication.dosage_forms || [];
-            selectedStrengths = medication.strengths || [];
-            activeIngredients = medication.active_ingredients || [];
+            selectedForms = Array.isArray(medication.dosage_forms) ? [...medication.dosage_forms] : [];
+            selectedStrengths = Array.isArray(medication.strengths) ? [...medication.strengths] : [];
+            
+            // Handle JSONB active_ingredients
+            let ingredients = medication.active_ingredients || [];
+            if (typeof ingredients === 'string') {
+                try {
+                    ingredients = JSON.parse(ingredients);
+                } catch (e) {
+                    console.warn('Failed to parse active_ingredients:', ingredients);
+                    ingredients = [];
+                }
+            }
+            // Ensure ingredients is always an array
+            if (!Array.isArray(ingredients)) {
+                ingredients = [];
+            }
+            activeIngredients = [...ingredients];
+            
+            // Update all displays
             updateSelectedForms();
             updateSelectedStrengths();
             updateSelectedIngredients();
+            
+            console.log('Edit medication data loaded:', {
+                forms: selectedForms,
+                strengths: selectedStrengths,
+                ingredients: activeIngredients
+            });
             
             // Update modal title
             document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Medication';
@@ -504,14 +576,19 @@ async function saveMedication() {
     const medicationData = {
         name: name.value.trim(),
         generic_name: document.getElementById('genericName').value.trim() || null,
-        dosage_forms: selectedForms,
-        strengths: selectedStrengths,
-        active_ingredients: activeIngredients,
+        dosage_forms: [...selectedForms], // Create a copy to avoid reference issues
+        strengths: [...selectedStrengths],
+        active_ingredients: [...activeIngredients],
         manufacturer: document.getElementById('manufacturer').value.trim() || null,
         description: document.getElementById('description').value.trim() || null
     };
     
     console.log('Medication data to save:', medicationData);
+    console.log('Current arrays state:', {
+        selectedForms: selectedForms,
+        selectedStrengths: selectedStrengths,
+        activeIngredients: activeIngredients
+    });
     
     try {
         const saveBtn = document.getElementById('saveMedicationBtn');
