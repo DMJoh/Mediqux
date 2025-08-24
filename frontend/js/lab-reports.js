@@ -8,6 +8,14 @@ let appointments = [];
 let institutions = [];
 let labValueCounter = 0;
 
+// Utility function to escape HTML
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Common lab test templates
 const COMMON_TESTS = {
     CBC: [
@@ -1369,23 +1377,33 @@ async function saveReviewedValues() {
         document.getElementById('saveReviewedValuesBtn').disabled = true;
         document.getElementById('saveReviewedValuesBtn').innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Saving...';
         
+        const requestData = {
+            patient_id: extractedPDFData.patientId,
+            appointment_id: extractedPDFData.appointmentId,
+            institution_id: extractedPDFData.institutionId,
+            test_name: extractedPDFData.testName,
+            test_type: extractedPDFData.testType,
+            test_date: extractedPDFData.testDate,
+            lab_values: validValues,
+            pdf_file_path: extractedPDFData.pdfFilePath
+        };
+        
+        console.log('Sending request data:', requestData);
+        
         const response = await fetch(`${CONFIG.API_BASE}/test-results`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: extractedPDFData.patientId,
-                appointmentId: extractedPDFData.appointmentId,
-                institutionId: extractedPDFData.institutionId,
-                testName: extractedPDFData.testName,
-                testType: extractedPDFData.testType,
-                testDate: extractedPDFData.testDate,
-                labValues: validValues,
-                pdfFilePath: extractedPDFData.pdfFilePath
-            })
+            body: JSON.stringify(requestData)
         });
         
+        console.log('Response status:', response.status);
+        
         const result = await response.json();
-        if (!response.ok) throw new Error(result.message);
+        console.log('Response data:', result);
+        
+        if (!response.ok) {
+            throw new Error(result.message || result.error || `HTTP ${response.status}: Request failed`);
+        }
         
         showAlert('Lab report saved successfully', 'success');
         
