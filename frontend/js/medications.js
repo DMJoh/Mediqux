@@ -184,7 +184,23 @@ function displayMedications() {
     tbody.innerHTML = filteredMedications.map(medication => {
         const prescriptionCount = parseInt(medication.prescription_count) || 0;
         const patientMedicationCount = parseInt(medication.patient_medication_count) || 0;
-        const totalUsage = prescriptionCount + patientMedicationCount;
+        
+        // Determine the actual usage - prescriptions automatically create patient_medications
+        let usageDisplay = '';
+        if (prescriptionCount > 0) {
+            usageDisplay = `${prescriptionCount} prescription${prescriptionCount !== 1 ? 's' : ''}`;
+            if (patientMedicationCount > prescriptionCount) {
+                // Patient has additional medications not from prescriptions
+                const additionalMeds = patientMedicationCount - prescriptionCount;
+                usageDisplay += `, ${additionalMeds} additional`;
+            }
+        } else if (patientMedicationCount > 0) {
+            usageDisplay = `${patientMedicationCount} patient record${patientMedicationCount !== 1 ? 's' : ''}`;
+        } else {
+            usageDisplay = '0 usages';
+        }
+        
+        const totalUsage = Math.max(prescriptionCount, patientMedicationCount);
         
         // Format dosage forms
         const forms = medication.dosage_forms || [];
@@ -265,7 +281,7 @@ function displayMedications() {
                     ${medication.manufacturer || '<small class="text-muted">Not specified</small>'}
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark">${totalUsage} usage${totalUsage !== 1 ? 's' : ''}</span>
+                    <span class="badge bg-light text-dark">${usageDisplay}</span>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
