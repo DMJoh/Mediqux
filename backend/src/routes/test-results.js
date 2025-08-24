@@ -6,6 +6,488 @@ const pdfParse = require('pdf-parse');
 const router = express.Router();
 const db = require('../database/db');
 
+// Lab Panel Management Endpoints (must be before /:id routes)
+
+// Get all lab panels
+router.get('/panels', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT p.*, 
+        COUNT(pp.id) as parameter_count,
+        json_agg(
+          json_build_object(
+            'id', pp.id,
+            'parameter_name', pp.parameter_name,
+            'unit', pp.unit,
+            'reference_min', pp.reference_min,
+            'reference_max', pp.reference_max,
+            'gender_specific', pp.gender_specific,
+            'aliases', pp.aliases
+          ) ORDER BY pp.parameter_name
+        ) FILTER (WHERE pp.id IS NOT NULL) as parameters
+      FROM lab_panels p
+      LEFT JOIN lab_panel_parameters pp ON p.id = pp.panel_id
+      GROUP BY p.id, p.name, p.description, p.category, p.created_at, p.updated_at
+      ORDER BY p.name
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching lab panels:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching lab panels',
+      error: error.message 
+    });
+  }
+});
+
+// Get specific lab panel with parameters
+router.get('/panels/:id', async (req, res) => {
+  try {
+    const panelId = req.params.id;
+    
+    const panelResult = await db.query(
+      'SELECT * FROM lab_panels WHERE id = $1',
+      [panelId]
+    );
+    
+    if (panelResult.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lab panel not found' 
+      });
+    }
+    
+    const parametersResult = await db.query(
+      'SELECT * FROM lab_panel_parameters WHERE panel_id = $1 ORDER BY parameter_name',
+      [panelId]
+    );
+    
+    const panel = panelResult.rows[0];
+    panel.parameters = parametersResult.rows;
+    
+    res.json(panel);
+  } catch (error) {
+    console.error('Error fetching lab panel:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching lab panel',
+      error: error.message 
+    });
+  }
+});
+
+// Create new lab panel
+router.post('/panels', async (req, res) => {
+  try {
+    const { name, description, category = 'Blood', parameters = [] } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Panel name is required' 
+      });
+    }
+    
+    // Check if panel with same name exists
+    const existingPanel = await db.query(
+      'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1)',
+      [name.trim()]
+    );
+    
+    if (existingPanel.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'A panel with this name already exists' 
+      });
+    }
+    
+    // Start transaction
+    await db.query('BEGIN');
+    
+    try {
+      // Create the panel
+      const panelResult = await db.query(
+        `INSERT INTO lab_panels (name, description, category) 
+         VALUES ($1, $2, $3) 
+         RETURNING *`,
+        [name.trim(), description?.trim() || null, category]
+      );
+      
+      const newPanel = panelResult.rows[0];
+      
+      // Add parameters if provided
+      if (parameters && parameters.length > 0) {
+        for (const param of parameters) {
+          if (param.parameter_name && param.parameter_name.trim()) {
+            await db.query(
+              `INSERT INTO lab_panel_parameters 
+               (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                newPanel.id,
+                param.parameter_name.trim(),
+                param.unit?.trim() || null,
+                param.reference_min || null,
+                param.reference_max || null,
+                param.gender_specific || null,
+                param.aliases || null
+              ]
+            );
+          }
+        }
+      }
+      
+      await db.query('COMMIT');
+      
+      // Fetch the complete panel with parameters
+      const completePanel = await db.query(
+        `SELECT p.*, 
+          json_agg(
+            json_build_object(
+              'id', pp.id,
+              'parameter_name', pp.parameter_name,
+              'unit', pp.unit,
+              'reference_min', pp.reference_min,
+              'reference_max', pp.reference_max,
+              'gender_specific', pp.gender_specific,
+              'aliases', pp.aliases
+            ) ORDER BY pp.parameter_name
+          ) FILTER (WHERE pp.id IS NOT NULL) as parameters
+         FROM lab_panels p
+         LEFT JOIN lab_panel_parameters pp ON p.id = pp.panel_id
+         WHERE p.id = $1
+         GROUP BY p.id`,
+        [newPanel.id]
+      );
+      
+      res.status(201).json({
+        success: true,
+        message: 'Lab panel created successfully',
+        panel: completePanel.rows[0]
+      });
+    } catch (error) {
+      await db.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error creating lab panel:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error creating lab panel',
+      error: error.message 
+    });
+  }
+});
+
+// Update lab panel
+router.put('/panels/:id', async (req, res) => {
+  try {
+    const panelId = req.params.id;
+    const { name, description, category } = req.body;
+    
+    if (!name || !name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Panel name is required' 
+      });
+    }
+    
+    // Check if panel exists
+    const existingPanel = await db.query(
+      'SELECT id FROM lab_panels WHERE id = $1',
+      [panelId]
+    );
+    
+    if (existingPanel.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lab panel not found' 
+      });
+    }
+    
+    // Check if another panel with same name exists
+    const duplicatePanel = await db.query(
+      'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1) AND id != $2',
+      [name.trim(), panelId]
+    );
+    
+    if (duplicatePanel.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'A panel with this name already exists' 
+      });
+    }
+    
+    // Update the panel
+    const result = await db.query(
+      `UPDATE lab_panels 
+       SET name = $1, description = $2, category = $3, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $4 
+       RETURNING *`,
+      [name.trim(), description?.trim() || null, category || 'Blood', panelId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Lab panel updated successfully',
+      panel: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating lab panel:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating lab panel',
+      error: error.message 
+    });
+  }
+});
+
+// Delete lab panel
+router.delete('/panels/:id', async (req, res) => {
+  try {
+    const panelId = req.params.id;
+    
+    // Check if panel exists
+    const existingPanel = await db.query(
+      'SELECT id, name FROM lab_panels WHERE id = $1',
+      [panelId]
+    );
+    
+    if (existingPanel.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lab panel not found' 
+      });
+    }
+    
+    // Start transaction
+    await db.query('BEGIN');
+    
+    try {
+      // Delete parameters first
+      await db.query('DELETE FROM lab_panel_parameters WHERE panel_id = $1', [panelId]);
+      
+      // Delete the panel
+      await db.query('DELETE FROM lab_panels WHERE id = $1', [panelId]);
+      
+      await db.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Lab panel deleted successfully'
+      });
+    } catch (error) {
+      await db.query('ROLLBACK');
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error deleting lab panel:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting lab panel',
+      error: error.message 
+    });
+  }
+});
+
+// Add parameter to lab panel
+router.post('/panels/:id/parameters', async (req, res) => {
+  try {
+    const panelId = req.params.id;
+    const { 
+      parameter_name, 
+      unit, 
+      reference_min, 
+      reference_max, 
+      gender_specific, 
+      aliases 
+    } = req.body;
+    
+    if (!parameter_name || !parameter_name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parameter name is required' 
+      });
+    }
+    
+    // Check if panel exists
+    const panelExists = await db.query(
+      'SELECT id FROM lab_panels WHERE id = $1',
+      [panelId]
+    );
+    
+    if (panelExists.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Lab panel not found' 
+      });
+    }
+    
+    // Check if parameter already exists in this panel
+    const parameterExists = await db.query(
+      'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2)',
+      [panelId, parameter_name.trim()]
+    );
+    
+    if (parameterExists.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parameter already exists in this panel' 
+      });
+    }
+    
+    // Add the parameter
+    const result = await db.query(
+      `INSERT INTO lab_panel_parameters 
+       (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+       RETURNING *`,
+      [
+        panelId,
+        parameter_name.trim(),
+        unit?.trim() || null,
+        reference_min || null,
+        reference_max || null,
+        gender_specific || null,
+        aliases || null
+      ]
+    );
+    
+    res.status(201).json({
+      success: true,
+      message: 'Parameter added successfully',
+      parameter: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error adding parameter to panel:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error adding parameter to panel',
+      error: error.message 
+    });
+  }
+});
+
+// Update parameter in lab panel
+router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
+  try {
+    const { panelId, parameterId } = req.params;
+    const { 
+      parameter_name, 
+      unit, 
+      reference_min, 
+      reference_max, 
+      gender_specific, 
+      aliases 
+    } = req.body;
+    
+    if (!parameter_name || !parameter_name.trim()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Parameter name is required' 
+      });
+    }
+    
+    // Check if parameter exists
+    const parameterExists = await db.query(
+      'SELECT id FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
+      [parameterId, panelId]
+    );
+    
+    if (parameterExists.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Parameter not found in this panel' 
+      });
+    }
+    
+    // Check if another parameter with same name exists in this panel
+    const duplicateParameter = await db.query(
+      'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2) AND id != $3',
+      [panelId, parameter_name.trim(), parameterId]
+    );
+    
+    if (duplicateParameter.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Another parameter with this name already exists in this panel' 
+      });
+    }
+    
+    // Update the parameter
+    const result = await db.query(
+      `UPDATE lab_panel_parameters 
+       SET parameter_name = $1, unit = $2, reference_min = $3, reference_max = $4, 
+           gender_specific = $5, aliases = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 AND panel_id = $8 
+       RETURNING *`,
+      [
+        parameter_name.trim(),
+        unit?.trim() || null,
+        reference_min || null,
+        reference_max || null,
+        gender_specific || null,
+        aliases || null,
+        parameterId,
+        panelId
+      ]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Parameter updated successfully',
+      parameter: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating parameter:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error updating parameter',
+      error: error.message 
+    });
+  }
+});
+
+// Delete parameter from lab panel
+router.delete('/panels/:panelId/parameters/:parameterId', async (req, res) => {
+  try {
+    const { panelId, parameterId } = req.params;
+    
+    // Check if parameter exists
+    const parameterExists = await db.query(
+      'SELECT id, parameter_name FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
+      [parameterId, panelId]
+    );
+    
+    if (parameterExists.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Parameter not found in this panel' 
+      });
+    }
+    
+    // Delete the parameter
+    await db.query(
+      'DELETE FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
+      [parameterId, panelId]
+    );
+    
+    res.json({
+      success: true,
+      message: 'Parameter deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting parameter:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deleting parameter',
+      error: error.message 
+    });
+  }
+});
+
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -212,23 +694,77 @@ const REFERENCE_RANGES = {
   mchc: { min: 31.5, max: 34.5, unit: '%' }
 };
 
-// Generic patterns to extract ANY potential lab values
+// Generic patterns to extract ANY potential lab values (restored working version)
 const GENERIC_EXTRACTION_PATTERNS = [
   // Pattern 1: "15.5 HAEMOGLOBIN (HB) gm/dL" - Value first, then parameter and unit
-  /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+([a-zA-Z\/\%μℓ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
+  /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
   
   // Pattern 2: "Glucose: 95 mg/dL" - Parameter first, then value and unit  
-  /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)[:\s]+(\d+(?:\.\d+)?(?:,\d{3})*)\s*([a-zA-Z\/\%μℓ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
+  /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)[:\s]+(\d+(?:\.\d+)?(?:,\d{3})*)\s*([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
   
   // Pattern 3: "Hemoglobin 15.5" - Parameter and value, no clear unit
   /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+(\d+(?:\.\d+)?(?:,\d{3})*)\s*(?=\s|$)/g,
   
-  // Pattern 4: Handle percentage values "53.6 NEUTROPHILS %"
-  /(\d+(?:\.\d+)?)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s*(\%|percent)/g,
+  // Pattern 4: Handle percentage values "53.6 NEUTROPHILS %" - but capture more flexibly
+  /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s*(\%|percent)/g,
   
   // Pattern 5: Handle values with "Lakhs" "3.93 Lakhs/Cumm PLATELET COUNT"
   /(\d+(?:\.\d+)?)\s+(lakhs?\/\w+|million\/\w+)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)/gi
 ];
+
+// Unit standardization mapping
+const UNIT_STANDARDIZATION = {
+  'gm/dl': 'g/dL',
+  'gm/dL': 'g/dL', 
+  'GM/DL': 'g/dL',
+  '/ul': '/µL',
+  '/UL': '/µL',
+  'per ul': '/µL',
+  'per µl': '/µL',
+  'million/ul': 'million/µL',
+  'million/UL': 'million/µL',
+  'lakhs/cumm': 'Lakhs/µL',
+  'LAKHS/CUMM': 'Lakhs/µL'
+};
+
+// Parameter name standardization  
+const PARAMETER_STANDARDIZATION = {
+  'HAEMOGLOBIN': 'Hemoglobin',
+  'HAEMOGLOBIN (HB)': 'Hemoglobin',
+  'HB': 'Hemoglobin',
+  'HGB': 'Hemoglobin', 
+  'RBC COUNT': 'Red Blood Cell Count',
+  'WBC COUNT': 'White Blood Cell Count',
+  'PLATELET COUNT': 'Platelet Count',
+  'PLT COUNT': 'Platelet Count',
+  'HEMATOCRIT': 'Hematocrit',
+  'HCT': 'Hematocrit',
+  'PACKED CELL VOLUME': 'Hematocrit'
+};
+
+// Calculate confidence score based on pattern type and context
+function calculatePatternConfidence(patternIndex, parameter, unit) {
+  let confidence = 0.5; // Base confidence
+  
+  // Higher confidence for specific patterns
+  if (patternIndex === 0) confidence = 0.9; // Indian format with exact unit match
+  if (patternIndex === 1) confidence = 0.85; // COUNT format
+  if (patternIndex === 2) confidence = 0.8; // Percentage format
+  if (patternIndex === 3) confidence = 0.85; // Ratio format
+  if (patternIndex === 4) confidence = 0.9; // Colon format
+  if (patternIndex === 5) confidence = 0.75; // Lakhs format
+  if (patternIndex === 6) confidence = 0.7; // Simple format
+  
+  // Boost confidence for known medical units
+  const medicalUnits = ['g/dL', 'mg/dL', 'mEq/L', '/µL', 'million/µL', '%', 'U/L'];
+  if (medicalUnits.includes(unit)) confidence += 0.1;
+  
+  // Boost confidence for known lab parameters
+  const commonLabParams = ['hemoglobin', 'hematocrit', 'platelet', 'glucose', 'creatinine'];
+  if (commonLabParams.some(param => parameter?.toLowerCase().includes(param))) confidence += 0.1;
+  
+  return Math.min(confidence, 1.0);
+}
 
 // Enhanced function to extract ALL potential lab values from text
 function extractLabValues(text) {
@@ -236,7 +772,7 @@ function extractLabValues(text) {
   const allMatches = [];
   const extractedValues = [];
   
-  // First, use generic patterns to find ALL potential lab values
+  // Use generic patterns to find ALL potential lab values (restored working approach)
   GENERIC_EXTRACTION_PATTERNS.forEach((pattern, patternIndex) => {
     const matches = [...text.matchAll(pattern)];
     matches.forEach(match => {
@@ -265,6 +801,12 @@ function extractLabValues(text) {
         parameter = match[3];
       }
       
+      // Apply unit standardization
+      let standardizedUnit = unit?.trim().toLowerCase();
+      if (UNIT_STANDARDIZATION[standardizedUnit]) {
+        unit = UNIT_STANDARDIZATION[standardizedUnit];
+      }
+      
       allMatches.push({
         value: value?.trim(),
         parameter: parameter?.trim(),
@@ -277,7 +819,7 @@ function extractLabValues(text) {
   
   console.log(`Found ${allMatches.length} potential matches`);
   
-  // Process and clean up the matches
+  // Process and clean up the matches (restored working approach)
   allMatches.forEach(match => {
     const numericValue = parseFloat(match.value?.replace(/,/g, ''));
     if (isNaN(numericValue) || !match.parameter || match.parameter.length < 2) {
@@ -291,7 +833,7 @@ function extractLabValues(text) {
       .trim()
       .toLowerCase();
     
-    // Skip common false positives
+    // Skip common false positives (but less restrictive)
     if (cleanParameter.includes('reference') || 
         cleanParameter.includes('range') ||
         cleanParameter.includes('sample') ||
@@ -1115,488 +1657,6 @@ router.get('/:id/lab-values', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch lab values'
-    });
-  }
-});
-
-// Lab Panel Management Endpoints
-
-// Get all lab panels
-router.get('/panels', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT p.*, 
-        COUNT(pp.id) as parameter_count,
-        json_agg(
-          json_build_object(
-            'id', pp.id,
-            'parameter_name', pp.parameter_name,
-            'unit', pp.unit,
-            'reference_min', pp.reference_min,
-            'reference_max', pp.reference_max,
-            'gender_specific', pp.gender_specific,
-            'aliases', pp.aliases
-          ) ORDER BY pp.parameter_name
-        ) FILTER (WHERE pp.id IS NOT NULL) as parameters
-      FROM lab_panels p
-      LEFT JOIN lab_panel_parameters pp ON p.id = pp.panel_id
-      GROUP BY p.id, p.name, p.description, p.category, p.created_at, p.updated_at
-      ORDER BY p.name
-    `);
-    
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching lab panels:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching lab panels',
-      error: error.message 
-    });
-  }
-});
-
-// Get specific lab panel with parameters
-router.get('/panels/:id', async (req, res) => {
-  try {
-    const panelId = req.params.id;
-    
-    const panelResult = await db.query(
-      'SELECT * FROM lab_panels WHERE id = $1',
-      [panelId]
-    );
-    
-    if (panelResult.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Lab panel not found' 
-      });
-    }
-    
-    const parametersResult = await db.query(
-      'SELECT * FROM lab_panel_parameters WHERE panel_id = $1 ORDER BY parameter_name',
-      [panelId]
-    );
-    
-    const panel = panelResult.rows[0];
-    panel.parameters = parametersResult.rows;
-    
-    res.json(panel);
-  } catch (error) {
-    console.error('Error fetching lab panel:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching lab panel',
-      error: error.message 
-    });
-  }
-});
-
-// Create new lab panel
-router.post('/panels', async (req, res) => {
-  try {
-    const { name, description, category = 'Blood', parameters = [] } = req.body;
-    
-    if (!name || !name.trim()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Panel name is required' 
-      });
-    }
-    
-    // Check if panel with same name exists
-    const existingPanel = await db.query(
-      'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1)',
-      [name.trim()]
-    );
-    
-    if (existingPanel.rows.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'A panel with this name already exists' 
-      });
-    }
-    
-    // Start transaction
-    await db.query('BEGIN');
-    
-    try {
-      // Create the panel
-      const panelResult = await db.query(
-        `INSERT INTO lab_panels (name, description, category) 
-         VALUES ($1, $2, $3) 
-         RETURNING *`,
-        [name.trim(), description?.trim() || null, category]
-      );
-      
-      const newPanel = panelResult.rows[0];
-      
-      // Add parameters if provided
-      if (parameters && parameters.length > 0) {
-        for (const param of parameters) {
-          if (param.parameter_name && param.parameter_name.trim()) {
-            await db.query(
-              `INSERT INTO lab_panel_parameters 
-               (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [
-                newPanel.id,
-                param.parameter_name.trim(),
-                param.unit?.trim() || null,
-                param.reference_min || null,
-                param.reference_max || null,
-                param.gender_specific || null,
-                param.aliases || null
-              ]
-            );
-          }
-        }
-      }
-      
-      await db.query('COMMIT');
-      
-      // Fetch the complete panel with parameters
-      const completePanel = await db.query(
-        `SELECT p.*, 
-          json_agg(
-            json_build_object(
-              'id', pp.id,
-              'parameter_name', pp.parameter_name,
-              'unit', pp.unit,
-              'reference_min', pp.reference_min,
-              'reference_max', pp.reference_max,
-              'gender_specific', pp.gender_specific,
-              'aliases', pp.aliases
-            ) ORDER BY pp.parameter_name
-          ) FILTER (WHERE pp.id IS NOT NULL) as parameters
-         FROM lab_panels p
-         LEFT JOIN lab_panel_parameters pp ON p.id = pp.panel_id
-         WHERE p.id = $1
-         GROUP BY p.id`,
-        [newPanel.id]
-      );
-      
-      res.status(201).json({
-        success: true,
-        message: 'Lab panel created successfully',
-        panel: completePanel.rows[0]
-      });
-    } catch (error) {
-      await db.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error creating lab panel:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error creating lab panel',
-      error: error.message 
-    });
-  }
-});
-
-// Update lab panel
-router.put('/panels/:id', async (req, res) => {
-  try {
-    const panelId = req.params.id;
-    const { name, description, category } = req.body;
-    
-    if (!name || !name.trim()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Panel name is required' 
-      });
-    }
-    
-    // Check if panel exists
-    const existingPanel = await db.query(
-      'SELECT id FROM lab_panels WHERE id = $1',
-      [panelId]
-    );
-    
-    if (existingPanel.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Lab panel not found' 
-      });
-    }
-    
-    // Check if another panel with same name exists
-    const duplicatePanel = await db.query(
-      'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1) AND id != $2',
-      [name.trim(), panelId]
-    );
-    
-    if (duplicatePanel.rows.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'A panel with this name already exists' 
-      });
-    }
-    
-    // Update the panel
-    const result = await db.query(
-      `UPDATE lab_panels 
-       SET name = $1, description = $2, category = $3, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $4 
-       RETURNING *`,
-      [name.trim(), description?.trim() || null, category || 'Blood', panelId]
-    );
-    
-    res.json({
-      success: true,
-      message: 'Lab panel updated successfully',
-      panel: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating lab panel:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error updating lab panel',
-      error: error.message 
-    });
-  }
-});
-
-// Delete lab panel
-router.delete('/panels/:id', async (req, res) => {
-  try {
-    const panelId = req.params.id;
-    
-    // Check if panel exists
-    const existingPanel = await db.query(
-      'SELECT id, name FROM lab_panels WHERE id = $1',
-      [panelId]
-    );
-    
-    if (existingPanel.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Lab panel not found' 
-      });
-    }
-    
-    // Start transaction
-    await db.query('BEGIN');
-    
-    try {
-      // Delete parameters first
-      await db.query('DELETE FROM lab_panel_parameters WHERE panel_id = $1', [panelId]);
-      
-      // Delete the panel
-      await db.query('DELETE FROM lab_panels WHERE id = $1', [panelId]);
-      
-      await db.query('COMMIT');
-      
-      res.json({
-        success: true,
-        message: 'Lab panel deleted successfully'
-      });
-    } catch (error) {
-      await db.query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('Error deleting lab panel:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error deleting lab panel',
-      error: error.message 
-    });
-  }
-});
-
-// Add parameter to lab panel
-router.post('/panels/:id/parameters', async (req, res) => {
-  try {
-    const panelId = req.params.id;
-    const { 
-      parameter_name, 
-      unit, 
-      reference_min, 
-      reference_max, 
-      gender_specific, 
-      aliases 
-    } = req.body;
-    
-    if (!parameter_name || !parameter_name.trim()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Parameter name is required' 
-      });
-    }
-    
-    // Check if panel exists
-    const panelExists = await db.query(
-      'SELECT id FROM lab_panels WHERE id = $1',
-      [panelId]
-    );
-    
-    if (panelExists.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Lab panel not found' 
-      });
-    }
-    
-    // Check if parameter already exists in this panel
-    const parameterExists = await db.query(
-      'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2)',
-      [panelId, parameter_name.trim()]
-    );
-    
-    if (parameterExists.rows.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Parameter already exists in this panel' 
-      });
-    }
-    
-    // Add the parameter
-    const result = await db.query(
-      `INSERT INTO lab_panel_parameters 
-       (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
-       RETURNING *`,
-      [
-        panelId,
-        parameter_name.trim(),
-        unit?.trim() || null,
-        reference_min || null,
-        reference_max || null,
-        gender_specific || null,
-        aliases || null
-      ]
-    );
-    
-    res.status(201).json({
-      success: true,
-      message: 'Parameter added successfully',
-      parameter: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error adding parameter to panel:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error adding parameter to panel',
-      error: error.message 
-    });
-  }
-});
-
-// Update parameter in lab panel
-router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
-  try {
-    const { panelId, parameterId } = req.params;
-    const { 
-      parameter_name, 
-      unit, 
-      reference_min, 
-      reference_max, 
-      gender_specific, 
-      aliases 
-    } = req.body;
-    
-    if (!parameter_name || !parameter_name.trim()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Parameter name is required' 
-      });
-    }
-    
-    // Check if parameter exists
-    const parameterExists = await db.query(
-      'SELECT id FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
-      [parameterId, panelId]
-    );
-    
-    if (parameterExists.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Parameter not found in this panel' 
-      });
-    }
-    
-    // Check if another parameter with same name exists in this panel
-    const duplicateParameter = await db.query(
-      'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2) AND id != $3',
-      [panelId, parameter_name.trim(), parameterId]
-    );
-    
-    if (duplicateParameter.rows.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Another parameter with this name already exists in this panel' 
-      });
-    }
-    
-    // Update the parameter
-    const result = await db.query(
-      `UPDATE lab_panel_parameters 
-       SET parameter_name = $1, unit = $2, reference_min = $3, reference_max = $4, 
-           gender_specific = $5, aliases = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7 AND panel_id = $8 
-       RETURNING *`,
-      [
-        parameter_name.trim(),
-        unit?.trim() || null,
-        reference_min || null,
-        reference_max || null,
-        gender_specific || null,
-        aliases || null,
-        parameterId,
-        panelId
-      ]
-    );
-    
-    res.json({
-      success: true,
-      message: 'Parameter updated successfully',
-      parameter: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error updating parameter:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error updating parameter',
-      error: error.message 
-    });
-  }
-});
-
-// Delete parameter from lab panel
-router.delete('/panels/:panelId/parameters/:parameterId', async (req, res) => {
-  try {
-    const { panelId, parameterId } = req.params;
-    
-    // Check if parameter exists
-    const parameterExists = await db.query(
-      'SELECT id, parameter_name FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
-      [parameterId, panelId]
-    );
-    
-    if (parameterExists.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Parameter not found in this panel' 
-      });
-    }
-    
-    // Delete the parameter
-    await db.query(
-      'DELETE FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
-      [parameterId, panelId]
-    );
-    
-    res.json({
-      success: true,
-      message: 'Parameter deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting parameter:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error deleting parameter',
-      error: error.message 
     });
   }
 });
