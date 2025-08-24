@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prescriptions - Medical Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html"><i class="bi bi-heart-pulse"></i> Medical Manager</a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="index.html">Dashboard</a>
+                <a class="nav-link" href="patients.html">Patients</a>
+                <a class="nav-link" href="doctors.html">Doctors</a>
+                <a class="nav-link" href="institutions.html">Institutions</a>
+                <a class="nav-link" href="appointments.html">Appointments</a>
+                <a class="nav-link" href="conditions.html">Conditions</a>
+                <a class="nav-link" href="medications.html">Medications</a>
+                <a class="nav-link active" href="prescriptions.html">Prescriptions</a>
+                <a class="nav-link" href="lab-reports.html">Lab Reports</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="bi bi-prescription2"></i> Prescription Management</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#prescriptionModal" onclick="openAddPrescriptionModal()">
+                        <i class="bi bi-plus-circle"></i> New Prescription
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4 id="totalPrescriptionsCount">0</h4>
+                        <small>Total Prescriptions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4 id="activePrescriptionsCount">0</h4>
+                        <small>Active Prescriptions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4 id="uniquePatientsCount">0</h4>
+                        <small>Patients with Prescriptions</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h4 id="recentPrescriptionsCount">0</h4>
+                        <small>This Month</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by patient, doctor, or medication...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="patientFilter">
+                    <option value="">All Patients</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="discontinued">Discontinued</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Prescriptions Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Prescriptions List 
+                    <span id="prescriptionCount" class="badge bg-primary ms-2">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading prescriptions...</p>
+                </div>
+                
+                <div id="prescriptionsTable" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Medication</th>
+                                    <th>Dosage & Frequency</th>
+                                    <th>Duration</th>
+                                    <th>Prescribed Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prescriptionsTableBody">
+                                <!-- Prescriptions will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noPrescriptions" style="display: none;" class="text-center py-5">
+                    <i class="bi bi-prescription2 display-1 text-muted"></i>
+                    <h3 class="text-muted">No Prescriptions Found</h3>
+                    <p class="text-muted">Start by adding your first prescription.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#prescriptionModal" onclick="openAddPrescriptionModal()">
+                        <i class="bi bi-plus-circle"></i> New Prescription
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prescription Modal -->
+    <div class="modal fade" id="prescriptionModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="bi bi-plus-circle"></i> New Prescription
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="prescriptionForm">
+                        <input type="hidden" id="prescriptionId" name="prescriptionId">
+                        
+                        <!-- Appointment Selection -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="appointmentId" class="form-label">Appointment *</label>
+                                    <select class="form-select" id="appointmentId" name="appointmentId" required>
+                                        <option value="">Select Appointment</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select an appointment
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="medicationId" class="form-label">Medication *</label>
+                                    <select class="form-select" id="medicationId" name="medicationId" required>
+                                        <option value="">Select Medication</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select a medication
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Patient Info Display -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="card bg-light" id="patientInfoCard" style="display: none;">
+                                    <div class="card-body py-2">
+                                        <small class="text-muted">Patient:</small>
+                                        <strong id="selectedPatientInfo"></strong>
+                                        <span class="ms-3">
+                                            <small class="text-muted">Doctor:</small>
+                                            <strong id="selectedDoctorInfo"></strong>
+                                        </span>
+                                        <span class="ms-3">
+                                            <small class="text-muted">Date:</small>
+                                            <strong id="selectedAppointmentDate"></strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prescription Details -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dosage" class="form-label">Dosage *</label>
+                                    <input type="text" class="form-control" id="dosage" name="dosage" 
+                                           placeholder="e.g., 500mg, 2 tablets" required>
+                                    <div class="invalid-feedback">
+                                        Dosage is required
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="frequency" class="form-label">Frequency *</label>
+                                    <select class="form-select" id="frequency" name="frequency" required>
+                                        <option value="">Select Frequency</option>
+                                        <option value="Once daily">Once daily</option>
+                                        <option value="Twice daily">Twice daily</option>
+                                        <option value="Three times daily">Three times daily</option>
+                                        <option value="Four times daily">Four times daily</option>
+                                        <option value="Every 4 hours">Every 4 hours</option>
+                                        <option value="Every 6 hours">Every 6 hours</option>
+                                        <option value="Every 8 hours">Every 8 hours</option>
+                                        <option value="Every 12 hours">Every 12 hours</option>
+                                        <option value="As needed">As needed</option>
+                                        <option value="Before meals">Before meals</option>
+                                        <option value="After meals">After meals</option>
+                                        <option value="At bedtime">At bedtime</option>
+                                    </select>
+                                    <div class="invalid-feedback">
+                                        Please select a frequency
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="duration" class="form-label">Duration *</label>
+                                    <input type="text" class="form-control" id="duration" name="duration" 
+                                           placeholder="e.g., 7 days, 2 weeks, 1 month" required>
+                                    <div class="invalid-feedback">
+                                        Duration is required
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="prescriptionStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="prescriptionStatus" name="status">
+                                        <option value="active">Active</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="discontinued">Discontinued</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="instructions" class="form-label">Special Instructions</label>
+                            <textarea class="form-control" id="instructions" name="instructions" rows="3" 
+                                      placeholder="Enter special instructions for the patient..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="savePrescriptionBtn" onclick="savePrescription()">
+                        <i class="bi bi-save"></i> Save Prescription
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+    <script src="js/prescriptions.js"></script>
+</body>
+</html>

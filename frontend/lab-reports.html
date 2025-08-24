@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Reports - Medical Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html"><i class="bi bi-heart-pulse"></i> Medical Manager</a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="index.html">Dashboard</a>
+                <a class="nav-link" href="patients.html">Patients</a>
+                <a class="nav-link" href="doctors.html">Doctors</a>
+                <a class="nav-link" href="institutions.html">Institutions</a>
+                <a class="nav-link" href="appointments.html">Appointments</a>
+                <a class="nav-link" href="conditions.html">Conditions</a>
+                <a class="nav-link" href="medications.html">Medications</a>
+                <a class="nav-link" href="prescriptions.html">Prescriptions</a>
+                <a class="nav-link active" href="lab-reports.html">Lab Reports</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="bi bi-file-earmark-medical"></i> Lab Reports & Test Results</h1>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadReportModal" onclick="openUploadModal()">
+                            <i class="bi bi-cloud-upload"></i> Upload PDF Report
+                        </button>
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#manualEntryModal" onclick="openManualEntryModal()">
+                            <i class="bi bi-plus-circle"></i> Manual Entry
+                        </button>
+                        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#panelManagementModal" onclick="openPanelManagementModal()">
+                            <i class="bi bi-gear"></i> Manage Panels
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4 id="totalReportsCount">0</h4>
+                        <small>Total Reports</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4 id="recentReportsCount">0</h4>
+                        <small>This Month</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4 id="uniquePatientsCount">0</h4>
+                        <small>Patients with Reports</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h4 id="abnormalValuesCount">0</h4>
+                        <small>Abnormal Values</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by patient, test name, or values...">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="patientFilter">
+                    <option value="">All Patients</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="testTypeFilter">
+                    <option value="">All Test Types</option>
+                    <option value="Blood">Blood Tests</option>
+                    <option value="Urine">Urine Tests</option>
+                    <option value="X-Ray">X-Ray</option>
+                    <option value="MRI">MRI</option>
+                    <option value="CT">CT Scan</option>
+                    <option value="Ultrasound">Ultrasound</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="dateRangeFilter">
+                    <option value="">All Dates</option>
+                    <option value="week">Last Week</option>
+                    <option value="month">Last Month</option>
+                    <option value="3months">Last 3 Months</option>
+                    <option value="year">Last Year</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Reports Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Lab Reports 
+                    <span id="reportCount" class="badge bg-primary ms-2">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading reports...</p>
+                </div>
+                
+                <div id="reportsTable" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Test Details</th>
+                                    <th>Test Date</th>
+                                    <th>Key Values</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reportsTableBody">
+                                <!-- Reports will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noReports" style="display: none;" class="text-center py-5">
+                    <i class="bi bi-file-earmark-medical display-1 text-muted"></i>
+                    <h3 class="text-muted">No Lab Reports Found</h3>
+                    <p class="text-muted">Upload your first lab report or enter values manually.</p>
+                    <div class="mt-3">
+                        <button class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#uploadReportModal" onclick="openUploadModal()">
+                            <i class="bi bi-cloud-upload"></i> Upload PDF Report
+                        </button>
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#manualEntryModal" onclick="openManualEntryModal()">
+                            <i class="bi bi-plus-circle"></i> Manual Entry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Upload Modal -->
+    <div class="modal fade" id="uploadReportModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-cloud-upload"></i> Upload Lab Report
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadPatientId" class="form-label">Patient *</label>
+                                    <select class="form-select" id="uploadPatientId" name="patientId" required>
+                                        <option value="">Select Patient</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadAppointmentId" class="form-label">Related Appointment</label>
+                                    <select class="form-select" id="uploadAppointmentId" name="appointmentId">
+                                        <option value="">No specific appointment</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadTestName" class="form-label">Test Name *</label>
+                                    <input type="text" class="form-control" id="uploadTestName" name="testName" 
+                                           placeholder="e.g., Complete Blood Count, Lipid Panel" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadTestType" class="form-label">Test Type *</label>
+                                    <select class="form-select" id="uploadTestType" name="testType" required>
+                                        <option value="">Select Type</option>
+                                        <option value="Blood">Blood Tests</option>
+                                        <option value="Urine">Urine Tests</option>
+                                        <option value="X-Ray">X-Ray</option>
+                                        <option value="MRI">MRI</option>
+                                        <option value="CT">CT Scan</option>
+                                        <option value="Ultrasound">Ultrasound</option>
+                                        <option value="ECG">ECG</option>
+                                        <option value="Pathology">Pathology</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadTestDate" class="form-label">Test Date *</label>
+                                    <input type="date" class="form-control" id="uploadTestDate" name="testDate" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="uploadInstitutionId" class="form-label">Lab/Institution</label>
+                                    <select class="form-select" id="uploadInstitutionId" name="institutionId">
+                                        <option value="">Select Institution</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PDF File Upload -->
+                        <div class="mb-3">
+                            <label for="pdfFile" class="form-label">Lab Report PDF *</label>
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="pdfFile" name="pdfFile" 
+                                       accept=".pdf" required>
+                                <span class="input-group-text"><i class="bi bi-filetype-pdf"></i></span>
+                            </div>
+                            <div class="form-text">Upload PDF file (max 10MB). We'll automatically extract lab values.</div>
+                        </div>
+
+                        <!-- PDF Processing Status -->
+                        <div id="processingStatus" style="display: none;" class="alert alert-info">
+                            <div class="d-flex align-items-center">
+                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                <span>Processing PDF and extracting lab values...</span>
+                            </div>
+                        </div>
+
+                        <!-- Extracted Values Preview -->
+                        <div id="extractedValues" style="display: none;" class="mb-3">
+                            <label class="form-label">Extracted Lab Values</label>
+                            <div class="border rounded p-3 bg-light">
+                                <div id="extractedValuesContent">
+                                    <!-- Will show extracted values here -->
+                                </div>
+                                <small class="text-muted">Review and edit these values before saving. You can modify them in the next step.</small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadReport()">
+                        <i class="bi bi-cloud-upload"></i> Upload & Process
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Entry Modal -->
+    <div class="modal fade" id="manualEntryModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="manualModalTitle">
+                        <i class="bi bi-plus-circle"></i> Manual Lab Values Entry
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="manualEntryForm">
+                        <input type="hidden" id="manualTestResultId" name="testResultId">
+                        
+                        <!-- Basic Test Information -->
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="manualPatientId" class="form-label">Patient *</label>
+                                    <select class="form-select" id="manualPatientId" name="patientId" required>
+                                        <option value="">Select Patient</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="manualTestName" class="form-label">Test Name *</label>
+                                    <input type="text" class="form-control" id="manualTestName" name="testName" 
+                                           placeholder="e.g., Complete Blood Count" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="manualTestDate" class="form-label">Test Date *</label>
+                                    <input type="date" class="form-control" id="manualTestDate" name="testDate" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lab Values Entry -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label class="form-label mb-0">Lab Values</label>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLabValue()">
+                                    <i class="bi bi-plus"></i> Add Value
+                                </button>
+                            </div>
+                            
+                            <div id="labValuesContainer">
+                                <!-- Lab values will be added here dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Quick Add Common Tests -->
+                        <div class="mb-3">
+                            <label class="form-label">Quick Add Common Tests</label>
+                            <div class="btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('CBC')">CBC</button>
+                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('CMP')">CMP</button>
+                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Lipid')">Lipid Panel</button>
+                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Thyroid')">Thyroid</button>
+                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Liver')">Liver Function</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveManualBtn" onclick="saveManualEntry()">
+                        <i class="bi bi-save"></i> Save Lab Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lab Values Detail Modal -->
+    <div class="modal fade" id="labValuesModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="labValuesModalTitle">
+                        <i class="bi bi-clipboard-data"></i> Lab Values Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="labValuesDetail">
+                        <!-- Lab values details will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="editLabValuesBtn" onclick="editLabValues()">
+                        <i class="bi bi-pencil"></i> Edit Values
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panel Management Modal -->
+    <div class="modal fade" id="panelManagementModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-gear"></i> Manage Lab Panels
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Existing Panels Column -->
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0"><i class="bi bi-list-ul"></i> Existing Lab Panels</h6>
+                                <button class="btn btn-sm btn-primary" onclick="showCreatePanelForm()">
+                                    <i class="bi bi-plus"></i> New Panel
+                                </button>
+                            </div>
+                            
+                            <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                <div id="panelsList">
+                                    <!-- Panels will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel Details/Edit Column -->
+                        <div class="col-md-6">
+                            <h6 class="mb-3"><i class="bi bi-pencil"></i> Panel Details</h6>
+                            
+                            <!-- Create New Panel Form -->
+                            <div id="createPanelForm" style="display: none;" class="border rounded p-3 mb-3 bg-light">
+                                <h6 class="text-primary">Create New Panel</h6>
+                                <div class="mb-3">
+                                    <label for="newPanelName" class="form-label">Panel Name *</label>
+                                    <input type="text" class="form-control" id="newPanelName" placeholder="e.g., Complete Blood Count">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPanelDescription" class="form-label">Description</label>
+                                    <textarea class="form-control" id="newPanelDescription" rows="2" placeholder="Brief description of this panel"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPanelCategory" class="form-label">Category</label>
+                                    <select class="form-select" id="newPanelCategory">
+                                        <option value="Blood">Blood Tests</option>
+                                        <option value="Urine">Urine Tests</option>
+                                        <option value="Chemistry">Chemistry</option>
+                                        <option value="Hematology">Hematology</option>
+                                        <option value="Immunology">Immunology</option>
+                                        <option value="Endocrine">Endocrine</option>
+                                        <option value="Cardiac">Cardiac Markers</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-primary btn-sm" onclick="createNewPanel()">
+                                        <i class="bi bi-save"></i> Create Panel
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="hideCreatePanelForm()">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Edit Panel Form -->
+                            <div id="editPanelForm" style="display: none;" class="border rounded p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h6 id="editPanelTitle" class="text-primary mb-0">Edit Panel</h6>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deletePanel()" id="deletePanelBtn">
+                                        <i class="bi bi-trash"></i> Delete Panel
+                                    </button>
+                                </div>
+                                
+                                <input type="hidden" id="editPanelId">
+                                
+                                <div class="mb-3">
+                                    <label for="editPanelName" class="form-label">Panel Name *</label>
+                                    <input type="text" class="form-control" id="editPanelName">
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label mb-0">Parameters</label>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="addParameterToPanel()">
+                                            <i class="bi bi-plus"></i> Add Parameter
+                                        </button>
+                                    </div>
+                                    
+                                    <div id="panelParametersList" class="border rounded p-2" style="max-height: 250px; overflow-y: auto;">
+                                        <!-- Parameters will be loaded here -->
+                                    </div>
+                                </div>
+
+                                <!-- Add New Parameter Form -->
+                                <div id="addParameterForm" style="display: none;" class="border rounded p-3 mb-3 bg-light">
+                                    <h6 class="text-success mb-3">Add New Parameter</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="newParamName" class="form-label">Parameter Name *</label>
+                                                <input type="text" class="form-control" id="newParamName" placeholder="e.g., Hemoglobin">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="newParamUnit" class="form-label">Unit</label>
+                                                <input type="text" class="form-control" id="newParamUnit" placeholder="e.g., g/dL, mg/dL">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="newParamMinNormal" class="form-label">Min Normal</label>
+                                                <input type="number" step="0.01" class="form-control" id="newParamMinNormal" placeholder="12.0">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="newParamMaxNormal" class="form-label">Max Normal</label>
+                                                <input type="number" step="0.01" class="form-control" id="newParamMaxNormal" placeholder="15.5">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="newParamGender" class="form-label">Gender Specific</label>
+                                                <select class="form-select" id="newParamGender">
+                                                    <option value="">Both</option>
+                                                    <option value="M">Male only</option>
+                                                    <option value="F">Female only</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newParamAliases" class="form-label">Alternative Names (comma-separated)</label>
+                                        <input type="text" class="form-control" id="newParamAliases" placeholder="HGB, HB, Haemoglobin">
+                                        <small class="text-muted">Enter alternative names that might appear in lab reports</small>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-success btn-sm" onclick="saveNewParameter()">
+                                            <i class="bi bi-save"></i> Add Parameter
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick="hideAddParameterForm()">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-3">
+                                    <button class="btn btn-primary" onclick="savePanelChanges()">
+                                        <i class="bi bi-save"></i> Save Changes
+                                    </button>
+                                    <button class="btn btn-outline-secondary" onclick="cancelPanelEdit()">
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Default message when no panel selected -->
+                            <div id="noPanelSelected" class="text-center text-muted py-5">
+                                <i class="bi bi-arrow-left display-4"></i>
+                                <p class="mt-2">Select a panel from the left to edit its parameters</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Review Modal -->
+    <div class="modal fade" id="pdfReviewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-eye"></i> Review Extracted Values
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Review the extracted values below. You can edit any values that were incorrectly extracted or add missing ones manually.
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>Extracted Lab Values</h6>
+                            <div id="reviewValuesContainer" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                                <!-- Extracted values will be displayed here for review -->
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Test Information</h6>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <strong>Patient:</strong> <span id="reviewPatientName">-</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Test Name:</strong> <span id="reviewTestName">-</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Test Date:</strong> <span id="reviewTestDate">-</span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <strong>Values Found:</strong> <span id="reviewValueCount">0</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-outline-primary w-100" onclick="addManualValueToReview()">
+                                    <i class="bi bi-plus"></i> Add Manual Value
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveReviewedValuesBtn" onclick="saveReviewedValues()">
+                        <i class="bi bi-save"></i> Save Lab Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+    <script src="js/lab-reports.js"></script>
+</body>
+</html>

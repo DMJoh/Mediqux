@@ -132,6 +132,7 @@ const appointmentRoutes = require('./src/routes/appointments');
 const conditionRoutes = require('./src/routes/conditions');
 const medicationRoutes = require('./src/routes/medications');
 const prescriptionRoutes = require('./src/routes/prescriptions');
+const testResultRoutes = require('./src/routes/test-results');
 
 app.use('/api/patients', patientRoutes);
 app.use('/api/doctors', doctorRoutes);
@@ -140,6 +141,7 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/conditions', conditionRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/test-results', testResultRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
