@@ -14,6 +14,7 @@ router.get('/', async (req, res) => {
         m.generic_name,
         m.dosage_forms,
         m.strengths,
+        m.active_ingredients,
         m.manufacturer,
         m.description,
         m.created_at,
@@ -48,7 +49,7 @@ router.get('/', async (req, res) => {
     }
     
     query += ` 
-      GROUP BY m.id, m.name, m.generic_name, m.dosage_forms, m.strengths, m.manufacturer, m.description, m.created_at
+      GROUP BY m.id, m.name, m.generic_name, m.dosage_forms, m.strengths, m.active_ingredients, m.manufacturer, m.description, m.created_at
       ORDER BY m.name
     `;
     
@@ -125,6 +126,7 @@ router.post('/', async (req, res) => {
       generic_name,
       dosage_forms,
       strengths,
+      active_ingredients,
       manufacturer,
       description
     } = req.body;
@@ -153,17 +155,19 @@ router.post('/', async (req, res) => {
     // Process arrays
     const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
     const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
+    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
     
     const result = await db.query(`
       INSERT INTO medications (
-        name, generic_name, dosage_forms, strengths, manufacturer, description
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        name, generic_name, dosage_forms, strengths, active_ingredients, manufacturer, description
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
       name.trim(),
       generic_name?.trim() || null,
       processedDosageForms,
       processedStrengths,
+      JSON.stringify(processedIngredients),
       manufacturer?.trim() || null,
       description?.trim() || null
     ]);
@@ -191,6 +195,7 @@ router.put('/:id', async (req, res) => {
       generic_name,
       dosage_forms,
       strengths,
+      active_ingredients,
       manufacturer,
       description
     } = req.body;
@@ -219,6 +224,7 @@ router.put('/:id', async (req, res) => {
     // Process arrays
     const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
     const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
+    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
     
     const result = await db.query(`
       UPDATE medications SET
@@ -226,16 +232,18 @@ router.put('/:id', async (req, res) => {
         generic_name = $2,
         dosage_forms = $3,
         strengths = $4,
-        manufacturer = $5,
-        description = $6,
+        active_ingredients = $5,
+        manufacturer = $6,
+        description = $7,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $7
+      WHERE id = $8
       RETURNING *
     `, [
       name.trim(),
       generic_name?.trim() || null,
       processedDosageForms,
       processedStrengths,
+      JSON.stringify(processedIngredients),
       manufacturer?.trim() || null,
       description?.trim() || null,
       id

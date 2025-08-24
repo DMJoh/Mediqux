@@ -5,6 +5,7 @@ let filteredMedications = [];
 let currentEditingId = null;
 let selectedForms = [];
 let selectedStrengths = [];
+let activeIngredients = [];
 
 // Make functions globally available
 window.saveMedication = saveMedication;
@@ -17,6 +18,8 @@ window.addDosageForm = addDosageForm;
 window.addStrength = addStrength;
 window.removeDosageForm = removeDosageForm;
 window.removeStrength = removeStrength;
+window.addIngredient = addIngredient;
+window.removeIngredient = removeIngredient;
 
 // Initialize medications page
 document.addEventListener('DOMContentLoaded', function() {
@@ -41,6 +44,21 @@ function setupEventListeners() {
         if (e.key === 'Enter') {
             e.preventDefault();
             addStrength();
+        }
+    });
+    
+    // Enter key support for adding ingredients
+    document.getElementById('ingredientName').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('ingredientDosage').focus();
+        }
+    });
+    
+    document.getElementById('ingredientDosage').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addIngredient();
         }
     });
 }
@@ -174,11 +192,18 @@ function displayMedications() {
             ? forms.map(form => `<span class="badge bg-secondary me-1">${form}</span>`).join('')
             : '<small class="text-muted">Not specified</small>';
         
-        // Format strengths
+        // Format active ingredients or strengths
+        const ingredients = medication.active_ingredients || [];
         const strengths = medication.strengths || [];
-        const strengthsDisplay = strengths.length > 0 
-            ? '<br>' + strengths.map(strength => `<small class="text-muted">${strength}</small>`).join(', ')
-            : '';
+        
+        let strengthsDisplay = '';
+        if (ingredients.length > 0) {
+            strengthsDisplay = '<br><div class="mt-1">' + 
+                ingredients.map(ing => `<small class="text-success d-block">• ${ing.name}: ${ing.dosage}</small>`).join('') +
+                '</div>';
+        } else if (strengths.length > 0) {
+            strengthsDisplay = '<br>' + strengths.map(strength => `<small class="text-muted">${strength}</small>`).join(', ');
+        }
         
         return `
             <tr>
@@ -329,11 +354,70 @@ function updateSelectedStrengths() {
     hiddenInput.value = JSON.stringify(selectedStrengths);
 }
 
+// Add active ingredient
+function addIngredient() {
+    const nameInput = document.getElementById('ingredientName');
+    const dosageInput = document.getElementById('ingredientDosage');
+    
+    const name = nameInput.value.trim();
+    const dosage = dosageInput.value.trim();
+    
+    if (name && dosage) {
+        // Check if ingredient already exists
+        const existingIndex = activeIngredients.findIndex(ing => 
+            ing.name.toLowerCase() === name.toLowerCase()
+        );
+        
+        if (existingIndex >= 0) {
+            // Update existing ingredient
+            activeIngredients[existingIndex].dosage = dosage;
+        } else {
+            // Add new ingredient
+            activeIngredients.push({ name, dosage });
+        }
+        
+        updateSelectedIngredients();
+        nameInput.value = '';
+        dosageInput.value = '';
+        nameInput.focus();
+    }
+}
+
+// Remove active ingredient
+function removeIngredient(name) {
+    activeIngredients = activeIngredients.filter(ing => ing.name !== name);
+    updateSelectedIngredients();
+}
+
+// Update selected ingredients display
+function updateSelectedIngredients() {
+    const container = document.getElementById('selectedIngredients');
+    const hiddenInput = document.getElementById('activeIngredients');
+    
+    if (activeIngredients.length === 0) {
+        container.innerHTML = '<small class="text-muted">No ingredients added yet</small>';
+    } else {
+        container.innerHTML = activeIngredients.map(ingredient => 
+            `<div class="d-flex justify-content-between align-items-center bg-white p-2 mb-1 rounded border">
+                <div>
+                    <strong>${ingredient.name}</strong> - <span class="text-muted">${ingredient.dosage}</span>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeIngredient('${ingredient.name}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+             </div>`
+        ).join('');
+    }
+    
+    hiddenInput.value = JSON.stringify(activeIngredients);
+}
+
 // Open modal for adding new medication
 function openAddMedicationModal() {
     currentEditingId = null;
     selectedForms = [];
     selectedStrengths = [];
+    activeIngredients = [];
     
     document.getElementById('modalTitle').innerHTML = '<i class="bi bi-plus-circle"></i> Add Medication';
     document.getElementById('saveMedicationBtn').innerHTML = '<i class="bi bi-save"></i> Save Medication';
@@ -342,6 +426,7 @@ function openAddMedicationModal() {
     
     updateSelectedForms();
     updateSelectedStrengths();
+    updateSelectedIngredients();
     
     // Clear any previous validation states
     clearAllFieldErrors();
@@ -372,11 +457,13 @@ async function editMedication(id) {
             document.getElementById('manufacturer').value = medication.manufacturer || '';
             document.getElementById('description').value = medication.description || '';
             
-            // Set selected forms and strengths
+            // Set selected forms, strengths, and ingredients
             selectedForms = medication.dosage_forms || [];
             selectedStrengths = medication.strengths || [];
+            activeIngredients = medication.active_ingredients || [];
             updateSelectedForms();
             updateSelectedStrengths();
+            updateSelectedIngredients();
             
             // Update modal title
             document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Medication';
@@ -419,6 +506,7 @@ async function saveMedication() {
         generic_name: document.getElementById('genericName').value.trim() || null,
         dosage_forms: selectedForms,
         strengths: selectedStrengths,
+        active_ingredients: activeIngredients,
         manufacturer: document.getElementById('manufacturer').value.trim() || null,
         description: document.getElementById('description').value.trim() || null
     };

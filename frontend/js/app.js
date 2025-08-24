@@ -36,26 +36,33 @@ async function apiCall(endpoint, options = {}, retryCount = 0) {
     }
 }
 
-// Enhanced alert system with auto-dismiss
+// Enhanced alert system with fixed positioning
 function showAlert(message, type = 'info', autoClose = true) {
     // Remove existing alerts
-    const existingAlert = document.querySelector('.alert');
+    const existingAlert = document.querySelector('.alert-fixed');
     if (existingAlert) {
         existingAlert.remove();
     }
     
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show alert-fixed`;
     alertDiv.setAttribute('role', 'alert');
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        z-index: 1050;
+        max-width: 400px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border: none;
+    `;
     alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     
-    const container = document.querySelector('.container');
-    if (container) {
-        container.insertAdjacentElement('afterbegin', alertDiv);
-    }
+    // Add to body instead of container
+    document.body.appendChild(alertDiv);
     
     // Auto-remove after 5 seconds if enabled
     if (autoClose) {

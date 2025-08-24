@@ -99,13 +99,15 @@ CREATE TABLE appointments (
 -- Medications catalog
 CREATE TABLE medications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     generic_name VARCHAR(255),
     dosage_forms TEXT[], -- tablets, capsules, syrup, etc.
-    strengths TEXT[], -- 500mg, 10mg/ml, etc.
+    strengths TEXT[], -- 500mg, 10mg/ml, etc. (legacy field)
+    active_ingredients JSONB, -- [{name: "Paracetamol", dosage: "250mg"}, {name: "Caffeine", dosage: "30mg"}]
     manufacturer VARCHAR(255),
     description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Prescribed medications (linked to appointments)
@@ -171,3 +173,6 @@ CREATE INDEX idx_lab_values_test ON lab_values(test_result_id);
 CREATE INDEX idx_medical_conditions_name ON medical_conditions(name);
 CREATE INDEX idx_medical_conditions_category ON medical_conditions(category);
 CREATE INDEX idx_medical_conditions_icd ON medical_conditions(icd_code);
+CREATE INDEX idx_medications_name ON medications(name);
+CREATE INDEX idx_medications_generic ON medications(generic_name);
+CREATE INDEX idx_medications_manufacturer ON medications(manufacturer);

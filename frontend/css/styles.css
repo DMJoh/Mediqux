@@ -123,6 +123,38 @@ body {
     font-weight: 600;
 }
 
+/* Fixed alert positioning */
+.alert-fixed {
+    position: fixed !important;
+    top: 80px !important;
+    right: 20px !important;
+    z-index: 1050 !important;
+    max-width: 400px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    border: none !important;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive adjustments for alerts */
+@media (max-width: 768px) {
+    .alert-fixed {
+        right: 10px !important;
+        left: 10px !important;
+        max-width: calc(100vw - 20px) !important;
+    }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .table-responsive {

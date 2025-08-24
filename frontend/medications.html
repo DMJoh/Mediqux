@@ -220,22 +220,47 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="strengths" class="form-label">Strengths</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" id="strengthInput" placeholder="e.g., 500mg, 10mg/ml">
-                                        <button type="button" class="btn btn-outline-secondary" onclick="addStrength()">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
-                                    </div>
-                                    <div id="selectedStrengths" class="mt-2"></div>
-                                    <input type="hidden" id="strengths" name="strengths">
+                                    <label for="manufacturer" class="form-label">Manufacturer</label>
+                                    <input type="text" class="form-control" id="manufacturer" name="manufacturer">
                                 </div>
                             </div>
                         </div>
 
+                        <!-- Active Ingredients Section -->
                         <div class="mb-3">
-                            <label for="manufacturer" class="form-label">Manufacturer</label>
-                            <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                            <label class="form-label">Active Ingredients / Contents</label>
+                            <div class="border rounded p-3 bg-light">
+                                <div class="row mb-2">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" id="ingredientName" placeholder="Ingredient name (e.g., Paracetamol)">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="ingredientDosage" placeholder="Dosage (e.g., 250mg)">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-primary w-100" onclick="addIngredient()">
+                                            <i class="bi bi-plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="selectedIngredients" class="mt-2"></div>
+                                <input type="hidden" id="activeIngredients" name="activeIngredients">
+                                <small class="text-muted">Add each active ingredient separately with its dosage</small>
+                            </div>
+                        </div>
+
+                        <!-- Legacy Strengths (Optional - for backward compatibility) -->
+                        <div class="mb-3">
+                            <label for="strengths" class="form-label">Overall Strength (Optional)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="strengthInput" placeholder="e.g., 500mg total, 10mg/ml">
+                                <button type="button" class="btn btn-outline-secondary" onclick="addStrength()">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            <div id="selectedStrengths" class="mt-2"></div>
+                            <input type="hidden" id="strengths" name="strengths">
+                            <small class="text-muted">Optional: Overall medication strength or concentration</small>
                         </div>
 
                         <div class="mb-3">
