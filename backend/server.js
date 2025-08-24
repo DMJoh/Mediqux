@@ -25,6 +25,56 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
+// Test medications functionality
+app.get('/api/test-medications', async (req, res) => {
+  try {
+    const db = require('./src/database/db');
+    
+    // Test basic query
+    const medicationResult = await db.query('SELECT COUNT(*) as count FROM medications');
+    
+    res.json({
+      success: true,
+      message: 'Medications system test successful',
+      data: {
+        medications: medicationResult.rows[0].count
+      }
+    });
+  } catch (error) {
+    console.error('Medications test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Medications system test failed',
+      details: error.message
+    });
+  }
+});
+
+// Test conditions functionality
+app.get('/api/test-conditions', async (req, res) => {
+  try {
+    const db = require('./src/database/db');
+    
+    // Test basic query
+    const conditionResult = await db.query('SELECT COUNT(*) as count FROM medical_conditions');
+    
+    res.json({
+      success: true,
+      message: 'Conditions system test successful',
+      data: {
+        conditions: conditionResult.rows[0].count
+      }
+    });
+  } catch (error) {
+    console.error('Conditions test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Conditions system test failed',
+      details: error.message
+    });
+  }
+});
+
 // Test appointment functionality
 app.get('/api/test-appointments', async (req, res) => {
   try {
@@ -80,12 +130,14 @@ const doctorRoutes = require('./src/routes/doctors');
 const institutionRoutes = require('./src/routes/institutions');
 const appointmentRoutes = require('./src/routes/appointments');
 const conditionRoutes = require('./src/routes/conditions');
+const medicationRoutes = require('./src/routes/medications');
 
 app.use('/api/patients', patientRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/institutions', institutionRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/conditions', conditionRoutes);
+app.use('/api/medications', medicationRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {

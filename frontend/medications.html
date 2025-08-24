@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medications - Medical Management System</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="index.html"><i class="bi bi-heart-pulse"></i> Medical Manager</a>
+            
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="index.html">Dashboard</a>
+                <a class="nav-link" href="patients.html">Patients</a>
+                <a class="nav-link" href="doctors.html">Doctors</a>
+                <a class="nav-link" href="institutions.html">Institutions</a>
+                <a class="nav-link" href="appointments.html">Appointments</a>
+                <a class="nav-link" href="conditions.html">Conditions</a>
+                <a class="nav-link active" href="medications.html">Medications</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="bi bi-capsule"></i> Medication Management</h1>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#medicationModal" onclick="openAddMedicationModal()">
+                        <i class="bi bi-plus-circle"></i> Add Medication
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4 id="totalMedicationsCount">0</h4>
+                        <small>Total Medications</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4 id="manufacturersCount">0</h4>
+                        <small>Manufacturers</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4 id="genericNamesCount">0</h4>
+                        <small>With Generic Names</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white">
+                    <div class="card-body text-center">
+                        <h4 id="multipleFormsCount">0</h4>
+                        <small>Multiple Forms</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search medications by name, generic name, or manufacturer...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="dosageFormFilter">
+                    <option value="">All Dosage Forms</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="manufacturerFilter">
+                    <option value="">All Manufacturers</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-12">
+                <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Medications Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Medication List 
+                    <span id="medicationCount" class="badge bg-primary ms-2">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading medications...</p>
+                </div>
+                
+                <div id="medicationsTable" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medication Name</th>
+                                    <th>Generic Name</th>
+                                    <th>Forms & Strengths</th>
+                                    <th>Manufacturer</th>
+                                    <th>Usage</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="medicationsTableBody">
+                                <!-- Medications will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noMedications" style="display: none;" class="text-center py-5">
+                    <i class="bi bi-capsule display-1 text-muted"></i>
+                    <h3 class="text-muted">No Medications Found</h3>
+                    <p class="text-muted">Start by adding your first medication.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#medicationModal" onclick="openAddMedicationModal()">
+                        <i class="bi bi-plus-circle"></i> Add Medication
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Medication Modal -->
+    <div class="modal fade" id="medicationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">
+                        <i class="bi bi-plus-circle"></i> Add Medication
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="medicationForm">
+                        <input type="hidden" id="medicationId" name="medicationId">
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Medication Name *</label>
+                                    <input type="text" class="form-control" id="name" name="name" required>
+                                    <div class="invalid-feedback" id="nameError">
+                                        Medication name is required
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="genericName" class="form-label">Generic Name</label>
+                                    <input type="text" class="form-control" id="genericName" name="genericName">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dosageForms" class="form-label">Dosage Forms</label>
+                                    <div class="input-group">
+                                        <select class="form-select" id="dosageFormSelect">
+                                            <option value="">Select Form</option>
+                                            <option value="Tablet">Tablet</option>
+                                            <option value="Capsule">Capsule</option>
+                                            <option value="Syrup">Syrup</option>
+                                            <option value="Suspension">Suspension</option>
+                                            <option value="Injection">Injection</option>
+                                            <option value="Drops">Drops</option>
+                                            <option value="Cream">Cream</option>
+                                            <option value="Ointment">Ointment</option>
+                                            <option value="Gel">Gel</option>
+                                            <option value="Patch">Patch</option>
+                                            <option value="Inhaler">Inhaler</option>
+                                            <option value="Spray">Spray</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="addDosageForm()">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="selectedForms" class="mt-2"></div>
+                                    <input type="hidden" id="dosageForms" name="dosageForms">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="strengths" class="form-label">Strengths</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="strengthInput" placeholder="e.g., 500mg, 10mg/ml">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="addStrength()">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="selectedStrengths" class="mt-2"></div>
+                                    <input type="hidden" id="strengths" name="strengths">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="manufacturer" class="form-label">Manufacturer</label>
+                            <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" 
+                                      placeholder="Enter medication description, usage, or additional information..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveMedicationBtn" onclick="saveMedication()">
+                        <i class="bi bi-save"></i> Save Medication
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="js/app.js"></script>
+    <script src="js/medications.js"></script>
+</body>
+</html>

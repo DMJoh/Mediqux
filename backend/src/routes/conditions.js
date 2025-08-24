@@ -2,6 +2,85 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
 
+// Get condition categories for dropdown - must be before /:id route
+router.get('/categories/list', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT DISTINCT category, COUNT(*) as count
+      FROM medical_conditions 
+      WHERE category IS NOT NULL AND category != ''
+      GROUP BY category
+      ORDER BY category
+    `);
+    
+    // Add common medical categories
+    const commonCategories = [
+      'Cardiovascular',
+      'Respiratory',
+      'Neurological',
+      'Gastrointestinal',
+      'Endocrine',
+      'Musculoskeletal',
+      'Dermatological',
+      'Psychiatric',
+      'Infectious Disease',
+      'Oncological',
+      'Hematological',
+      'Renal',
+      'Ophthalmological',
+      'ENT',
+      'Gynecological',
+      'Pediatric',
+      'Emergency',
+      'Other'
+    ];
+    
+    const existingCategories = result.rows.map(row => row.category);
+    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort();
+    
+    res.json({
+      success: true,
+      data: allCategories.map(category => ({
+        category,
+        count: result.rows.find(row => row.category === category)?.count || 0
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching condition categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch condition categories'
+    });
+  }
+});
+
+// Get condition statistics - must be before /:id route
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        COUNT(*) as total_conditions,
+        COUNT(DISTINCT category) as total_categories,
+        COUNT(CASE WHEN icd_code IS NOT NULL AND icd_code != '' THEN 1 END) as with_icd_codes,
+        COUNT(CASE WHEN severity = 'High' THEN 1 END) as high_severity,
+        COUNT(CASE WHEN severity = 'Medium' THEN 1 END) as medium_severity,
+        COUNT(CASE WHEN severity = 'Low' THEN 1 END) as low_severity
+      FROM medical_conditions
+    `);
+    
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching condition statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch condition statistics'
+    });
+  }
+});
+
 // Get all medical conditions with usage statistics
 router.get('/', async (req, res) => {
   try {
@@ -310,85 +389,6 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete medical condition'
-    });
-  }
-});
-
-// Get condition categories for dropdown
-router.get('/categories/list', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT DISTINCT category, COUNT(*) as count
-      FROM medical_conditions 
-      WHERE category IS NOT NULL AND category != ''
-      GROUP BY category
-      ORDER BY category
-    `);
-    
-    // Add common medical categories
-    const commonCategories = [
-      'Cardiovascular',
-      'Respiratory',
-      'Neurological',
-      'Gastrointestinal',
-      'Endocrine',
-      'Musculoskeletal',
-      'Dermatological',
-      'Psychiatric',
-      'Infectious Disease',
-      'Oncological',
-      'Hematological',
-      'Renal',
-      'Ophthalmological',
-      'ENT',
-      'Gynecological',
-      'Pediatric',
-      'Emergency',
-      'Other'
-    ];
-    
-    const existingCategories = result.rows.map(row => row.category);
-    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort();
-    
-    res.json({
-      success: true,
-      data: allCategories.map(category => ({
-        category,
-        count: result.rows.find(row => row.category === category)?.count || 0
-      }))
-    });
-  } catch (error) {
-    console.error('Error fetching condition categories:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch condition categories'
-    });
-  }
-});
-
-// Get condition statistics
-router.get('/stats/summary', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT 
-        COUNT(*) as total_conditions,
-        COUNT(DISTINCT category) as total_categories,
-        COUNT(CASE WHEN icd_code IS NOT NULL AND icd_code != '' THEN 1 END) as with_icd_codes,
-        COUNT(CASE WHEN severity = 'High' THEN 1 END) as high_severity,
-        COUNT(CASE WHEN severity = 'Medium' THEN 1 END) as medium_severity,
-        COUNT(CASE WHEN severity = 'Low' THEN 1 END) as low_severity
-      FROM medical_conditions
-    `);
-    
-    res.json({
-      success: true,
-      data: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Error fetching condition statistics:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch condition statistics'
     });
   }
 });

@@ -87,6 +87,30 @@ async function loadConditions() {
             showAlert('Failed to load conditions: ' + (response.error || 'Unknown error'), 'danger');
         }
     } catch (error) {
+        console.error('Error loading conditions:', error);
+        showAlert('Error loading conditions: ' + error.message, 'danger');
+        // Show empty state instead of infinite loading
+        allConditions = [];
+        filteredConditions = [];
+        displayConditions();
+        updateConditionCount();
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Load condition statistics
+async function loadConditionStats() {
+    try {
+        const response = await apiCall('/conditions/stats/summary');
+        if (response.success) {
+            const stats = response.data;
+            document.getElementById('totalConditionsCount').textContent = stats.total_conditions || 0;
+            document.getElementById('categoriesCount').textContent = stats.total_categories || 0;
+            document.getElementById('withIcdCount').textContent = stats.with_icd_codes || 0;
+            document.getElementById('highSeverityCount').textContent = stats.high_severity || 0;
+        }
+    } catch (error) {
         console.error('Error loading condition stats:', error);
         // Set defaults
         document.getElementById('totalConditionsCount').textContent = '0';
@@ -109,6 +133,9 @@ async function loadCategoryFilter() {
         }
     } catch (error) {
         console.error('Error loading categories:', error);
+        // Set default empty options to prevent errors
+        const categorySelect = document.getElementById('categoryFilter');
+        categorySelect.innerHTML = '<option value="">All Categories</option>';
     }
 }
 
@@ -395,27 +422,3 @@ async function deleteCondition(id, name, usageCount) {
         showAlert('Error deleting condition: ' + error.message, 'danger');
     }
 }
-        console.error('Error loading conditions:', error);
-        showAlert('Error loading conditions: ' + error.message, 'danger');
-        // Show empty state instead of infinite loading
-        allConditions = [];
-        filteredConditions = [];
-        displayConditions();
-        updateConditionCount();
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Load condition statistics
-async function loadConditionStats() {
-    try {
-        const response = await apiCall('/conditions/stats/summary');
-        if (response.success) {
-            const stats = response.data;
-            document.getElementById('totalConditionsCount').textContent = stats.total_conditions || 0;
-            document.getElementById('categoriesCount').textContent = stats.total_categories || 0;
-            document.getElementById('withIcdCount').textContent = stats.with_icd_codes || 0;
-            document.getElementById('highSeverityCount').textContent = stats.high_severity || 0;
-        }
-    } catch (error) {

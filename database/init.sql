@@ -69,6 +69,18 @@ CREATE TABLE medical_conditions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Medical conditions/diseases catalog
+CREATE TABLE medical_conditions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    icd_code VARCHAR(20) UNIQUE, -- ICD-10 codes
+    category VARCHAR(100), -- Cardiovascular, Respiratory, etc.
+    severity VARCHAR(20), -- Low, Medium, High
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Appointments/Visits
 CREATE TABLE appointments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -156,3 +168,6 @@ CREATE INDEX idx_appointments_date ON appointments(appointment_date);
 CREATE INDEX idx_prescriptions_appointment ON prescriptions(appointment_id);
 CREATE INDEX idx_test_results_patient ON test_results(patient_id);
 CREATE INDEX idx_lab_values_test ON lab_values(test_result_id);
+CREATE INDEX idx_medical_conditions_name ON medical_conditions(name);
+CREATE INDEX idx_medical_conditions_category ON medical_conditions(category);
+CREATE INDEX idx_medical_conditions_icd ON medical_conditions(icd_code);
