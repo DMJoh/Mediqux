@@ -125,6 +125,9 @@ app.get('/api/test-db', async (req, res) => {
 });
 
 // Routes
+const authRoutes = require('./src/routes/auth');
+const usersRoutes = require('./src/routes/users');
+const { authenticateToken } = require('./src/middleware/auth');
 const patientRoutes = require('./src/routes/patients');
 const doctorRoutes = require('./src/routes/doctors');
 const institutionRoutes = require('./src/routes/institutions');
@@ -134,14 +137,19 @@ const medicationRoutes = require('./src/routes/medications');
 const prescriptionRoutes = require('./src/routes/prescriptions');
 const testResultRoutes = require('./src/routes/test-results');
 
-app.use('/api/patients', patientRoutes);
-app.use('/api/doctors', doctorRoutes);
-app.use('/api/institutions', institutionRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/conditions', conditionRoutes);
-app.use('/api/medications', medicationRoutes);
-app.use('/api/prescriptions', prescriptionRoutes);
-app.use('/api/test-results', testResultRoutes);
+// Public routes (no authentication required)
+app.use('/api/auth', authRoutes);
+
+// Protected routes (authentication required)
+app.use('/api/users', authenticateToken, usersRoutes);
+app.use('/api/patients', authenticateToken, patientRoutes);
+app.use('/api/doctors', authenticateToken, doctorRoutes);
+app.use('/api/institutions', authenticateToken, institutionRoutes);
+app.use('/api/appointments', authenticateToken, appointmentRoutes);
+app.use('/api/conditions', authenticateToken, conditionRoutes);
+app.use('/api/medications', authenticateToken, medicationRoutes);
+app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
+app.use('/api/test-results', authenticateToken, testResultRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {

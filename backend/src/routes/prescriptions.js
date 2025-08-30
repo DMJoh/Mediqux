@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { addPatientFilter } = require('../middleware/auth');
 
-// Get all prescriptions with detailed information
-router.get('/', async (req, res) => {
+// Get all prescriptions with detailed information (with RBAC filtering)
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { search, patient_id, status } = req.query;
     
@@ -58,6 +59,20 @@ router.get('/', async (req, res) => {
     
     const queryParams = [];
     let paramIndex = 1;
+    
+    // Apply RBAC patient filtering first
+    if (req.patientFilter && req.patientFilter !== 'none') {
+      query += ` AND pat.id = $${paramIndex}`;
+      queryParams.push(req.patientFilter);
+      paramIndex++;
+    } else if (req.patientFilter === 'none') {
+      // User has no patient access
+      return res.json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
     
     // Add filters if provided
     if (search) {

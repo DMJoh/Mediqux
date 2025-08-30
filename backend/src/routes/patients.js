@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { addPatientFilter } = require('../middleware/auth');
 
-// Get all patients
-router.get('/', async (req, res) => {
+// Get all patients (with RBAC filtering)
+router.get('/', addPatientFilter, async (req, res) => {
   try {
-    const result = await db.query(`
+    let query = `
       SELECT 
         id, 
         first_name, 
@@ -16,8 +17,25 @@ router.get('/', async (req, res) => {
         email,
         created_at
       FROM patients 
-      ORDER BY last_name, first_name
-    `);
+    `;
+    let params = [];
+    
+    // Apply patient filtering based on user role
+    if (req.patientFilter && req.patientFilter !== 'none') {
+      query += ` WHERE id = $1`;
+      params = [req.patientFilter];
+    } else if (req.patientFilter === 'none') {
+      // User has no patient access
+      return res.json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
+    
+    query += ` ORDER BY last_name, first_name`;
+    
+    const result = await db.query(query, params);
     
     res.json({
       success: true,

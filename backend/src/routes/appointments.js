@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { addPatientFilter } = require('../middleware/auth');
 
 // Get upcoming appointments (for dashboard) - must be before /:id route
 router.get('/dashboard/upcoming', async (req, res) => {
@@ -63,8 +64,8 @@ router.get('/stats/summary', async (req, res) => {
   }
 });
 
-// Get all appointments with patient, doctor, and institution details
-router.get('/', async (req, res) => {
+// Get all appointments with patient, doctor, and institution details (with RBAC filtering)
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { status, patient_id, doctor_id, date_from, date_to } = req.query;
     
@@ -100,6 +101,20 @@ router.get('/', async (req, res) => {
     
     const queryParams = [];
     let paramIndex = 1;
+    
+    // Apply RBAC patient filtering first
+    if (req.patientFilter && req.patientFilter !== 'none') {
+      query += ` AND a.patient_id = $${paramIndex}`;
+      queryParams.push(req.patientFilter);
+      paramIndex++;
+    } else if (req.patientFilter === 'none') {
+      // User has no patient access
+      return res.json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
     
     // Add filters if provided
     if (status) {
