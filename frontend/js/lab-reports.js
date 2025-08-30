@@ -65,6 +65,8 @@ window.clearFilters = clearFilters;
 window.addLabValue = addLabValue;
 window.removeLabValue = removeLabValue;
 window.addCommonTest = addCommonTest;
+window.viewPDF = viewPDF;
+window.downloadPDF = downloadPDF;
 
 // Initialize lab reports page
 document.addEventListener('DOMContentLoaded', function() {
@@ -329,7 +331,14 @@ function displayReports() {
                         <button class="btn btn-outline-primary" onclick="editReport('${report.id}')" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        ${report.pdf_file_path ? `<button class="btn btn-outline-secondary" onclick="downloadPDF('${report.id}')" title="Download PDF"><i class="bi bi-download"></i></button>` : ''}
+                        ${report.pdf_file_path ? `
+                            <button class="btn btn-outline-success" onclick="viewPDF('${report.id}')" title="View PDF">
+                                <i class="bi bi-file-earmark-pdf"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="downloadPDF('${report.id}')" title="Download PDF">
+                                <i class="bi bi-download"></i>
+                            </button>
+                        ` : ''}
                         <button class="btn btn-outline-danger" onclick="deleteReport('${report.id}', '${report.test_name}', '${report.patient_first_name} ${report.patient_last_name}')" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -557,7 +566,8 @@ async function uploadReport() {
         
         document.getElementById('processingStatus').style.display = 'block';
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/upload`, {
+        // Use authenticated API call for file upload
+        const response = await window.authManager.apiRequest('/test-results/upload', {
             method: 'POST',
             body: formData
         });
@@ -566,37 +576,11 @@ async function uploadReport() {
         console.log('Upload response:', result);
         
         if (result.success) {
-            if (result.requiresReview) {
-                // Show PDF review modal with extracted data
-                const extractedData = {
-                    patientId: formData.get('patientId'),
-                    appointmentId: formData.get('appointmentId'),
-                    institutionId: formData.get('institutionId'),
-                    testName: formData.get('testName'),
-                    testType: formData.get('testType'),
-                    testDate: formData.get('testDate'),
-                    patientName: result.patientName || 'Unknown',
-                    labValues: result.extractedValues || [],
-                    pdfFilePath: result.tempFile?.path || null,
-                    tempFileData: result.tempFile
-                };
-                
-                console.log('Extracted data for review:', extractedData);
-                
-                // Hide upload modal and show review modal
-                bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-                
-                // Add delay to ensure modal is closed before opening new one
-                setTimeout(() => {
-                    showPDFReviewModal(extractedData);
-                }, 300);
-            } else {
-                // Old workflow - direct save (fallback)
-                showAlert(result.message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-                loadReports();
-                loadReportStats();
-            }
+            // Simplified workflow - PDF is saved directly
+            showAlert(result.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
+            loadReports();
+            loadReportStats();
         } else {
             showAlert(result.error || 'Failed to upload report', 'danger');
         }
@@ -860,9 +844,83 @@ async function deleteReport(reportId, testName, patientName) {
     }
 }
 
-// Download PDF (placeholder function)
-function downloadPDF(reportId) {
-    window.open(`${CONFIG.API_BASE}/test-results/${reportId}/download`, '_blank');
+// View PDF in browser with authentication
+async function viewPDF(reportId) {
+    try {
+        const response = await window.authManager.apiRequest(`/test-results/${reportId}/view`);
+        
+        if (!response) {
+            showAlert('Authentication failed', 'danger');
+            return;
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            showAlert(errorData.error || 'Failed to load PDF', 'danger');
+            return;
+        }
+        
+        // Get the PDF blob
+        const blob = await response.blob();
+        
+        // Create object URL and open in new tab
+        const url = URL.createObjectURL(blob);
+        const newTab = window.open(url, '_blank');
+        
+        // Clean up the URL after a delay
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
+        
+    } catch (error) {
+        console.error('Error viewing PDF:', error);
+        showAlert('Error viewing PDF: ' + error.message, 'danger');
+    }
+}
+
+// Download PDF with authentication
+async function downloadPDF(reportId) {
+    try {
+        const response = await window.authManager.apiRequest(`/test-results/${reportId}/download`);
+        
+        if (!response) {
+            showAlert('Authentication failed', 'danger');
+            return;
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            showAlert(errorData.error || 'Failed to download PDF', 'danger');
+            return;
+        }
+        
+        // Get the PDF blob
+        const blob = await response.blob();
+        
+        // Get filename from response headers or use default
+        let filename = 'lab-report.pdf';
+        const contentDisposition = response.headers.get('Content-Disposition');
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"/);
+            if (match) {
+                filename = match[1];
+            }
+        }
+        
+        // Create download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+    } catch (error) {
+        console.error('Error downloading PDF:', error);
+        showAlert('Error downloading PDF: ' + error.message, 'danger');
+    }
 }
 
 // Panel Management Variables
@@ -888,7 +946,6 @@ window.deletePanel = deletePanel;
 // PDF Review Functions
 window.saveReviewedValues = saveReviewedValues;
 window.addManualValueToReview = addManualValueToReview;
-window.editReviewValue = editReviewValue;
 window.deleteReviewValue = deleteReviewValue;
 window.updateReviewValue = updateReviewValue;
 
@@ -912,9 +969,9 @@ async function openPanelManagementModal() {
 
 async function loadLabPanels() {
     try {
-        console.log('Loading lab panels from:', `${CONFIG.API_BASE}/test-results/panels`);
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels`);
-        console.log('Panel response status:', response.status);
+        console.log('Loading lab panels from API');
+        const response = await window.authManager.apiRequest('/test-results/panels');
+        console.log('Panel response status:', response ? response.status : 'null');
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -990,9 +1047,8 @@ async function createNewPanel() {
             return;
         }
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels`, {
+        const response = await window.authManager.apiRequest('/test-results/panels', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description, category })
         });
         
@@ -1019,8 +1075,8 @@ async function selectPanel(panelId) {
         // Add active state to selected panel
         event?.target?.closest('.panel-item')?.classList.add('border-primary');
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels/${panelId}`);
-        if (!response.ok) throw new Error('Failed to fetch panel details');
+        const response = await window.authManager.apiRequest(`/test-results/panels/${panelId}`);
+        if (!response) throw new Error('Failed to fetch panel details');
         
         const panel = await response.json();
         currentEditingPanel = panel;
@@ -1095,6 +1151,19 @@ function addParameterToPanel() {
 
 function hideAddParameterForm() {
     document.getElementById('addParameterForm').style.display = 'none';
+    
+    // Reset form state
+    document.getElementById('addParameterForm').removeAttribute('data-editing-param-id');
+    document.querySelector('#addParameterForm h6').textContent = 'Add New Parameter';
+    document.querySelector('#addParameterForm .btn-success').innerHTML = '<i class="bi bi-save"></i> Add Parameter';
+    
+    // Clear form fields
+    document.getElementById('newParamName').value = '';
+    document.getElementById('newParamUnit').value = '';
+    document.getElementById('newParamMinNormal').value = '';
+    document.getElementById('newParamMaxNormal').value = '';
+    document.getElementById('newParamGender').value = '';
+    document.getElementById('newParamAliases').value = '';
 }
 
 async function saveNewParameter() {
@@ -1106,29 +1175,48 @@ async function saveNewParameter() {
         const referenceMax = document.getElementById('newParamMaxNormal').value;
         const genderSpecific = document.getElementById('newParamGender').value;
         const aliases = document.getElementById('newParamAliases').value.trim();
+        const editingParamId = document.getElementById('addParameterForm').getAttribute('data-editing-param-id');
         
         if (!parameterName) {
             showAlert('Parameter name is required', 'warning');
             return;
         }
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels/${panelId}/parameters`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                parameter_name: parameterName,
-                unit: unit || null,
-                reference_min: referenceMin ? parseFloat(referenceMin) : null,
-                reference_max: referenceMax ? parseFloat(referenceMax) : null,
-                gender_specific: genderSpecific || null,
-                aliases: aliases || null
-            })
-        });
+        let response;
+        if (editingParamId) {
+            // Update existing parameter
+            response = await window.authManager.apiRequest(`/test-results/panels/${panelId}/parameters/${editingParamId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    parameter_name: parameterName,
+                    unit: unit || null,
+                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    gender_specific: genderSpecific || null,
+                    aliases: aliases || null
+                })
+            });
+        } else {
+            // Create new parameter
+            response = await window.authManager.apiRequest(`/test-results/panels/${panelId}/parameters`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    parameter_name: parameterName,
+                    unit: unit || null,
+                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    gender_specific: genderSpecific || null,
+                    aliases: aliases || null
+                })
+            });
+        }
+        
+        if (!response) throw new Error('Authentication failed');
         
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
         
-        showAlert('Parameter added successfully', 'success');
+        showAlert(editingParamId ? 'Parameter updated successfully' : 'Parameter added successfully', 'success');
         hideAddParameterForm();
         
         // Refresh panel details
@@ -1139,14 +1227,42 @@ async function saveNewParameter() {
     }
 }
 
+function editPanelParameter(parameterId) {
+    const parameter = currentEditingPanel.parameters.find(p => p.id === parameterId);
+    if (!parameter) {
+        showAlert('Parameter not found', 'danger');
+        return;
+    }
+    
+    // Show the add parameter form with existing values
+    document.getElementById('addParameterForm').style.display = 'block';
+    
+    // Populate form with existing values
+    document.getElementById('newParamName').value = parameter.parameter_name || '';
+    document.getElementById('newParamUnit').value = parameter.unit || '';
+    document.getElementById('newParamMinNormal').value = parameter.reference_min || '';
+    document.getElementById('newParamMaxNormal').value = parameter.reference_max || '';
+    document.getElementById('newParamGender').value = parameter.gender_specific || '';
+    document.getElementById('newParamAliases').value = parameter.aliases || '';
+    
+    // Store the parameter ID for updating
+    document.getElementById('addParameterForm').setAttribute('data-editing-param-id', parameterId);
+    
+    // Update form title and button
+    document.querySelector('#addParameterForm h6').textContent = 'Edit Parameter';
+    document.querySelector('#addParameterForm .btn-success').innerHTML = '<i class="bi bi-save"></i> Update Parameter';
+}
+
 async function deletePanelParameter(parameterId) {
     if (!confirm('Are you sure you want to delete this parameter?')) return;
     
     try {
         const panelId = currentEditingPanel.id;
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels/${panelId}/parameters/${parameterId}`, {
+        const response = await window.authManager.apiRequest(`/test-results/panels/${panelId}/parameters/${parameterId}`, {
             method: 'DELETE'
         });
+        
+        if (!response) throw new Error('Authentication failed');
         
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
@@ -1171,11 +1287,12 @@ async function savePanelChanges() {
             return;
         }
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels/${panelId}`, {
+        const response = await window.authManager.apiRequest(`/test-results/panels/${panelId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name })
         });
+        
+        if (!response) throw new Error('Authentication failed');
         
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
@@ -1200,9 +1317,11 @@ async function deletePanel() {
     }
     
     try {
-        const response = await fetch(`${CONFIG.API_BASE}/test-results/panels/${currentEditingPanel.id}`, {
+        const response = await window.authManager.apiRequest(`/test-results/panels/${currentEditingPanel.id}`, {
             method: 'DELETE'
         });
+        
+        if (!response) throw new Error('Authentication failed');
         
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
@@ -1390,9 +1509,8 @@ async function saveReviewedValues() {
         
         console.log('Sending request data:', requestData);
         
-        const response = await fetch(`${CONFIG.API_BASE}/test-results`, {
+        const response = await window.authManager.apiRequest('/test-results', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
         });
         
@@ -1420,4 +1538,146 @@ async function saveReviewedValues() {
         document.getElementById('saveReviewedValuesBtn').disabled = false;
         document.getElementById('saveReviewedValuesBtn').innerHTML = '<i class="bi bi-save"></i> Save Lab Report';
     }
+}
+
+// Aggressive fix for Bootstrap modal focus and backdrop issues
+function fixBootstrapModalFocus() {
+    // Override Bootstrap's modal close behavior to prevent focus trapping and backdrop issues
+    const originalModalProto = bootstrap.Modal.prototype.hide;
+    
+    bootstrap.Modal.prototype.hide = function() {
+        const modalElement = this._element;
+        
+        // Before hiding modal, aggressively blur all focused elements
+        if (modalElement && modalElement.contains(document.activeElement)) {
+            document.activeElement.blur();
+            
+            // Force focus to body
+            setTimeout(() => {
+                document.body.focus();
+                document.body.blur();
+            }, 0);
+        }
+        
+        // Call original hide method
+        const result = originalModalProto.call(this);
+        
+        // Aggressive cleanup after modal hide
+        setTimeout(() => {
+            // Remove any lingering backdrops
+            const backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(backdrop => backdrop.remove());
+            
+            // Remove modal-open class from body
+            document.body.classList.remove('modal-open');
+            
+            // Reset body overflow
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            // Ensure modal is fully hidden
+            if (modalElement) {
+                modalElement.style.display = 'none';
+                modalElement.classList.remove('show');
+                modalElement.setAttribute('aria-hidden', 'true');
+                modalElement.removeAttribute('aria-modal');
+            }
+        }, 100);
+        
+        return result;
+    };
+}
+
+// Initialize modal fixes immediately
+function initializeModalFocusManagement() {
+    // Apply the bootstrap override
+    fixBootstrapModalFocus();
+    
+    // Add click handlers to all modal dismiss buttons
+    document.querySelectorAll('[data-bs-dismiss="modal"]').forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Immediately blur the button to prevent focus issues
+            this.blur();
+            
+            // Find the modal this button belongs to
+            const modal = this.closest('.modal');
+            if (modal) {
+                // Blur any focused elements in the modal
+                const focusedElement = modal.querySelector(':focus');
+                if (focusedElement) {
+                    focusedElement.blur();
+                }
+                
+                // Force focus away from modal
+                document.body.focus();
+                
+                // Use a small delay to ensure DOM is ready
+                setTimeout(() => {
+                    document.body.blur();
+                }, 50);
+            }
+        });
+    });
+    
+    // Handle panel management modal specifically with extra cleanup
+    const panelManagementModal = document.getElementById('panelManagementModal');
+    if (panelManagementModal) {
+        // Add extra handlers for panel modal close buttons
+        const panelCloseButtons = panelManagementModal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        panelCloseButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Force immediate cleanup
+                setTimeout(() => {
+                    // Remove any lingering modal state
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    
+                    // Remove backdrops
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                    
+                    // Clear panel editing state
+                    if (typeof cancelPanelEdit === 'function') {
+                        cancelPanelEdit();
+                    }
+                }, 50);
+            });
+        });
+        
+        panelManagementModal.addEventListener('hidden.bs.modal', function() {
+            // Additional cleanup after modal is hidden
+            setTimeout(() => {
+                // Final cleanup
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+                document.body.style.paddingRight = '';
+                
+                // Remove any remaining backdrops
+                const remainingBackdrops = document.querySelectorAll('.modal-backdrop');
+                remainingBackdrops.forEach(backdrop => backdrop.remove());
+                
+                // Clear any active panel editing
+                if (typeof cancelPanelEdit === 'function') {
+                    cancelPanelEdit();
+                }
+                
+                // Return focus to the trigger button
+                const managePanelsBtn = document.querySelector('button[data-bs-target="#panelManagementModal"]');
+                if (managePanelsBtn) {
+                    managePanelsBtn.focus();
+                }
+            }, 150);
+        });
+    }
+}
+
+// Initialize immediately if Bootstrap is available, otherwise wait for it
+if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+    initializeModalFocusManagement();
+} else {
+    // Wait for Bootstrap to load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Small delay to ensure Bootstrap is fully loaded
+        setTimeout(initializeModalFocusManagement, 100);
+    });
 }

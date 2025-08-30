@@ -6,22 +6,32 @@ const CONFIG = {
     RETRY_DELAY: 1000
 };
 
-// Enhanced API call function with retry logic
+// Enhanced API call function with authentication and retry logic
 async function apiCall(endpoint, options = {}, retryCount = 0) {
     try {
-        const response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
-            ...options
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // Use auth manager if available, otherwise direct API call
+        if (window.authManager) {
+            const response = await window.authManager.apiRequest(endpoint, options);
+            if (!response) {
+                throw new Error('Authentication failed');
+            }
+            return await response.json();
+        } else {
+            // Fallback for non-authenticated calls
+            const response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
         }
-        
-        return await response.json();
     } catch (error) {
         console.error(`API call failed (attempt ${retryCount + 1}):`, error);
         

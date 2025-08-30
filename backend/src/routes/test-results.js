@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 const pdfParse = require('pdf-parse');
 const router = express.Router();
 const db = require('../database/db');
+const { addPatientFilter } = require('../middleware/auth');
 
 // Lab Panel Management Endpoints (must be before /:id routes)
 
@@ -1025,8 +1026,8 @@ function getUnitFromText(text) {
   return null;
 }
 
-// Get all test results
-router.get('/', async (req, res) => {
+// Get all test results (with RBAC filtering)
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { search, patient_id, test_type, date_range } = req.query;
     
@@ -1084,6 +1085,20 @@ router.get('/', async (req, res) => {
     
     const queryParams = [];
     let paramIndex = 1;
+    
+    // Apply RBAC patient filtering first
+    if (req.patientFilter && req.patientFilter !== 'none') {
+      query += ` AND tr.patient_id = $${paramIndex}`;
+      queryParams.push(req.patientFilter);
+      paramIndex++;
+    } else if (req.patientFilter === 'none') {
+      // User has no patient access
+      return res.json({
+        success: true,
+        data: [],
+        count: 0
+      });
+    }
     
     // Add filters if provided
     if (search) {
@@ -1213,7 +1228,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Upload and process PDF report
+// Upload PDF report (simplified - no parsing)
 router.post('/upload', upload.single('pdfFile'), async (req, res) => {
   try {
     const {
@@ -1244,56 +1259,42 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
       });
     }
     
-    console.log('Processing PDF file:', pdfFile.filename);
+    console.log('Saving PDF file:', pdfFile.filename);
     
     const client = await db.getClient();
     
     try {
       await client.query('BEGIN');
       
-      // Parse PDF and extract text
-      let extractedText = '';
-      let extractedValues = [];
+      // Create test result record with PDF file
+      const testResultQuery = `
+        INSERT INTO test_results (
+          patient_id, appointment_id, test_name, test_type, test_date, 
+          institution_id, pdf_file_path
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
+      `;
       
-      try {
-        const pdfBuffer = await fs.readFile(pdfFile.path);
-        const pdfData = await pdfParse(pdfBuffer);
-        extractedText = pdfData.text;
-        
-        console.log('PDF text extracted, length:', extractedText.length);
-        
-        // Extract lab values using patterns
-        extractedValues = extractLabValues(extractedText);
-        console.log('Extracted lab values:', extractedValues);
-        
-      } catch (pdfError) {
-        console.error('PDF parsing error:', pdfError);
-        // Continue without extracted data - user can enter manually
-      }
-      
-      // Store file info temporarily but don't save to database yet
-      // We'll let the user review the extracted values first
+      const testResult = await client.query(testResultQuery, [
+        patientId,
+        appointmentId || null,
+        testName,
+        testType,
+        testDate,
+        institutionId || null,
+        pdfFile.path
+      ]);
       
       await client.query('COMMIT');
       
       res.status(200).json({
         success: true,
-        requiresReview: true, // Flag to indicate review is needed
-        tempFile: {
-          path: pdfFile.path,
-          originalName: pdfFile.originalname,
-          uploadData: {
-            patientId,
-            appointmentId: appointmentId || null,
-            testName,
-            testType,
-            testDate,
-            institutionId: institutionId || null
-          }
-        },
-        extractedText: extractedText.substring(0, 1000) + (extractedText.length > 1000 ? '...' : ''), // First 1000 chars for preview
-        extractedValues: extractedValues,
-        message: `PDF processed successfully. Found ${extractedValues.length} potential lab values. Please review and confirm before saving.`
+        message: 'PDF lab report uploaded successfully',
+        data: {
+          id: testResult.rows[0].id,
+          testName,
+          fileName: pdfFile.originalname
+        }
       });
       
     } catch (error) {
@@ -1630,6 +1631,52 @@ router.get('/:id/download', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to download PDF'
+    });
+  }
+});
+
+// View PDF inline in browser
+router.get('/:id/view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get test result details
+    const result = await db.query(`
+      SELECT pdf_file_path, test_name 
+      FROM test_results 
+      WHERE id = $1 AND pdf_file_path IS NOT NULL
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test result or PDF file not found'
+      });
+    }
+    
+    const { pdf_file_path, test_name } = result.rows[0];
+    
+    // Check if file exists
+    if (!require('fs').existsSync(pdf_file_path)) {
+      return res.status(404).json({
+        success: false,
+        error: 'PDF file not found on server'
+      });
+    }
+    
+    // Set headers for inline viewing in browser
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${test_name}.pdf"`);
+    
+    // Stream the file
+    const fileStream = require('fs').createReadStream(pdf_file_path);
+    fileStream.pipe(res);
+    
+  } catch (error) {
+    console.error('Error viewing PDF:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to view PDF'
     });
   }
 });

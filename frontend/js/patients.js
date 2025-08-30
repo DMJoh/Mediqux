@@ -121,7 +121,7 @@ function displayPatients() {
     tableDiv.style.display = 'block';
     noPatients.style.display = 'none';
     
-    tbody.innerHTML = filteredPatients.map(patient => `
+    const patientsHtml = filteredPatients.map(patient => `
         <tr>
             <td>
                 <strong>${patient.first_name} ${patient.last_name}</strong>
@@ -140,19 +140,26 @@ function displayPatients() {
             </td>
             <td>
                 <div class="btn-group btn-group-sm" role="group">
-                    <button class="btn btn-outline-primary" onclick="editPatient('${patient.id}')" title="Edit">
+                    <button class="btn btn-outline-primary admin-action" onclick="editPatient('${patient.id}')" title="Edit">
                         <i class="bi bi-pencil"></i>
                     </button>
                     <button class="btn btn-outline-info" onclick="viewPatient('${patient.id}')" title="View Details">
                         <i class="bi bi-eye"></i>
                     </button>
-                    <button class="btn btn-outline-danger" onclick="deletePatient('${patient.id}', '${patient.first_name} ${patient.last_name}')" title="Delete">
+                    <button class="btn btn-outline-danger admin-action" onclick="deletePatient('${patient.id}', '${patient.first_name} ${patient.last_name}')" title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
             </td>
         </tr>
     `).join('');
+    
+    tbody.innerHTML = patientsHtml;
+    
+    // Update admin action buttons visibility
+    if (window.authManager) {
+        window.authManager.updateActionButtons();
+    }
 }
 
 // Filter patients based on search and filters
