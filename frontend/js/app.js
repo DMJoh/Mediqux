@@ -1,9 +1,9 @@
 // Medical Management System - Frontend JavaScript
-// Configuration
+// Configuration (now loaded from config.js)
 const CONFIG = {
-    API_BASE: 'http://localhost:3000/api',
-    RETRY_ATTEMPTS: 3,
-    RETRY_DELAY: 1000
+    get API_BASE() { return window.getApiBaseUrl(); },
+    get RETRY_ATTEMPTS() { return window.ENV_CONFIG.RETRY_ATTEMPTS; },
+    get RETRY_DELAY() { return window.ENV_CONFIG.RETRY_DELAY; }
 };
 
 // Enhanced API call function with authentication and retry logic
@@ -184,8 +184,8 @@ document.addEventListener('DOMContentLoaded', function() {
         checkSystemHealth();
         loadDashboardStats();
         
-        // Auto-refresh system status every 30 seconds
-        setInterval(checkSystemHealth, 30000);
+        // Auto-refresh system status using configurable interval
+        setInterval(checkSystemHealth, window.ENV_CONFIG.HEALTH_CHECK_INTERVAL);
     }
     
     console.log('Medical Management System initialized');
