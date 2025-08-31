@@ -5,7 +5,26 @@ const fs = require('fs').promises;
 const pdfParse = require('pdf-parse');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { authenticateToken, addPatientFilter } = require('../middleware/auth');
+
+// Helper function to generate descriptive PDF filename
+function generatePdfFilename(testName, testDate, firstName, lastName) {
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+  };
+  
+  const sanitizeFilename = (str) => {
+    // Replace spaces with underscores and remove special characters
+    return str.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase();
+  };
+  
+  const testNameClean = sanitizeFilename(testName || 'lab_report');
+  const dateFormatted = formatDate(testDate);
+  const patientName = sanitizeFilename(`${firstName || ''}_${lastName || ''}`.replace(/^_|_$/g, ''));
+  
+  return `${testNameClean}_${dateFormatted}_${patientName || 'unknown'}.pdf`;
+}
 
 // Lab Panel Management Endpoints (must be before /:id routes)
 
@@ -1027,7 +1046,7 @@ function getUnitFromText(text) {
 }
 
 // Get all test results (with RBAC filtering)
-router.get('/', addPatientFilter, async (req, res) => {
+router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { search, patient_id, test_type, date_range } = req.query;
     
@@ -1159,7 +1178,7 @@ router.get('/', addPatientFilter, async (req, res) => {
 });
 
 // Get single test result by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1228,8 +1247,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Upload PDF report (simplified - no parsing)
-router.post('/upload', upload.single('pdfFile'), async (req, res) => {
+// Upload PDF report with optional parsing and value suggestions
+router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const {
       patientId,
@@ -1237,7 +1256,8 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
       testName,
       testType,
       testDate,
-      institutionId
+      institutionId,
+      enableParsing = 'true' // Optional parsing flag
     } = req.body;
     
     const pdfFile = req.file;
@@ -1259,19 +1279,43 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
       });
     }
     
-    console.log('Saving PDF file:', pdfFile.filename);
+    console.log('Processing PDF file:', pdfFile.filename);
+    
+    let extractedText = null;
+    let suggestedValues = [];
+    let parsingError = null;
+    
+    // Attempt PDF parsing if enabled (optional enhancement)
+    if (enableParsing === 'true') {
+      try {
+        console.log('Attempting PDF parsing...');
+        const pdfBuffer = await fs.readFile(pdfFile.path);
+        const pdfData = await pdfParse(pdfBuffer);
+        extractedText = pdfData.text;
+        
+        if (extractedText && extractedText.length > 50) {
+          console.log('PDF text extracted successfully, extracting lab values...');
+          suggestedValues = extractLabValues(extractedText);
+          console.log(`Extracted ${suggestedValues.length} potential lab values`);
+        }
+      } catch (error) {
+        console.error('PDF parsing failed (non-critical):', error);
+        parsingError = error.message;
+        // Continue with upload even if parsing fails
+      }
+    }
     
     const client = await db.getClient();
     
     try {
       await client.query('BEGIN');
       
-      // Create test result record with PDF file
+      // Create test result record with PDF file (always save PDF regardless of parsing)
       const testResultQuery = `
         INSERT INTO test_results (
           patient_id, appointment_id, test_name, test_type, test_date, 
-          institution_id, pdf_file_path
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+          institution_id, pdf_file_path, extracted_text, structured_data
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
       
@@ -1282,7 +1326,9 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
         testType,
         testDate,
         institutionId || null,
-        pdfFile.path
+        pdfFile.path,
+        extractedText,
+        JSON.stringify({ suggested_values: suggestedValues, parsing_error: parsingError })
       ]);
       
       await client.query('COMMIT');
@@ -1293,7 +1339,11 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
         data: {
           id: testResult.rows[0].id,
           testName,
-          fileName: pdfFile.originalname
+          fileName: pdfFile.originalname,
+          parsingEnabled: enableParsing === 'true',
+          parsingSuccess: !parsingError && suggestedValues.length > 0,
+          suggestedValues: suggestedValues, // Send suggested values to frontend
+          parsingError: parsingError
         }
       });
       
@@ -1323,8 +1373,81 @@ router.post('/upload', upload.single('pdfFile'), async (req, res) => {
   }
 });
 
+// Add lab values to existing test result (used after PDF upload with suggestions)
+router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { lab_values } = req.body;
+    
+    // Validate input
+    if (!lab_values || !Array.isArray(lab_values) || lab_values.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Lab values array is required'
+      });
+    }
+    
+    // Verify test result exists
+    const testResultCheck = await db.query('SELECT id FROM test_results WHERE id = $1', [id]);
+    if (testResultCheck.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test result not found'
+      });
+    }
+    
+    const client = await db.getClient();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Delete existing lab values for this test result
+      await client.query('DELETE FROM lab_values WHERE test_result_id = $1', [id]);
+      
+      // Insert new lab values
+      for (const labValue of lab_values) {
+        if (labValue.parameter_name && labValue.value !== null && labValue.value !== '') {
+          await client.query(`
+            INSERT INTO lab_values (
+              test_result_id, parameter_name, value, unit, reference_range, status
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+          `, [
+            id,
+            labValue.parameter_name,
+            labValue.value,
+            labValue.unit || null,
+            labValue.reference_range || null,
+            labValue.status || 'normal'
+          ]);
+        }
+      }
+      
+      await client.query('COMMIT');
+      
+      res.json({
+        success: true,
+        message: 'Lab values saved successfully',
+        count: lab_values.length
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    console.error('Error saving lab values:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save lab values'
+    });
+  }
+});
+
 // Create test result with manual lab values
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const {
       patient_id,
@@ -1420,7 +1543,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update test result and lab values
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -1511,7 +1634,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete test result
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -1583,14 +1706,21 @@ router.get('/stats/summary', async (req, res) => {
 });
 
 // Download PDF file
-router.get('/:id/download', async (req, res) => {
+router.get('/:id/download', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     
-    const result = await db.query(
-      'SELECT pdf_file_path, test_name, patient_id FROM test_results WHERE id = $1',
-      [id]
-    );
+    const result = await db.query(`
+      SELECT 
+        tr.pdf_file_path, 
+        tr.test_name, 
+        tr.test_date,
+        p.first_name,
+        p.last_name
+      FROM test_results tr
+      LEFT JOIN patients p ON tr.patient_id = p.id
+      WHERE tr.id = $1
+    `, [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1599,7 +1729,7 @@ router.get('/:id/download', async (req, res) => {
       });
     }
     
-    const { pdf_file_path, test_name } = result.rows[0];
+    const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
     
     if (!pdf_file_path) {
       return res.status(404).json({
@@ -1618,9 +1748,12 @@ router.get('/:id/download', async (req, res) => {
       });
     }
     
+    // Generate descriptive filename: test_name_date_patient_name.pdf
+    const filename = generatePdfFilename(test_name, test_date, first_name, last_name);
+    
     // Set appropriate headers
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${test_name}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Stream the file
     const fileStream = require('fs').createReadStream(pdf_file_path);
@@ -1636,15 +1769,21 @@ router.get('/:id/download', async (req, res) => {
 });
 
 // View PDF inline in browser
-router.get('/:id/view', async (req, res) => {
+router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     
     // Get test result details
     const result = await db.query(`
-      SELECT pdf_file_path, test_name 
-      FROM test_results 
-      WHERE id = $1 AND pdf_file_path IS NOT NULL
+      SELECT 
+        tr.pdf_file_path, 
+        tr.test_name, 
+        tr.test_date,
+        p.first_name,
+        p.last_name
+      FROM test_results tr
+      LEFT JOIN patients p ON tr.patient_id = p.id
+      WHERE tr.id = $1 AND tr.pdf_file_path IS NOT NULL
     `, [id]);
     
     if (result.rows.length === 0) {
@@ -1654,7 +1793,7 @@ router.get('/:id/view', async (req, res) => {
       });
     }
     
-    const { pdf_file_path, test_name } = result.rows[0];
+    const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
     
     // Check if file exists
     if (!require('fs').existsSync(pdf_file_path)) {
@@ -1664,9 +1803,12 @@ router.get('/:id/view', async (req, res) => {
       });
     }
     
+    // Generate descriptive filename for inline viewing: test_name_date_patient_name.pdf
+    const filename = generatePdfFilename(test_name, test_date, first_name, last_name);
+    
     // Set headers for inline viewing in browser
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${test_name}.pdf"`);
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     
     // Stream the file
     const fileStream = require('fs').createReadStream(pdf_file_path);
@@ -1682,7 +1824,7 @@ router.get('/:id/view', async (req, res) => {
 });
 
 // Get lab values by test result ID
-router.get('/:id/lab-values', async (req, res) => {
+router.get('/:id/lab-values', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     

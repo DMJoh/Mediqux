@@ -368,15 +368,18 @@
 
                         <!-- Lab Values Entry -->
                         <div class="mb-4">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <label class="form-label mb-0">Lab Values</label>
-                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLabValue()">
-                                    <i class="bi bi-plus"></i> Add Value
-                                </button>
+                            <div class="mb-3">
+                                <label class="form-label">Lab Values</label>
                             </div>
                             
                             <div id="labValuesContainer">
                                 <!-- Lab values will be added here dynamically -->
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLabValue()">
+                                    <i class="bi bi-plus"></i> Add Value
+                                </button>
                             </div>
                         </div>
 
@@ -658,6 +661,33 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="saveReviewedValuesBtn" onclick="saveReviewedValues()">
                         <i class="bi bi-save"></i> Save Lab Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggested Values Review Modal -->
+    <div class="modal fade" id="suggestedValuesModal" tabindex="-1">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="suggestedValuesModalLabel">
+                        <i class="bi bi-file-earmark-text"></i> Review Extracted Lab Values
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="suggestedValuesContainer">
+                        <!-- Suggested values will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" id="saveSuggestedValuesBtn" onclick="saveSuggestedValues()">
+                        <i class="bi bi-check"></i> Save Lab Values
                     </button>
                 </div>
             </div>

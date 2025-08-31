@@ -573,14 +573,21 @@ async function uploadReport() {
         });
         
         const result = await response.json();
-        console.log('Upload response:', result);
         
         if (result.success) {
-            // Simplified workflow - PDF is saved directly
-            showAlert(result.message, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-            loadReports();
-            loadReportStats();
+            // Check if we have suggested values from PDF parsing
+            if (result.data.suggestedValues && result.data.suggestedValues.length > 0) {
+                showSuggestedValuesModal(result.data);
+            } else {
+                // No suggestions - PDF saved successfully
+                const message = result.data.parsingEnabled ? 
+                    'PDF uploaded successfully. No lab values could be extracted automatically.' : 
+                    'PDF uploaded successfully.';
+                showAlert(message, 'success');
+                bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
+                loadReports();
+                loadReportStats();
+            }
         } else {
             showAlert(result.error || 'Failed to upload report', 'danger');
         }
@@ -605,6 +612,226 @@ function displayExtractedValues(extractedValues) {
         </div>`
     ).join('');
 }
+
+// Show suggested values modal after PDF upload
+function showSuggestedValuesModal(uploadData) {
+    
+    // Hide upload modal
+    bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
+    
+    // Store the upload data for later use
+    window.currentUploadData = uploadData;
+    
+    // Populate suggested values in the review modal
+    const container = document.getElementById('suggestedValuesContainer');
+    const suggestedValues = uploadData.suggestedValues || [];
+    
+    if (suggestedValues.length === 0) {
+        container.innerHTML = '<p class="text-muted">No lab values could be extracted from the PDF.</p>';
+    } else {
+        container.innerHTML = `
+            <div class="alert alert-info mb-3">
+                <i class="bi bi-info-circle"></i> 
+                <strong>Extracted ${suggestedValues.length} potential lab values</strong><br>
+                <small>Please review and edit these values before saving. You can accept, modify, or remove any suggestions.</small>
+            </div>
+            <div id="editableValuesContainer">
+                ${suggestedValues.map((value, index) => createEditableValueRow(value, index)).join('')}
+            </div>
+            <div class="mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addEmptyValueRow()">
+                    <i class="bi bi-plus"></i> Add Another Value
+                </button>
+            </div>
+        `;
+    }
+    
+    // Update modal title
+    document.getElementById('suggestedValuesModalLabel').textContent = 
+        `Review Extracted Values - ${uploadData.testName}`;
+    
+    // Show the suggested values modal
+    const suggestedModal = new bootstrap.Modal(document.getElementById('suggestedValuesModal'));
+    suggestedModal.show();
+}
+
+// Create an editable row for a suggested value
+function createEditableValueRow(value, index) {
+    const confidenceBadge = value.confidence ? 
+        `<span class="badge bg-${getConfidenceColor(value.confidence)} ms-2" title="Extraction confidence">
+            ${Math.round(value.confidence * 100)}%
+        </span>` : '';
+    
+    const statusColor = getStatusColor(value.status || 'normal');
+    
+    return `
+        <div class="card mb-2 suggested-value-row" data-index="${index}">
+            <div class="card-body p-3">
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <label class="form-label small">Parameter</label>
+                        <input type="text" class="form-control form-control-sm" 
+                               name="parameter_name_${index}" 
+                               value="${escapeHtml(value.parameter_name || '')}" 
+                               placeholder="Parameter name">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Value</label>
+                        <input type="number" class="form-control form-control-sm" 
+                               name="parameter_value_${index}" 
+                               value="${value.value || ''}" 
+                               step="0.01" 
+                               placeholder="Value">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Unit</label>
+                        <input type="text" class="form-control form-control-sm" 
+                               name="parameter_unit_${index}" 
+                               value="${escapeHtml(value.unit || '')}" 
+                               placeholder="Unit">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Reference</label>
+                        <input type="text" class="form-control form-control-sm" 
+                               name="reference_range_${index}" 
+                               value="${escapeHtml(value.reference_range || '')}" 
+                               placeholder="Normal range">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Status</label>
+                        <select class="form-control form-control-sm" name="parameter_status_${index}">
+                            <option value="normal" ${value.status === 'normal' ? 'selected' : ''}>Normal</option>
+                            <option value="low" ${value.status === 'low' ? 'selected' : ''}>Low</option>
+                            <option value="high" ${value.status === 'high' ? 'selected' : ''}>High</option>
+                            <option value="critical" ${value.status === 'critical' ? 'selected' : ''}>Critical</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label small">&nbsp;</label>
+                        <button type="button" class="btn btn-outline-danger btn-sm d-block" 
+                                onclick="removeSuggestedValueRow(${index})" title="Remove this value">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            Extracted: "${escapeHtml(value.raw_match || '')}"
+                            ${confidenceBadge}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Add an empty value row
+function addEmptyValueRow() {
+    const container = document.getElementById('editableValuesContainer');
+    const index = container.children.length;
+    const emptyValue = {
+        parameter_name: '',
+        value: '',
+        unit: '',
+        reference_range: '',
+        status: 'normal',
+        raw_match: 'Manually added'
+    };
+    
+    container.insertAdjacentHTML('beforeend', createEditableValueRow(emptyValue, index));
+}
+
+// Remove a suggested value row
+function removeSuggestedValueRow(index) {
+    const row = document.querySelector(`[data-index="${index}"]`);
+    if (row) {
+        row.remove();
+    }
+}
+
+// Get confidence color for badges
+function getConfidenceColor(confidence) {
+    if (confidence >= 0.8) return 'success';
+    if (confidence >= 0.6) return 'warning';
+    return 'secondary';
+}
+
+// Save suggested lab values after review
+async function saveSuggestedValues() {
+    if (!window.currentUploadData) {
+        showAlert('No upload data found', 'danger');
+        return;
+    }
+    
+    try {
+        const saveBtn = document.getElementById('saveSuggestedValuesBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+        
+        // Collect all edited values
+        const labValues = [];
+        const valueRows = document.querySelectorAll('.suggested-value-row');
+        
+        valueRows.forEach((row, index) => {
+            const parameterName = row.querySelector(`[name="parameter_name_${index}"]`)?.value?.trim();
+            const parameterValue = row.querySelector(`[name="parameter_value_${index}"]`)?.value?.trim();
+            const unit = row.querySelector(`[name="parameter_unit_${index}"]`)?.value?.trim();
+            const referenceRange = row.querySelector(`[name="reference_range_${index}"]`)?.value?.trim();
+            const status = row.querySelector(`[name="parameter_status_${index}"]`)?.value;
+            
+            // Only include values with both name and value
+            if (parameterName && parameterValue) {
+                labValues.push({
+                    parameter_name: parameterName,
+                    value: parseFloat(parameterValue) || parameterValue,
+                    unit: unit || null,
+                    reference_range: referenceRange || null,
+                    status: status || 'normal'
+                });
+            }
+        });
+        
+        if (labValues.length === 0) {
+            showAlert('Please add at least one lab value', 'warning');
+            return;
+        }
+        
+        // Save values to the test result
+        const response = await window.authManager.apiRequest(`/test-results/${window.currentUploadData.id}/lab-values`, {
+            method: 'POST',
+            body: JSON.stringify({
+                lab_values: labValues
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert(`Successfully saved ${labValues.length} lab values`, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('suggestedValuesModal')).hide();
+            loadReports();
+            loadReportStats();
+        } else {
+            showAlert(result.error || 'Failed to save lab values', 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Error saving suggested values:', error);
+        showAlert('Error saving lab values: ' + error.message, 'danger');
+    } finally {
+        const saveBtn = document.getElementById('saveSuggestedValuesBtn');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="bi bi-check"></i> Save Lab Values';
+    }
+}
+
+// Make functions globally available
+window.showSuggestedValuesModal = showSuggestedValuesModal;
+window.saveSuggestedValues = saveSuggestedValues;
+window.addEmptyValueRow = addEmptyValueRow;
+window.removeSuggestedValueRow = removeSuggestedValueRow;
 
 // Save manual entry
 async function saveManualEntry() {
@@ -792,7 +1019,9 @@ async function editReport(reportId) {
             document.getElementById('manualTestResultId').value = reportId;
             document.getElementById('manualPatientId').value = report.patient_id;
             document.getElementById('manualTestName').value = report.test_name;
-            document.getElementById('manualTestDate').value = report.test_date;
+            // Format date for HTML date input (YYYY-MM-DD)
+            const testDate = new Date(report.test_date).toISOString().split('T')[0];
+            document.getElementById('manualTestDate').value = testDate;
             document.getElementById('manualModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Lab Values';
             
             // Clear and populate lab values
@@ -900,12 +1129,15 @@ async function downloadPDF(reportId) {
         // Get filename from response headers or use default
         let filename = 'lab-report.pdf';
         const contentDisposition = response.headers.get('Content-Disposition');
+        console.log('Content-Disposition header:', contentDisposition);
         if (contentDisposition) {
             const match = contentDisposition.match(/filename="(.+)"/);
+            console.log('Filename match:', match);
             if (match) {
                 filename = match[1];
             }
         }
+        console.log('Final filename:', filename);
         
         // Create download link
         const url = URL.createObjectURL(blob);
