@@ -1,4 +1,4 @@
-// Environment Configuration for Medical Management System Frontend
+// Environment Configuration for Mediqux Frontend
 // This file can be modified for different deployment environments
 
 // Default configuration

@@ -1,7 +1,7 @@
 {
-  "name": "medical-app-backend",
+  "name": "mediqux-backend",
   "version": "1.0.0",
-  "description": "Medical Management System Backend",
+  "description": "Mediqux Backend",
   "main": "server.js",
   "scripts": {
     "dev": "npx nodemon server.js",

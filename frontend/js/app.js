@@ -1,4 +1,4 @@
-// Medical Management System - Frontend JavaScript
+// Mediqux - Frontend JavaScript
 // Configuration (now loaded from config.js)
 const CONFIG = {
     get API_BASE() { return window.getApiBaseUrl(); },
@@ -188,5 +188,5 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(checkSystemHealth, window.ENV_CONFIG.HEALTH_CHECK_INTERVAL);
     }
     
-    console.log('Medical Management System initialized');
+    console.log('Mediqux initialized');
 });

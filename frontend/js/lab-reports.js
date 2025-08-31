@@ -1129,15 +1129,12 @@ async function downloadPDF(reportId) {
         // Get filename from response headers or use default
         let filename = 'lab-report.pdf';
         const contentDisposition = response.headers.get('Content-Disposition');
-        console.log('Content-Disposition header:', contentDisposition);
         if (contentDisposition) {
             const match = contentDisposition.match(/filename="(.+)"/);
-            console.log('Filename match:', match);
             if (match) {
                 filename = match[1];
             }
         }
-        console.log('Final filename:', filename);
         
         // Create download link
         const url = URL.createObjectURL(blob);
