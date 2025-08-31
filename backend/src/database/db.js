@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const logger = require('../utils/logger');
 
 // Database connection configuration
 const pool = new Pool({
@@ -14,11 +15,11 @@ const pool = new Pool({
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('Connected to PostgreSQL database');
+  logger.info('Connected to PostgreSQL database');
 });
 
 pool.on('error', (err) => {
-  console.error('Database connection error:', err);
+  logger.error('Database connection error', { error: err.message, stack: err.stack });
 });
 
 // Helper function to execute queries
@@ -27,10 +28,20 @@ const query = async (text, params) => {
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    
+    // Log query execution using the logger
+    logger.query(text, params, duration, res.rowCount);
+    
     return res;
   } catch (error) {
-    console.error('Database query error:', error);
+    const duration = Date.now() - start;
+    logger.error('Database query error', { 
+      query: text, 
+      params, 
+      duration: `${duration}ms`,
+      error: error.message, 
+      code: error.code 
+    });
     throw error;
   }
 };

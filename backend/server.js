@@ -3,6 +3,8 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
+const logger = require('./src/utils/logger');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -41,7 +43,7 @@ app.get('/api/test-medications', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Medications test failed:', error);
+    logger.error('Medications test failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Medications system test failed',
@@ -66,7 +68,7 @@ app.get('/api/test-conditions', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Conditions test failed:', error);
+    logger.error('Conditions test failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Conditions system test failed',
@@ -95,7 +97,7 @@ app.get('/api/test-appointments', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Appointment test failed:', error);
+    logger.error('Appointment test failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Appointment system test failed',
@@ -115,7 +117,7 @@ app.get('/api/test-db', async (req, res) => {
       data: result.rows[0]
     });
   } catch (error) {
-    console.error('Database test failed:', error);
+    logger.error('Database test failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Database connection failed',
@@ -166,7 +168,7 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error('Unhandled application error', { error: err.message, stack: err.stack });
   res.status(500).json({ 
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
@@ -175,18 +177,23 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use('*', (req, res) => {
+  logger.warn('Route not found', { method: req.method, path: req.path });
   res.status(404).json({ error: 'Route not found' });
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SIGTERM received, shutting down gracefully');
   process.exit(0);
 });
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Backend server running on port ${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/api/health`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`Backend server running on port ${PORT}`, { 
+    port: PORT, 
+    environment: process.env.NODE_ENV || 'development',
+    logLevel: process.env.LOG_LEVEL || 'INFO',
+    debugMode: process.env.DEBUG === 'true'
+  });
+  logger.info(`Health check: http://localhost:${PORT}/api/health`);
 });

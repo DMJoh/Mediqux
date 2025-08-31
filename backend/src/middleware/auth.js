@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
@@ -42,7 +43,10 @@ const authenticateToken = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Token verification error:', error);
+    logger.warn('Token verification failed', { 
+      error: error.message, 
+      token: token ? 'present' : 'missing' 
+    });
     return res.status(403).json({
       success: false,
       error: 'Invalid token'

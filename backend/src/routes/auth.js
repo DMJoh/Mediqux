@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../database/db');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -71,7 +72,7 @@ router.post('/signup', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    logger.error('User signup failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Failed to create user'
@@ -132,6 +133,13 @@ router.post('/login', async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
+    // Log successful authentication
+    logger.auth('User login successful', { 
+      userId: user.id, 
+      username: user.username, 
+      role: user.role 
+    });
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -148,7 +156,7 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
+    logger.error('User login failed', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       error: 'Failed to login'
