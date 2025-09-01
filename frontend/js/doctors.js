@@ -12,6 +12,7 @@ window.deleteDoctor = deleteDoctor;
 window.viewDoctor = viewDoctor;
 window.openAddDoctorModal = openAddDoctorModal;
 window.clearFilters = clearFilters;
+window.editFromViewDoctor = editFromViewDoctor;
 
 // Initialize doctors page
 document.addEventListener('DOMContentLoaded', function() {
@@ -415,10 +416,119 @@ async function saveDoctor() {
     }
 }
 
-// View doctor details (placeholder for future enhancement)
-function viewDoctor(id) {
-    showAlert('Doctor details view will be implemented next', 'info');
-    // TODO: Implement detailed doctor view
+// View doctor details
+async function viewDoctor(id) {
+    console.log('Viewing doctor details for ID:', id);
+    
+    try {
+        // Show the modal first
+        const modal = new bootstrap.Modal(document.getElementById('viewDoctorModal'));
+        modal.show();
+        
+        // Show loading state
+        document.getElementById('viewDoctorLoading').style.display = 'block';
+        document.getElementById('viewDoctorContent').style.display = 'none';
+        
+        // Fetch doctor details
+        const response = await apiCall(`/doctors/${id}`);
+        
+        if (response.success) {
+            const doctor = response.data;
+            populateDoctorView(doctor);
+            
+            // Hide loading and show content
+            document.getElementById('viewDoctorLoading').style.display = 'none';
+            document.getElementById('viewDoctorContent').style.display = 'block';
+        } else {
+            showAlert('Failed to load doctor details: ' + (response.error || 'Unknown error'), 'danger');
+            modal.hide();
+        }
+    } catch (error) {
+        console.error('Error loading doctor details:', error);
+        showAlert('Error loading doctor details: ' + error.message, 'danger');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('viewDoctorModal'));
+        if (modal) {
+            modal.hide();
+        }
+    }
+}
+
+// Populate the doctor view modal with data
+function populateDoctorView(doctor) {
+    // Doctor name and basic info
+    document.getElementById('doctorFullName').textContent = `Dr. ${doctor.first_name} ${doctor.last_name}`;
+    
+    // Specialty badge
+    const specialtyBadge = document.getElementById('doctorSpecialtyBadge');
+    if (doctor.specialty) {
+        specialtyBadge.textContent = doctor.specialty;
+        specialtyBadge.style.display = 'inline';
+    } else {
+        specialtyBadge.style.display = 'none';
+    }
+    
+    // Professional information
+    document.getElementById('viewDoctorSpecialty').textContent = doctor.specialty || 'Not specified';
+    document.getElementById('viewDoctorLicense').textContent = doctor.license_number || 'Not provided';
+    
+    // Contact information
+    const phoneElement = document.getElementById('viewDoctorPhone');
+    if (doctor.phone) {
+        phoneElement.innerHTML = `<a href="tel:${doctor.phone}" class="text-decoration-none">
+            <i class="bi bi-telephone me-1"></i>${doctor.phone}
+        </a>`;
+    } else {
+        phoneElement.textContent = 'Not provided';
+    }
+    
+    const emailElement = document.getElementById('viewDoctorEmail');
+    if (doctor.email) {
+        emailElement.innerHTML = `<a href="mailto:${doctor.email}" class="text-decoration-none">
+            <i class="bi bi-envelope me-1"></i>${doctor.email}
+        </a>`;
+    } else {
+        emailElement.textContent = 'Not provided';
+    }
+    
+    // Associated institutions
+    const institutionsElement = document.getElementById('viewDoctorInstitutions');
+    if (doctor.institutions && doctor.institutions.length > 0) {
+        const institutionBadges = doctor.institutions.map(inst => 
+            `<span class="badge bg-secondary me-2 mb-2">
+                <i class="bi bi-building me-1"></i>${inst.name}
+                ${inst.type ? `<small class="ms-1">(${inst.type})</small>` : ''}
+            </span>`
+        ).join('');
+        institutionsElement.innerHTML = institutionBadges;
+    } else {
+        institutionsElement.innerHTML = '<span class="text-muted">No associated institutions</span>';
+    }
+    
+    // Timestamps
+    document.getElementById('viewDoctorCreatedAt').textContent = doctor.created_at ? 
+        new Date(doctor.created_at).toLocaleString() : 'Not available';
+    document.getElementById('viewDoctorUpdatedAt').textContent = doctor.updated_at ? 
+        new Date(doctor.updated_at).toLocaleString() : 'Not available';
+    
+    // Store doctor ID for edit functionality
+    document.getElementById('editFromViewDoctorBtn').setAttribute('data-doctor-id', doctor.id);
+}
+
+// Edit doctor from view modal
+function editFromViewDoctor() {
+    const doctorId = document.getElementById('editFromViewDoctorBtn').getAttribute('data-doctor-id');
+    if (doctorId) {
+        // Close view modal
+        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewDoctorModal'));
+        if (viewModal) {
+            viewModal.hide();
+        }
+        
+        // Open edit modal
+        setTimeout(() => {
+            editDoctor(doctorId);
+        }, 300); // Small delay to allow view modal to close
+    }
 }
 
 // Delete doctor

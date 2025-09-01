@@ -254,6 +254,7 @@ window.deletePatient = deletePatient;
 window.viewPatient = viewPatient;
 window.openAddPatientModal = openAddPatientModal;
 window.clearFilters = clearFilters;
+window.editFromView = editFromView;
 
 // Save patient (create or update)
 async function savePatient() {
@@ -373,10 +374,159 @@ function clearAllFieldErrors() {
     });
 }
 
-// View patient details (placeholder for future enhancement)
-function viewPatient(id) {
-    showAlert('Patient details view will be implemented next', 'info');
-    // TODO: Implement detailed patient view
+// View patient details
+async function viewPatient(id) {
+    console.log('Viewing patient details for ID:', id);
+    
+    try {
+        // Show the modal first
+        const modal = new bootstrap.Modal(document.getElementById('viewPatientModal'));
+        modal.show();
+        
+        // Show loading state
+        document.getElementById('viewPatientLoading').style.display = 'block';
+        document.getElementById('viewPatientContent').style.display = 'none';
+        
+        // Fetch patient details
+        const response = await apiCall(`/patients/${id}`);
+        
+        if (response.success) {
+            const patient = response.data;
+            populatePatientView(patient);
+            
+            // Hide loading and show content
+            document.getElementById('viewPatientLoading').style.display = 'none';
+            document.getElementById('viewPatientContent').style.display = 'block';
+        } else {
+            showAlert('Failed to load patient details: ' + (response.error || 'Unknown error'), 'danger');
+            modal.hide();
+        }
+    } catch (error) {
+        console.error('Error loading patient details:', error);
+        showAlert('Error loading patient details: ' + error.message, 'danger');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('viewPatientModal'));
+        if (modal) {
+            modal.hide();
+        }
+    }
+}
+
+// Populate the patient view modal with data
+function populatePatientView(patient) {
+    // Patient name and basic info
+    document.getElementById('patientFullName').textContent = `${patient.first_name} ${patient.last_name}`;
+    
+    // Gender badge
+    const genderBadge = document.getElementById('patientGenderBadge');
+    if (patient.gender) {
+        genderBadge.textContent = patient.gender;
+        genderBadge.className = `badge bg-${getGenderBadgeColor(patient.gender)}`;
+        genderBadge.style.display = 'inline';
+    } else {
+        genderBadge.style.display = 'none';
+    }
+    
+    // Personal information
+    document.getElementById('patientDOB').textContent = patient.date_of_birth ? 
+        new Date(patient.date_of_birth).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long', 
+            day: 'numeric'
+        }) : 'Not specified';
+    
+    // Calculate and display age
+    const age = patient.date_of_birth ? calculateAge(patient.date_of_birth) : null;
+    document.getElementById('patientAge').textContent = age ? `${age} years old` : 'Not available';
+    
+    document.getElementById('patientGender').textContent = patient.gender || 'Not specified';
+    
+    // Contact information
+    const phoneElement = document.getElementById('patientPhone');
+    if (patient.phone) {
+        phoneElement.innerHTML = `<a href="tel:${patient.phone}" class="text-decoration-none">
+            <i class="bi bi-telephone me-1"></i>${patient.phone}
+        </a>`;
+    } else {
+        phoneElement.textContent = 'Not provided';
+    }
+    
+    const emailElement = document.getElementById('patientEmail');
+    if (patient.email) {
+        emailElement.innerHTML = `<a href="mailto:${patient.email}" class="text-decoration-none">
+            <i class="bi bi-envelope me-1"></i>${patient.email}
+        </a>`;
+    } else {
+        emailElement.textContent = 'Not provided';
+    }
+    
+    // Address
+    document.getElementById('patientAddress').textContent = patient.address || 'Not provided';
+    
+    // Emergency contact
+    document.getElementById('viewEmergencyContactName').textContent = patient.emergency_contact_name || 'Not provided';
+    
+    const emergencyPhoneElement = document.getElementById('viewEmergencyContactPhone');
+    if (patient.emergency_contact_phone) {
+        emergencyPhoneElement.innerHTML = `<a href="tel:${patient.emergency_contact_phone}" class="text-decoration-none">
+            <i class="bi bi-telephone me-1"></i>${patient.emergency_contact_phone}
+        </a>`;
+    } else {
+        emergencyPhoneElement.textContent = 'Not provided';
+    }
+    
+    // Timestamps
+    document.getElementById('patientCreatedAt').textContent = patient.created_at ? 
+        new Date(patient.created_at).toLocaleString() : 'Not available';
+    document.getElementById('patientUpdatedAt').textContent = patient.updated_at ? 
+        new Date(patient.updated_at).toLocaleString() : 'Not available';
+    
+    // Store patient ID for edit functionality
+    document.getElementById('editFromViewBtn').setAttribute('data-patient-id', patient.id);
+}
+
+// Helper function to get appropriate badge color for gender
+function getGenderBadgeColor(gender) {
+    switch (gender?.toLowerCase()) {
+        case 'male':
+            return 'primary';
+        case 'female':
+            return 'info';
+        case 'other':
+            return 'secondary';
+        default:
+            return 'secondary';
+    }
+}
+
+// Helper function to calculate age from date of birth
+function calculateAge(dateOfBirth) {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    
+    return age;
+}
+
+// Edit patient from view modal
+function editFromView() {
+    const patientId = document.getElementById('editFromViewBtn').getAttribute('data-patient-id');
+    if (patientId) {
+        // Close view modal
+        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewPatientModal'));
+        if (viewModal) {
+            viewModal.hide();
+        }
+        
+        // Open edit modal
+        setTimeout(() => {
+            editPatient(patientId);
+        }, 300); // Small delay to allow view modal to close
+    }
 }
 
 // Delete patient
