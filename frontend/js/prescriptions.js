@@ -17,7 +17,6 @@ window.clearFilters = clearFilters;
 // Initialize prescriptions page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('prescriptionsTableBody')) {
-        console.log('Initializing prescriptions page...');
         loadPrescriptions();
         loadPrescriptionStats();
         loadFilterOptions();
@@ -40,18 +39,15 @@ function setupEventListeners() {
 
 // Load all prescriptions
 async function loadPrescriptions() {
-    console.log('Loading prescriptions...');
     try {
         showLoading(true);
         const response = await apiCall('/prescriptions');
-        console.log('Prescriptions response:', response);
         
         if (response.success) {
             allPrescriptions = response.data;
             filteredPrescriptions = [...allPrescriptions];
             displayPrescriptions();
             updatePrescriptionCount();
-            console.log(`Loaded ${allPrescriptions.length} prescriptions`);
         } else {
             console.error('Failed to load prescriptions:', response.error);
             showAlert('Failed to load prescriptions: ' + (response.error || 'Unknown error'), 'danger');
@@ -344,7 +340,6 @@ function showFieldError(input, message) {
 
 // Save prescription (create or update)
 async function savePrescription() {
-    console.log('Save prescription button clicked');
     const form = document.getElementById('prescriptionForm');
     
     // Clear all previous validation states
@@ -423,7 +418,6 @@ async function savePrescription() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');
