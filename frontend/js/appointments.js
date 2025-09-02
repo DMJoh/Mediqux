@@ -18,7 +18,6 @@ window.clearFilters = clearFilters;
 // Initialize appointments page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('appointmentsTableBody')) {
-        console.log('Initializing appointments page...');
         loadAppointments();
         loadDropdownData();
         loadAppointmentStats();
@@ -68,18 +67,15 @@ function clearFieldError(input) {
 
 // Load all appointments
 async function loadAppointments() {
-    console.log('Loading appointments...');
     try {
         showLoading(true);
         const response = await apiCall('/appointments');
-        console.log('Appointments response:', response);
         
         if (response.success) {
             allAppointments = response.data;
             filteredAppointments = [...allAppointments];
             displayAppointments();
             updateAppointmentCount();
-            console.log(`Loaded ${allAppointments.length} appointments`);
         } else {
             console.error('Failed to load appointments:', response.error);
             showAlert('Failed to load appointments: ' + (response.error || 'Unknown error'), 'danger');
@@ -99,7 +95,6 @@ async function loadAppointments() {
 
 // Load dropdown data (patients, doctors, institutions)
 async function loadDropdownData() {
-    console.log('Loading dropdown data...');
     try {
         const [patientsResponse, doctorsResponse, institutionsResponse] = await Promise.allSettled([
             apiCall('/patients'),
@@ -107,13 +102,11 @@ async function loadDropdownData() {
             apiCall('/institutions')
         ]);
         
-        console.log('Dropdown responses:', { patientsResponse, doctorsResponse, institutionsResponse });
         
         // Load patients
         if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
             patients = patientsResponse.value.data;
             populatePatientDropdowns();
-            console.log(`Loaded ${patients.length} patients`);
         } else {
             console.error('Failed to load patients for dropdown');
             patients = [];
@@ -124,7 +117,6 @@ async function loadDropdownData() {
         if (doctorsResponse.status === 'fulfilled' && doctorsResponse.value.success) {
             doctors = doctorsResponse.value.data;
             populateDoctorDropdowns();
-            console.log(`Loaded ${doctors.length} doctors`);
         } else {
             console.error('Failed to load doctors for dropdown');
             doctors = [];
@@ -135,7 +127,6 @@ async function loadDropdownData() {
         if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
             institutions = institutionsResponse.value.data;
             populateInstitutionDropdowns();
-            console.log(`Loaded ${institutions.length} institutions`);
         } else {
             console.error('Failed to load institutions for dropdown');
             institutions = [];
@@ -441,7 +432,6 @@ async function editAppointment(id) {
 
 // Save appointment (create or update)
 async function saveAppointment() {
-    console.log('Save appointment button clicked');
     const form = document.getElementById('appointmentForm');
     
     // Clear all previous validation states
@@ -514,7 +504,6 @@ async function saveAppointment() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

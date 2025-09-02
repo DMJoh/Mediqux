@@ -16,7 +16,6 @@ window.resetPassword = resetPassword;
 // Initialize users page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('usersTableBody')) {
-        console.log('Initializing users page...');
         loadUsers();
         loadPatients();
         
@@ -39,17 +38,14 @@ function checkAdminAccess() {
 
 // Load all users
 async function loadUsers() {
-    console.log('Loading users...');
     try {
         showLoading(true);
         const response = await apiCall('/users');
-        console.log('Users response:', response);
         
         if (response.success) {
             allUsers = response.data;
             displayUsers();
             updateUserCount();
-            console.log(`Loaded ${allUsers.length} users`);
         } else {
             console.error('Failed to load users:', response.error);
             showAlert('Failed to load users: ' + (response.error || 'Unknown error'), 'danger');
@@ -225,7 +221,6 @@ async function editUser(userId) {
 
 // Save user
 async function saveUser() {
-    console.log('Save user button clicked');
     const form = document.getElementById('userForm');
     
     // Validate form
@@ -274,7 +269,6 @@ async function saveUser() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

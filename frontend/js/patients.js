@@ -7,7 +7,6 @@ let currentEditingId = null;
 // Initialize patients page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('patientsTableBody')) {
-        console.log('Initializing patients page...');
         loadPatients();
         setupEventListeners();
     }
@@ -77,18 +76,15 @@ function clearFieldError(input) {
 
 // Load all patients
 async function loadPatients() {
-    console.log('Loading patients...');
     try {
         showLoading(true);
         const response = await apiCall('/patients');
-        console.log('Patients response:', response);
         
         if (response.success) {
             allPatients = response.data;
             filteredPatients = [...allPatients];
             displayPatients();
             updatePatientCount();
-            console.log(`Loaded ${allPatients.length} patients`);
         } else {
             console.error('Failed to load patients:', response.error);
             showAlert('Failed to load patients: ' + (response.error || 'Unknown error'), 'danger');
@@ -258,7 +254,6 @@ window.editFromView = editFromView;
 
 // Save patient (create or update)
 async function savePatient() {
-    console.log('Save patient button clicked');
     const form = document.getElementById('patientForm');
     
     // Clear all previous validation states
@@ -320,7 +315,6 @@ async function savePatient() {
         emergency_contact_phone: emergencyPhone.value.trim() || null
     };
     
-    console.log('Patient data to save:', patientData);
     
     try {
         const saveBtn = document.getElementById('savePatientBtn');
@@ -330,21 +324,18 @@ async function savePatient() {
         let response;
         if (currentEditingId) {
             // Update existing patient
-            console.log('Updating patient:', currentEditingId);
             response = await apiCall(`/patients/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(patientData)
             });
         } else {
             // Create new patient
-            console.log('Creating new patient');
             response = await apiCall('/patients', {
                 method: 'POST',
                 body: JSON.stringify(patientData)
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');
@@ -376,7 +367,6 @@ function clearAllFieldErrors() {
 
 // View patient details
 async function viewPatient(id) {
-    console.log('Viewing patient details for ID:', id);
     
     try {
         // Show the modal first

@@ -71,7 +71,6 @@ window.downloadPDF = downloadPDF;
 // Initialize lab reports page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('reportsTableBody')) {
-        console.log('Initializing lab reports page...');
         loadReports();
         loadReportStats();
         loadFilterOptions();
@@ -113,18 +112,15 @@ function setupEventListeners() {
 
 // Load all reports
 async function loadReports() {
-    console.log('Loading lab reports...');
     try {
         showLoading(true);
         const response = await apiCall('/test-results');
-        console.log('Reports response:', response);
         
         if (response.success) {
             allReports = response.data;
             filteredReports = [...allReports];
             displayReports();
             updateReportCount();
-            console.log(`Loaded ${allReports.length} reports`);
         } else {
             console.error('Failed to load reports:', response.error);
             showAlert('Failed to load reports: ' + (response.error || 'Unknown error'), 'danger');
@@ -544,7 +540,6 @@ function validateFileUpload(file) {
 
 // Upload and process report
 async function uploadReport() {
-    console.log('Upload report button clicked');
     const form = document.getElementById('uploadForm');
     const formData = new FormData(form);
     
@@ -835,7 +830,6 @@ window.removeSuggestedValueRow = removeSuggestedValueRow;
 
 // Save manual entry
 async function saveManualEntry() {
-    console.log('Save manual entry button clicked');
     const form = document.getElementById('manualEntryForm');
     
     // Validate form
@@ -892,7 +886,6 @@ async function saveManualEntry() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');
@@ -1198,9 +1191,7 @@ async function openPanelManagementModal() {
 
 async function loadLabPanels() {
     try {
-        console.log('Loading lab panels from API');
         const response = await window.authManager.apiRequest('/test-results/panels');
-        console.log('Panel response status:', response ? response.status : 'null');
         
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
@@ -1208,7 +1199,6 @@ async function loadLabPanels() {
         }
         
         allPanels = await response.json();
-        console.log('Loaded panels:', allPanels);
         displayPanelsList();
     } catch (error) {
         console.error('Error loading lab panels:', error);
@@ -1743,7 +1733,6 @@ async function saveReviewedValues() {
             body: JSON.stringify(requestData)
         });
         
-        console.log('Response status:', response.status);
         
         const result = await response.json();
         console.log('Response data:', result);

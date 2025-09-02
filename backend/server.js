@@ -28,87 +28,9 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
-// Test medications functionality
-app.get('/api/test-medications', async (req, res) => {
-  try {
-    const db = require('./src/database/db');
-    
-    // Test basic query
-    const medicationResult = await db.query('SELECT COUNT(*) as count FROM medications');
-    
-    res.json({
-      success: true,
-      message: 'Medications system test successful',
-      data: {
-        medications: medicationResult.rows[0].count
-      }
-    });
-  } catch (error) {
-    logger.error('Medications test failed', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      error: 'Medications system test failed',
-      details: error.message
-    });
-  }
-});
 
-// Test conditions functionality
-app.get('/api/test-conditions', async (req, res) => {
-  try {
-    const db = require('./src/database/db');
-    
-    // Test basic query
-    const conditionResult = await db.query('SELECT COUNT(*) as count FROM medical_conditions');
-    
-    res.json({
-      success: true,
-      message: 'Conditions system test successful',
-      data: {
-        conditions: conditionResult.rows[0].count
-      }
-    });
-  } catch (error) {
-    logger.error('Conditions test failed', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      error: 'Conditions system test failed',
-      details: error.message
-    });
-  }
-});
-
-// Test appointment functionality
-app.get('/api/test-appointments', async (req, res) => {
-  try {
-    const db = require('./src/database/db');
-    
-    // Test basic query
-    const appointmentResult = await db.query('SELECT COUNT(*) as count FROM appointments');
-    const patientResult = await db.query('SELECT COUNT(*) as count FROM patients');
-    const doctorResult = await db.query('SELECT COUNT(*) as count FROM doctors');
-    
-    res.json({
-      success: true,
-      message: 'Appointment system test successful',
-      data: {
-        appointments: appointmentResult.rows[0].count,
-        patients: patientResult.rows[0].count,
-        doctors: doctorResult.rows[0].count
-      }
-    });
-  } catch (error) {
-    logger.error('Appointment test failed', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      error: 'Appointment system test failed',
-      details: error.message
-    });
-  }
-});
-
-// Test database connection
-app.get('/api/test-db', async (req, res) => {
+// System database connectivity check
+app.get('/api/system/database', async (req, res) => {
   try {
     const db = require('./src/database/db');
     const result = await db.query('SELECT NOW() as current_time, version() as postgres_version');

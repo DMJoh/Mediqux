@@ -15,7 +15,6 @@ window.clearFilters = clearFilters;
 // Initialize institutions page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('institutionsTableBody')) {
-        console.log('Initializing institutions page...');
         loadInstitutions();
         setupEventListeners();
     }
@@ -95,11 +94,9 @@ function clearFieldError(input) {
 
 // Load all institutions
 async function loadInstitutions() {
-    console.log('Loading institutions...');
     try {
         showLoading(true);
         const response = await apiCall('/institutions');
-        console.log('Institutions response:', response);
         
         if (response.success) {
             allInstitutions = response.data;
@@ -107,7 +104,6 @@ async function loadInstitutions() {
             displayInstitutions();
             updateInstitutionCount();
             populateTypeFilter();
-            console.log(`Loaded ${allInstitutions.length} institutions`);
         } else {
             console.error('Failed to load institutions:', response.error);
             showAlert('Failed to load institutions: ' + (response.error || 'Unknown error'), 'danger');
@@ -292,7 +288,6 @@ async function editInstitution(id) {
 
 // Save institution (create or update)
 async function saveInstitution() {
-    console.log('Save institution button clicked');
     const form = document.getElementById('institutionForm');
     
     // Clear all previous validation states
@@ -369,7 +364,6 @@ async function saveInstitution() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

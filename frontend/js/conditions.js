@@ -15,7 +15,6 @@ window.clearFilters = clearFilters;
 // Initialize conditions page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('conditionsTableBody')) {
-        console.log('Initializing conditions page...');
         loadConditions();
         loadConditionStats();
         loadCategoryFilter();
@@ -70,18 +69,15 @@ function clearFieldError(input) {
 
 // Load all conditions
 async function loadConditions() {
-    console.log('Loading conditions...');
     try {
         showLoading(true);
         const response = await apiCall('/conditions');
-        console.log('Conditions response:', response);
         
         if (response.success) {
             allConditions = response.data;
             filteredConditions = [...allConditions];
             displayConditions();
             updateConditionCount();
-            console.log(`Loaded ${allConditions.length} conditions`);
         } else {
             console.error('Failed to load conditions:', response.error);
             showAlert('Failed to load conditions: ' + (response.error || 'Unknown error'), 'danger');
@@ -305,7 +301,6 @@ async function editCondition(id) {
 
 // Save condition (create or update)
 async function saveCondition() {
-    console.log('Save condition button clicked');
     const form = document.getElementById('conditionForm');
     
     // Clear all previous validation states
@@ -365,7 +360,6 @@ async function saveCondition() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

@@ -24,7 +24,6 @@ window.removeIngredient = removeIngredient;
 // Initialize medications page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('medicationsTableBody')) {
-        console.log('Initializing medications page...');
         loadMedications();
         loadMedicationStats();
         loadFilterOptions();
@@ -86,18 +85,15 @@ function clearFieldError(input) {
 
 // Load all medications
 async function loadMedications() {
-    console.log('Loading medications...');
     try {
         showLoading(true);
         const response = await apiCall('/medications');
-        console.log('Medications response:', response);
         
         if (response.success) {
             allMedications = response.data;
             filteredMedications = [...allMedications];
             displayMedications();
             updateMedicationCount();
-            console.log(`Loaded ${allMedications.length} medications`);
         } else {
             console.error('Failed to load medications:', response.error);
             showAlert('Failed to load medications: ' + (response.error || 'Unknown error'), 'danger');
@@ -568,7 +564,6 @@ async function editMedication(id) {
 
 // Save medication (create or update)
 async function saveMedication() {
-    console.log('Save medication button clicked');
     const form = document.getElementById('medicationForm');
     
     // Clear all previous validation states
@@ -628,7 +623,6 @@ async function saveMedication() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

@@ -182,9 +182,7 @@ async function loadUpcomingAppointments() {
     const appointmentsDiv = document.getElementById('upcomingAppointments');
     
     try {
-        console.log('Loading upcoming appointments...');
         const response = await apiCall('/appointments/dashboard/upcoming');
-        console.log('Appointments API response:', response);
         
         if (response && response.success && response.data && response.data.length > 0) {
             const appointments = response.data;

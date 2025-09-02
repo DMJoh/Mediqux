@@ -788,7 +788,6 @@ function calculatePatternConfidence(patternIndex, parameter, unit) {
 
 // Enhanced function to extract ALL potential lab values from text
 function extractLabValues(text) {
-  console.log('Starting enhanced lab value extraction...');
   const allMatches = [];
   const extractedValues = [];
   
@@ -837,7 +836,6 @@ function extractLabValues(text) {
     });
   });
   
-  console.log(`Found ${allMatches.length} potential matches`);
   
   // Process and clean up the matches (restored working approach)
   allMatches.forEach(match => {
@@ -898,7 +896,6 @@ function extractLabValues(text) {
   // Remove duplicates based on parameter name similarity
   const uniqueValues = removeDuplicateParameters(extractedValues);
   
-  console.log(`Extracted ${uniqueValues.length} unique lab values`);
   return uniqueValues;
 }
 
@@ -1279,7 +1276,6 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
       });
     }
     
-    console.log('Processing PDF file:', pdfFile.filename);
     
     let extractedText = null;
     let suggestedValues = [];
@@ -1288,13 +1284,11 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     // Attempt PDF parsing if enabled (optional enhancement)
     if (enableParsing === 'true') {
       try {
-        console.log('Attempting PDF parsing...');
         const pdfBuffer = await fs.readFile(pdfFile.path);
         const pdfData = await pdfParse(pdfBuffer);
         extractedText = pdfData.text;
         
         if (extractedText && extractedText.length > 50) {
-          console.log('PDF text extracted successfully, extracting lab values...');
           suggestedValues = extractLabValues(extractedText);
           console.log(`Extracted ${suggestedValues.length} potential lab values`);
         }

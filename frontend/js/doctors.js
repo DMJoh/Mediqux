@@ -17,7 +17,6 @@ window.editFromViewDoctor = editFromViewDoctor;
 // Initialize doctors page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('doctorsTableBody')) {
-        console.log('Initializing doctors page...');
         loadDoctors();
         loadAvailableInstitutions();
         setupEventListeners();
@@ -85,11 +84,9 @@ function clearFieldError(input) {
 
 // Load all doctors
 async function loadDoctors() {
-    console.log('Loading doctors...');
     try {
         showLoading(true);
         const response = await apiCall('/doctors');
-        console.log('Doctors response:', response);
         
         if (response.success) {
             allDoctors = response.data;
@@ -97,7 +94,6 @@ async function loadDoctors() {
             displayDoctors();
             updateDoctorCount();
             populateSpecialtyFilter();
-            console.log(`Loaded ${allDoctors.length} doctors`);
         } else {
             console.error('Failed to load doctors:', response.error);
             showAlert('Failed to load doctors: ' + (response.error || 'Unknown error'), 'danger');
@@ -314,7 +310,6 @@ async function editDoctor(id) {
 
 // Save doctor (create or update)
 async function saveDoctor() {
-    console.log('Save doctor button clicked');
     const form = document.getElementById('doctorForm');
     
     // Clear all previous validation states
@@ -395,7 +390,6 @@ async function saveDoctor() {
             });
         }
         
-        console.log('Save response:', response);
         
         if (response.success) {
             showAlert(response.message, 'success');

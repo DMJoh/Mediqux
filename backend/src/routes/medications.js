@@ -152,22 +152,12 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Debug incoming data
-    console.log('Received medication data for creation:', req.body);
-    console.log('Raw dosage_forms:', dosage_forms, 'Type:', typeof dosage_forms);
-    console.log('Raw strengths:', strengths, 'Type:', typeof strengths);
-    console.log('Raw active_ingredients:', active_ingredients, 'Type:', typeof active_ingredients);
     
     // Process arrays
     const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
     const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
     const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
     
-    console.log('Processed arrays:', {
-      dosage_forms: processedDosageForms,
-      strengths: processedStrengths,
-      ingredients: processedIngredients
-    });
     
     const result = await db.query(`
       INSERT INTO medications (
@@ -234,21 +224,12 @@ router.put('/:id', async (req, res) => {
     }
     
     // Debug incoming data for update
-    console.log('Received medication data for update:', req.body);
-    console.log('Raw dosage_forms:', dosage_forms, 'Type:', typeof dosage_forms);
-    console.log('Raw strengths:', strengths, 'Type:', typeof strengths);
-    console.log('Raw active_ingredients:', active_ingredients, 'Type:', typeof active_ingredients);
     
     // Process arrays
     const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
     const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
     const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
     
-    console.log('Processed arrays for update:', {
-      dosage_forms: processedDosageForms,
-      strengths: processedStrengths,
-      ingredients: processedIngredients
-    });
     
     const result = await db.query(`
       UPDATE medications SET
