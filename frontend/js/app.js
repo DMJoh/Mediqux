@@ -177,6 +177,96 @@ async function loadDashboardStats() {
     }
 }
 
+// Load upcoming appointments for dashboard
+async function loadUpcomingAppointments() {
+    const appointmentsDiv = document.getElementById('upcomingAppointments');
+    
+    try {
+        console.log('Loading upcoming appointments...');
+        const response = await apiCall('/appointments/dashboard/upcoming');
+        console.log('Appointments API response:', response);
+        
+        if (response && response.success && response.data && response.data.length > 0) {
+            const appointments = response.data;
+            
+            // Create responsive grid layout for appointments
+            const appointmentsHtml = appointments.map((appointment, index) => {
+                const appointmentDate = new Date(appointment.appointment_date);
+                const today = new Date();
+                const isToday = appointmentDate.toDateString() === today.toDateString();
+                const timeStr = appointmentDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const dateStr = isToday ? 'Today' : appointmentDate.toLocaleDateString();
+                
+                return `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="border rounded p-3 h-100 ${isToday ? 'border-warning bg-light' : ''}">
+                            <div class="d-flex flex-column h-100">
+                                <div class="flex-grow-1">
+                                    <div class="fw-medium text-primary mb-1">
+                                        <i class="bi bi-person-circle me-1"></i>
+                                        ${appointment.patient_first_name} ${appointment.patient_last_name}
+                                    </div>
+                                    <div class="small text-muted mb-2">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        Dr. ${appointment.doctor_first_name} ${appointment.doctor_last_name}
+                                    </div>
+                                    ${appointment.type ? `<div class="small text-muted mb-2">
+                                        <i class="bi bi-clipboard-pulse me-1"></i>${appointment.type}
+                                    </div>` : ''}
+                                </div>
+                                <div class="mt-auto">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="small fw-medium ${isToday ? 'text-warning' : 'text-muted'}">
+                                            <i class="bi bi-calendar3 me-1"></i>${dateStr}
+                                        </span>
+                                        <span class="small text-muted">
+                                            <i class="bi bi-clock me-1"></i>${timeStr}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            appointmentsDiv.innerHTML = `
+                <div class="row g-3">
+                    ${appointmentsHtml}
+                </div>
+            `;
+        } else if (response && response.success) {
+            // API call successful but no appointments
+            appointmentsDiv.innerHTML = `
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-calendar-x fs-4"></i>
+                    <div class="mt-2">No upcoming appointments</div>
+                    <small>Schedule new appointments to see them here</small>
+                </div>
+            `;
+        } else {
+            // API call failed or returned error
+            console.error('API returned error:', response);
+            appointmentsDiv.innerHTML = `
+                <div class="text-center py-3 text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <div class="mt-2">Unable to load appointments</div>
+                    <small>${response?.error || 'Please try again later'}</small>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading upcoming appointments:', error);
+        appointmentsDiv.innerHTML = `
+            <div class="text-center py-3 text-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                <div class="mt-2">Failed to load appointments</div>
+                <small>Please refresh the page or try again later</small>
+            </div>
+        `;
+    }
+}
+
 // Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
     // Check if we're on the dashboard page
@@ -184,8 +274,16 @@ document.addEventListener('DOMContentLoaded', function() {
         checkSystemHealth();
         loadDashboardStats();
         
+        // Wait a bit for authentication to be ready before loading appointments
+        setTimeout(() => {
+            loadUpcomingAppointments();
+        }, 1000);
+        
         // Auto-refresh system status using configurable interval
         setInterval(checkSystemHealth, window.ENV_CONFIG.HEALTH_CHECK_INTERVAL);
+        
+        // Auto-refresh upcoming appointments every 5 minutes
+        setInterval(loadUpcomingAppointments, 5 * 60 * 1000);
     }
     
     console.log('Mediqux initialized');
