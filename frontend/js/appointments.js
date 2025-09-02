@@ -536,10 +536,210 @@ async function saveAppointment() {
     }
 }
 
-// View appointment details (placeholder for future enhancement)
-function viewAppointment(id) {
-    showAlert('Appointment details view will be implemented next', 'info');
-    // TODO: Implement detailed appointment view with prescriptions
+// View appointment details
+async function viewAppointment(id) {
+    try {
+        // Show the modal first
+        const modal = new bootstrap.Modal(document.getElementById('appointmentDetailsModal'));
+        modal.show();
+        
+        // Show loading state
+        document.getElementById('appointmentDetailsLoading').style.display = 'block';
+        document.getElementById('appointmentDetailsContent').style.display = 'none';
+        
+        const response = await apiCall(`/appointments/${id}`);
+        
+        if (response.success) {
+            const appointment = response.data;
+            displayAppointmentDetails(appointment);
+            
+            // Setup edit button in details modal
+            document.getElementById('editFromDetailsBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('appointmentDetailsModal')).hide();
+                setTimeout(() => editAppointment(id), 300); // Small delay for smooth transition
+            };
+            
+            // Hide loading and show content
+            document.getElementById('appointmentDetailsLoading').style.display = 'none';
+            document.getElementById('appointmentDetailsContent').style.display = 'block';
+        } else {
+            showAlert('Failed to load appointment details: ' + (response.error || 'Unknown error'), 'danger');
+            modal.hide();
+        }
+    } catch (error) {
+        console.error('Error loading appointment details:', error);
+        showAlert('Error loading appointment details: ' + error.message, 'danger');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('appointmentDetailsModal'));
+        if (modal) {
+            modal.hide();
+        }
+    }
+}
+
+// Display appointment details in modal
+function displayAppointmentDetails(appointment) {
+    const content = document.getElementById('appointmentDetailsContent');
+    const appointmentDate = new Date(appointment.appointment_date);
+    const statusColor = getStatusBadgeColor(appointment.status);
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-calendar-event"></i> ${appointment.type || 'Appointment'}
+                        </h4>
+                        <p class="mb-2">
+                            <span class="badge bg-${statusColor} fs-6">${appointment.status || 'Unknown'}</span>
+                        </p>
+                        
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Date & Time:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-calendar3 text-primary me-1"></i>
+                                ${appointmentDate.toLocaleDateString('en-US', {
+                                    weekday: 'long',
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                })}
+                                <br>
+                                <i class="bi bi-clock text-primary me-1"></i>
+                                <small class="text-muted">${appointmentDate.toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Patient:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-person-circle text-primary me-1"></i>
+                                ${appointment.patient_first_name || 'Unknown'} ${appointment.patient_last_name || ''}
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Doctor:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-person-badge text-primary me-1"></i>
+                                Dr. ${appointment.doctor_first_name || 'Unknown'} ${appointment.doctor_last_name || ''}
+                                ${appointment.doctor_specialty ? `<small class="text-muted d-block">${appointment.doctor_specialty}</small>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${appointment.institution_name ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Institution:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-building text-primary me-1"></i>
+                                ${appointment.institution_name}
+                                ${appointment.institution_type ? `<small class="text-muted d-block">${appointment.institution_type}</small>` : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${appointment.reason ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Reason:</div>
+                            <div class="col-sm-8">${appointment.reason}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${appointment.notes ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Notes:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${appointment.notes}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${appointment.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(appointment.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-lines-fill"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${appointment.patient_phone ? `
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-primary"></i>
+                            <strong class="ms-2">Patient Phone:</strong>
+                            <div class="mt-1">
+                                <a href="tel:${appointment.patient_phone}" class="text-decoration-none">
+                                    ${appointment.patient_phone}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${appointment.patient_email ? `
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-primary"></i>
+                            <strong class="ms-2">Patient Email:</strong>
+                            <div class="mt-1">
+                                <a href="mailto:${appointment.patient_email}" class="text-decoration-none">
+                                    ${appointment.patient_email}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!appointment.patient_phone && !appointment.patient_email ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">No patient contact information available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Get appropriate status badge color
+function getStatusBadgeColor(status) {
+    switch (status?.toLowerCase()) {
+        case 'scheduled':
+            return 'primary';
+        case 'completed':
+            return 'success';
+        case 'cancelled':
+            return 'danger';
+        case 'no-show':
+            return 'warning';
+        default:
+            return 'secondary';
+    }
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Delete appointment

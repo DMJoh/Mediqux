@@ -390,10 +390,148 @@ async function saveInstitution() {
     }
 }
 
-// View institution details (placeholder for future enhancement)
-function viewInstitution(id) {
-    showAlert('Institution details view will be implemented next', 'info');
-    // TODO: Implement detailed institution view with associated doctors
+// View institution details
+async function viewInstitution(id) {
+    try {
+        const response = await apiCall(`/institutions/${id}`);
+        
+        if (response.success) {
+            const institution = response.data;
+            displayInstitutionDetails(institution);
+            
+            // Setup edit button in details modal
+            document.getElementById('editFromDetailsBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('institutionDetailsModal')).hide();
+                setTimeout(() => editInstitution(id), 300); // Small delay for smooth transition
+            };
+            
+            // Show the details modal
+            new bootstrap.Modal(document.getElementById('institutionDetailsModal')).show();
+        } else {
+            showAlert('Failed to load institution details: ' + (response.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error loading institution details:', error);
+        showAlert('Error loading institution details: ' + error.message, 'danger');
+    }
+}
+
+// Display institution details in modal
+function displayInstitutionDetails(institution) {
+    const content = document.getElementById('institutionDetailsContent');
+    const doctorCount = institution.doctors ? institution.doctors.length : 0;
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-building"></i> ${institution.name}
+                        </h4>
+                        ${institution.type ? `<p class="mb-2"><span class="badge bg-secondary fs-6">${institution.type}</span></p>` : ''}
+                        
+                        ${institution.address ? `
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Address:</div>
+                            <div class="col-sm-8">${institution.address}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${institution.website ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Website:</div>
+                            <div class="col-sm-8">
+                                <a href="${institution.website}" target="_blank" class="text-decoration-none">
+                                    <i class="bi bi-link-45deg"></i> ${institution.website}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Associated Doctors:</div>
+                            <div class="col-sm-8">
+                                <span class="badge bg-info">${doctorCount} doctor${doctorCount !== 1 ? 's' : ''}</span>
+                                ${doctorCount > 0 ? `
+                                    <div class="mt-2">
+                                        ${institution.doctors.map(doctor => 
+                                            `<div class="small text-muted">
+                                                <i class="bi bi-person-badge me-1"></i>
+                                                Dr. ${doctor.first_name} ${doctor.last_name}
+                                                ${doctor.specialty ? `<span class="text-primary">- ${doctor.specialty}</span>` : ''}
+                                            </div>`
+                                        ).join('')}
+                                    </div>
+                                ` : '<small class="text-muted d-block">No doctors assigned</small>'}
+                            </div>
+                        </div>
+                        
+                        ${institution.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(institution.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-telephone"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${institution.phone ? `
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-primary"></i>
+                            <strong class="ms-2">Phone:</strong>
+                            <div class="mt-1">
+                                <a href="tel:${institution.phone}" class="text-decoration-none">
+                                    ${institution.phone}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${institution.email ? `
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-primary"></i>
+                            <strong class="ms-2">Email:</strong>
+                            <div class="mt-1">
+                                <a href="mailto:${institution.email}" class="text-decoration-none">
+                                    ${institution.email}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!institution.phone && !institution.email ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">No contact information available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Delete institution

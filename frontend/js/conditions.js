@@ -388,10 +388,189 @@ async function saveCondition() {
     }
 }
 
-// View condition details (placeholder for future enhancement)
-function viewCondition(id) {
-    showAlert('Condition details view will be implemented next', 'info');
-    // TODO: Implement detailed condition view with usage statistics
+// View condition details
+async function viewCondition(id) {
+    try {
+        const response = await apiCall(`/conditions/${id}`);
+        
+        if (response.success) {
+            const condition = response.data;
+            displayConditionDetails(condition);
+            
+            // Setup edit button in details modal
+            document.getElementById('editConditionFromDetailsBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('conditionDetailsModal')).hide();
+                setTimeout(() => editCondition(id), 300); // Small delay for smooth transition
+            };
+            
+            // Show the details modal
+            new bootstrap.Modal(document.getElementById('conditionDetailsModal')).show();
+        } else {
+            showAlert('Failed to load condition details: ' + (response.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error loading condition details:', error);
+        showAlert('Error loading condition details: ' + error.message, 'danger');
+    }
+}
+
+// Display condition details in modal
+function displayConditionDetails(condition) {
+    const content = document.getElementById('conditionDetailsContent');
+    const usageCount = parseInt(condition.usage_count) || 0;
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-heart-pulse"></i> ${condition.name}
+                        </h4>
+                        ${condition.category ? `<p class="mb-2"><span class="badge bg-info fs-6">${condition.category}</span></p>` : ''}
+                        
+                        ${condition.icd_10_code ? `
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">ICD-10 Code:</div>
+                            <div class="col-sm-8">
+                                <span class="font-monospace badge bg-secondary">${condition.icd_10_code}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${condition.description ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Description:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 150px; overflow-y: auto;">
+                                    ${condition.description}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${condition.symptoms ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Common Symptoms:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${condition.symptoms}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${condition.treatment ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Treatment:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${condition.treatment}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Usage Count:</div>
+                            <div class="col-sm-8">
+                                <span class="badge bg-primary">${usageCount} appointment${usageCount !== 1 ? 's' : ''}</span>
+                                ${usageCount > 0 ? '<small class="text-muted d-block">Referenced in patient appointments</small>' : ''}
+                            </div>
+                        </div>
+                        
+                        ${condition.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(condition.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Condition Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${condition.severity ? `
+                        <div class="mb-3">
+                            <i class="bi bi-exclamation-triangle text-primary"></i>
+                            <strong class="ms-2">Severity:</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-${getSeverityColor(condition.severity)}">${condition.severity}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${condition.chronic_condition ? `
+                        <div class="mb-3">
+                            <i class="bi bi-clock-history text-primary"></i>
+                            <strong class="ms-2">Type:</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-warning">Chronic Condition</span>
+                            </div>
+                        </div>
+                        ` : `
+                        <div class="mb-3">
+                            <i class="bi bi-clock text-primary"></i>
+                            <strong class="ms-2">Type:</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-success">Acute Condition</span>
+                            </div>
+                        </div>
+                        `}
+                        
+                        ${condition.category ? `
+                        <div class="mb-3">
+                            <i class="bi bi-tags text-primary"></i>
+                            <strong class="ms-2">Category:</strong>
+                            <div class="mt-1">${condition.category}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!condition.severity && !condition.category ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">Additional information not available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Get appropriate severity color
+function getSeverityColor(severity) {
+    switch (severity?.toLowerCase()) {
+        case 'mild':
+            return 'success';
+        case 'moderate':
+            return 'warning';
+        case 'severe':
+        case 'critical':
+            return 'danger';
+        default:
+            return 'secondary';
+    }
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Delete condition

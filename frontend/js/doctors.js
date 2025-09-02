@@ -455,63 +455,117 @@ async function viewDoctor(id) {
 
 // Populate the doctor view modal with data
 function populateDoctorView(doctor) {
-    // Doctor name and basic info
-    document.getElementById('doctorFullName').textContent = `Dr. ${doctor.first_name} ${doctor.last_name}`;
+    const content = document.getElementById('viewDoctorContent');
     
-    // Specialty badge
-    const specialtyBadge = document.getElementById('doctorSpecialtyBadge');
-    if (doctor.specialty) {
-        specialtyBadge.textContent = doctor.specialty;
-        specialtyBadge.style.display = 'inline';
-    } else {
-        specialtyBadge.style.display = 'none';
-    }
-    
-    // Professional information
-    document.getElementById('viewDoctorSpecialty').textContent = doctor.specialty || 'Not specified';
-    document.getElementById('viewDoctorLicense').textContent = doctor.license_number || 'Not provided';
-    
-    // Contact information
-    const phoneElement = document.getElementById('viewDoctorPhone');
-    if (doctor.phone) {
-        phoneElement.innerHTML = `<a href="tel:${doctor.phone}" class="text-decoration-none">
-            <i class="bi bi-telephone me-1"></i>${doctor.phone}
-        </a>`;
-    } else {
-        phoneElement.textContent = 'Not provided';
-    }
-    
-    const emailElement = document.getElementById('viewDoctorEmail');
-    if (doctor.email) {
-        emailElement.innerHTML = `<a href="mailto:${doctor.email}" class="text-decoration-none">
-            <i class="bi bi-envelope me-1"></i>${doctor.email}
-        </a>`;
-    } else {
-        emailElement.textContent = 'Not provided';
-    }
-    
-    // Associated institutions
-    const institutionsElement = document.getElementById('viewDoctorInstitutions');
-    if (doctor.institutions && doctor.institutions.length > 0) {
-        const institutionBadges = doctor.institutions.map(inst => 
-            `<span class="badge bg-secondary me-2 mb-2">
-                <i class="bi bi-building me-1"></i>${inst.name}
-                ${inst.type ? `<small class="ms-1">(${inst.type})</small>` : ''}
-            </span>`
-        ).join('');
-        institutionsElement.innerHTML = institutionBadges;
-    } else {
-        institutionsElement.innerHTML = '<span class="text-muted">No associated institutions</span>';
-    }
-    
-    // Timestamps
-    document.getElementById('viewDoctorCreatedAt').textContent = doctor.created_at ? 
-        new Date(doctor.created_at).toLocaleString() : 'Not available';
-    document.getElementById('viewDoctorUpdatedAt').textContent = doctor.updated_at ? 
-        new Date(doctor.updated_at).toLocaleString() : 'Not available';
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-person-badge"></i> Dr. ${doctor.first_name} ${doctor.last_name}
+                        </h4>
+                        ${doctor.specialty ? `<p class="mb-2"><span class="badge bg-success fs-6">${doctor.specialty}</span></p>` : ''}
+                        
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Doctor ID:</div>
+                            <div class="col-sm-8">
+                                <span class="font-monospace text-muted small">${doctor.id}</span>
+                            </div>
+                        </div>
+                        
+                        ${doctor.license_number ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">License Number:</div>
+                            <div class="col-sm-8">
+                                <span class="font-monospace">${doctor.license_number}</span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Associated Institutions:</div>
+                            <div class="col-sm-8">
+                                ${doctor.institutions && doctor.institutions.length > 0 ? 
+                                    doctor.institutions.map(inst => 
+                                        `<span class="badge bg-secondary me-2 mb-2">
+                                            <i class="bi bi-building me-1"></i>${inst.name}
+                                            ${inst.type ? `<small class="ms-1">(${inst.type})</small>` : ''}
+                                        </span>`
+                                    ).join('') : 
+                                    '<span class="text-muted">No associated institutions</span>'
+                                }
+                            </div>
+                        </div>
+                        
+                        ${doctor.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(doctor.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-telephone"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${doctor.phone ? `
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-primary"></i>
+                            <strong class="ms-2">Phone:</strong>
+                            <div class="mt-1">
+                                <a href="tel:${doctor.phone}" class="text-decoration-none">
+                                    ${doctor.phone}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${doctor.email ? `
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-primary"></i>
+                            <strong class="ms-2">Email:</strong>
+                            <div class="mt-1">
+                                <a href="mailto:${doctor.email}" class="text-decoration-none">
+                                    ${doctor.email}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!doctor.phone && !doctor.email ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">No contact information available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
     // Store doctor ID for edit functionality
     document.getElementById('editFromViewDoctorBtn').setAttribute('data-doctor-id', doctor.id);
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Edit doctor from view modal

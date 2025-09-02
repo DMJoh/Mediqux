@@ -489,10 +489,230 @@ async function editPrescription(id) {
     }
 }
 
-// View prescription details (placeholder for future enhancement)
-function viewPrescription(id) {
-    showAlert('Prescription details view will be implemented next', 'info');
-    // TODO: Implement detailed prescription view with full history
+// View prescription details
+async function viewPrescription(id) {
+    try {
+        const response = await apiCall(`/prescriptions/${id}`);
+        
+        if (response.success) {
+            const prescription = response.data;
+            displayPrescriptionDetails(prescription);
+            
+            // Setup edit button in details modal
+            document.getElementById('editPrescriptionFromDetailsBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('prescriptionDetailsModal')).hide();
+                setTimeout(() => editPrescription(id), 300); // Small delay for smooth transition
+            };
+            
+            // Show the details modal
+            new bootstrap.Modal(document.getElementById('prescriptionDetailsModal')).show();
+        } else {
+            showAlert('Failed to load prescription details: ' + (response.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error loading prescription details:', error);
+        showAlert('Error loading prescription details: ' + error.message, 'danger');
+    }
+}
+
+// Display prescription details in modal
+function displayPrescriptionDetails(prescription) {
+    const content = document.getElementById('prescriptionDetailsContent');
+    const prescribedDate = prescription.prescribed_date ? new Date(prescription.prescribed_date) : null;
+    const startDate = prescription.start_date ? new Date(prescription.start_date) : null;
+    const endDate = prescription.end_date ? new Date(prescription.end_date) : null;
+    const appointmentDate = prescription.appointment_date ? new Date(prescription.appointment_date) : null;
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-prescription"></i> ${prescription.medication_name || 'Prescription'}
+                        </h4>
+                        ${prescription.status ? `<p class="mb-2"><span class="badge bg-${getStatusColor(prescription.status)} fs-6">${prescription.status}</span></p>` : ''}
+                        
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Patient:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-person-circle text-primary me-1"></i>
+                                ${prescription.patient_first_name || 'Unknown'} ${prescription.patient_last_name || ''}
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Medication:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-capsule text-primary me-1"></i>
+                                ${prescription.medication_name || 'Unknown'}
+                                ${prescription.medication_generic_name ? `<small class="text-muted d-block">Generic: ${prescription.medication_generic_name}</small>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${prescription.dosage ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Dosage:</div>
+                            <div class="col-sm-8">${prescription.dosage}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.frequency ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Frequency:</div>
+                            <div class="col-sm-8">${prescription.frequency}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.duration ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Duration:</div>
+                            <div class="col-sm-8">${prescription.duration}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.quantity ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Quantity:</div>
+                            <div class="col-sm-8">${prescription.quantity}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.refills !== undefined ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Refills:</div>
+                            <div class="col-sm-8">${prescription.refills}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescribedDate ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Prescribed Date:</div>
+                            <div class="col-sm-8">${prescribedDate.toLocaleDateString()}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${startDate && endDate ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Treatment Period:</div>
+                            <div class="col-sm-8">
+                                ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.instructions ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Instructions:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${prescription.instructions}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${appointmentDate ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Associated Appointment:</div>
+                            <div class="col-sm-8">
+                                <i class="bi bi-calendar-event text-primary me-1"></i>
+                                ${appointmentDate.toLocaleDateString()}
+                                ${prescription.appointment_type ? `<small class="text-muted d-block">${prescription.appointment_type}</small>` : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(prescription.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-person-lines-fill"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${prescription.patient_phone ? `
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-primary"></i>
+                            <strong class="ms-2">Patient Phone:</strong>
+                            <div class="mt-1">
+                                <a href="tel:${prescription.patient_phone}" class="text-decoration-none">
+                                    ${prescription.patient_phone}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.patient_email ? `
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-primary"></i>
+                            <strong class="ms-2">Patient Email:</strong>
+                            <div class="mt-1">
+                                <a href="mailto:${prescription.patient_email}" class="text-decoration-none">
+                                    ${prescription.patient_email}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${prescription.medication_manufacturer ? `
+                        <div class="mb-3">
+                            <i class="bi bi-building text-primary"></i>
+                            <strong class="ms-2">Manufacturer:</strong>
+                            <div class="mt-1">${prescription.medication_manufacturer}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!prescription.patient_phone && !prescription.patient_email && !prescription.medication_manufacturer ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">No additional information available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Get appropriate status color
+function getStatusColor(status) {
+    switch (status?.toLowerCase()) {
+        case 'active':
+            return 'success';
+        case 'completed':
+            return 'primary';
+        case 'cancelled':
+        case 'discontinued':
+            return 'danger';
+        case 'pending':
+            return 'warning';
+        default:
+            return 'secondary';
+    }
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Delete prescription

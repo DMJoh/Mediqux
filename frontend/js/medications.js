@@ -651,10 +651,193 @@ async function saveMedication() {
     }
 }
 
-// View medication details (placeholder for future enhancement)
-function viewMedication(id) {
-    showAlert('Medication details view will be implemented next', 'info');
-    // TODO: Implement detailed medication view with prescription history
+// View medication details
+async function viewMedication(id) {
+    try {
+        const response = await apiCall(`/medications/${id}`);
+        
+        if (response.success) {
+            const medication = response.data;
+            displayMedicationDetails(medication);
+            
+            // Setup edit button in details modal
+            document.getElementById('editMedicationFromDetailsBtn').onclick = () => {
+                bootstrap.Modal.getInstance(document.getElementById('medicationDetailsModal')).hide();
+                setTimeout(() => editMedication(id), 300); // Small delay for smooth transition
+            };
+            
+            // Show the details modal
+            new bootstrap.Modal(document.getElementById('medicationDetailsModal')).show();
+        } else {
+            showAlert('Failed to load medication details: ' + (response.error || 'Unknown error'), 'danger');
+        }
+    } catch (error) {
+        console.error('Error loading medication details:', error);
+        showAlert('Error loading medication details: ' + error.message, 'danger');
+    }
+}
+
+// Display medication details in modal
+function displayMedicationDetails(medication) {
+    const content = document.getElementById('medicationDetailsContent');
+    const prescriptionCount = parseInt(medication.prescription_count) || 0;
+    const patientMedicationCount = parseInt(medication.patient_medication_count) || 0;
+    const totalUsage = prescriptionCount + patientMedicationCount;
+    
+    // Parse active ingredients if it's JSONB
+    let activeIngredients = [];
+    if (medication.active_ingredients) {
+        try {
+            activeIngredients = typeof medication.active_ingredients === 'string' 
+                ? JSON.parse(medication.active_ingredients) 
+                : medication.active_ingredients;
+        } catch (e) {
+            activeIngredients = [];
+        }
+    }
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-capsule"></i> ${medication.name}
+                        </h4>
+                        ${medication.type ? `<p class="mb-2"><span class="badge bg-info fs-6">${medication.type}</span></p>` : ''}
+                        
+                        ${medication.generic_name ? `
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Generic Name:</div>
+                            <div class="col-sm-8">${medication.generic_name}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.manufacturer ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Manufacturer:</div>
+                            <div class="col-sm-8">${medication.manufacturer}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${activeIngredients.length > 0 ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Active Ingredients:</div>
+                            <div class="col-sm-8">
+                                ${activeIngredients.map(ingredient => 
+                                    `<span class="badge bg-secondary me-2 mb-1">${ingredient}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.description ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Description:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${medication.description}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.side_effects ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Side Effects:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${medication.side_effects}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Usage Statistics:</div>
+                            <div class="col-sm-8">
+                                <span class="badge bg-primary">${totalUsage} total usage${totalUsage !== 1 ? 's' : ''}</span>
+                                ${totalUsage > 0 ? '<small class="text-muted d-block">Prescribed to patients</small>' : ''}
+                            </div>
+                        </div>
+                        
+                        ${medication.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(medication.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> Medication Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${medication.strength ? `
+                        <div class="mb-3">
+                            <i class="bi bi-speedometer text-primary"></i>
+                            <strong class="ms-2">Strength:</strong>
+                            <div class="mt-1">${medication.strength}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.dosage_form ? `
+                        <div class="mb-3">
+                            <i class="bi bi-capsule text-primary"></i>
+                            <strong class="ms-2">Dosage Form:</strong>
+                            <div class="mt-1">${medication.dosage_form}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.route ? `
+                        <div class="mb-3">
+                            <i class="bi bi-arrow-right text-primary"></i>
+                            <strong class="ms-2">Route:</strong>
+                            <div class="mt-1">${medication.route}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${medication.prescription_required !== undefined ? `
+                        <div class="mb-3">
+                            <i class="bi bi-shield-check text-primary"></i>
+                            <strong class="ms-2">Status:</strong>
+                            <div class="mt-1">
+                                <span class="badge bg-${medication.prescription_required ? 'warning' : 'success'}">
+                                    ${medication.prescription_required ? 'Prescription Required' : 'Over-the-Counter'}
+                                </span>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!medication.strength && !medication.dosage_form && !medication.route ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">Additional information not available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Delete medication

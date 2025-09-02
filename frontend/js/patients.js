@@ -413,72 +413,125 @@ async function viewPatient(id) {
 
 // Populate the patient view modal with data
 function populatePatientView(patient) {
-    // Patient name and basic info
-    document.getElementById('patientFullName').textContent = `${patient.first_name} ${patient.last_name}`;
-    
-    // Gender badge
-    const genderBadge = document.getElementById('patientGenderBadge');
-    if (patient.gender) {
-        genderBadge.textContent = patient.gender;
-        genderBadge.className = `badge bg-${getGenderBadgeColor(patient.gender)}`;
-        genderBadge.style.display = 'inline';
-    } else {
-        genderBadge.style.display = 'none';
-    }
-    
-    // Personal information
-    document.getElementById('patientDOB').textContent = patient.date_of_birth ? 
-        new Date(patient.date_of_birth).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long', 
-            day: 'numeric'
-        }) : 'Not specified';
-    
-    // Calculate and display age
+    const content = document.getElementById('viewPatientContent');
     const age = patient.date_of_birth ? calculateAge(patient.date_of_birth) : null;
-    document.getElementById('patientAge').textContent = age ? `${age} years old` : 'Not available';
+    const genderColor = getGenderBadgeColor(patient.gender);
     
-    document.getElementById('patientGender').textContent = patient.gender || 'Not specified';
-    
-    // Contact information
-    const phoneElement = document.getElementById('patientPhone');
-    if (patient.phone) {
-        phoneElement.innerHTML = `<a href="tel:${patient.phone}" class="text-decoration-none">
-            <i class="bi bi-telephone me-1"></i>${patient.phone}
-        </a>`;
-    } else {
-        phoneElement.textContent = 'Not provided';
-    }
-    
-    const emailElement = document.getElementById('patientEmail');
-    if (patient.email) {
-        emailElement.innerHTML = `<a href="mailto:${patient.email}" class="text-decoration-none">
-            <i class="bi bi-envelope me-1"></i>${patient.email}
-        </a>`;
-    } else {
-        emailElement.textContent = 'Not provided';
-    }
-    
-    // Address
-    document.getElementById('patientAddress').textContent = patient.address || 'Not provided';
-    
-    // Emergency contact
-    document.getElementById('viewEmergencyContactName').textContent = patient.emergency_contact_name || 'Not provided';
-    
-    const emergencyPhoneElement = document.getElementById('viewEmergencyContactPhone');
-    if (patient.emergency_contact_phone) {
-        emergencyPhoneElement.innerHTML = `<a href="tel:${patient.emergency_contact_phone}" class="text-decoration-none">
-            <i class="bi bi-telephone me-1"></i>${patient.emergency_contact_phone}
-        </a>`;
-    } else {
-        emergencyPhoneElement.textContent = 'Not provided';
-    }
-    
-    // Timestamps
-    document.getElementById('patientCreatedAt').textContent = patient.created_at ? 
-        new Date(patient.created_at).toLocaleString() : 'Not available';
-    document.getElementById('patientUpdatedAt').textContent = patient.updated_at ? 
-        new Date(patient.updated_at).toLocaleString() : 'Not available';
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary">
+                            <i class="bi bi-person-circle"></i> ${patient.first_name} ${patient.last_name}
+                        </h4>
+                        ${patient.gender ? `<p class="mb-2"><span class="badge bg-${genderColor} fs-6">${patient.gender}</span></p>` : ''}
+                        
+                        <div class="row mt-3">
+                            <div class="col-sm-4 fw-semibold">Patient ID:</div>
+                            <div class="col-sm-8">
+                                <span class="font-monospace text-muted small">${patient.id}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Date of Birth:</div>
+                            <div class="col-sm-8">
+                                ${patient.date_of_birth ? 
+                                    new Date(patient.date_of_birth).toLocaleDateString('en-US', {
+                                        year: 'numeric',
+                                        month: 'long', 
+                                        day: 'numeric'
+                                    }) : 'Not specified'}
+                                ${age ? `<small class="text-muted d-block">${age} years old</small>` : ''}
+                            </div>
+                        </div>
+                        
+                        ${patient.address ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Address:</div>
+                            <div class="col-sm-8">${patient.address}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${patient.emergency_contact ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Emergency Contact:</div>
+                            <div class="col-sm-8">${patient.emergency_contact}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${patient.insurance_info ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Insurance:</div>
+                            <div class="col-sm-8">${patient.insurance_info}</div>
+                        </div>
+                        ` : ''}
+                        
+                        ${patient.medical_history ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Medical History:</div>
+                            <div class="col-sm-8">
+                                <div class="text-muted" style="max-height: 100px; overflow-y: auto;">
+                                    ${patient.medical_history}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${patient.created_at ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Created:</div>
+                            <div class="col-sm-8">
+                                <small class="text-muted">${formatDateTime(patient.created_at)}</small>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-telephone"></i> Contact Information</h6>
+                    </div>
+                    <div class="card-body">
+                        ${patient.phone ? `
+                        <div class="mb-3">
+                            <i class="bi bi-telephone text-primary"></i>
+                            <strong class="ms-2">Phone:</strong>
+                            <div class="mt-1">
+                                <a href="tel:${patient.phone}" class="text-decoration-none">
+                                    ${patient.phone}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${patient.email ? `
+                        <div class="mb-3">
+                            <i class="bi bi-envelope text-primary"></i>
+                            <strong class="ms-2">Email:</strong>
+                            <div class="mt-1">
+                                <a href="mailto:${patient.email}" class="text-decoration-none">
+                                    ${patient.email}
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${!patient.phone && !patient.email ? `
+                        <div class="text-center text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            <p class="mb-0 mt-2">No contact information available</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
     
     // Store patient ID for edit functionality
     document.getElementById('editFromViewBtn').setAttribute('data-patient-id', patient.id);
@@ -510,6 +563,18 @@ function calculateAge(dateOfBirth) {
     }
     
     return age;
+}
+
+// Format date and time for display
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } catch (error) {
+        return 'Invalid date';
+    }
 }
 
 // Edit patient from view modal
