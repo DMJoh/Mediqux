@@ -4,7 +4,7 @@
 // Default configuration
 const ENV_CONFIG = {
     // Backend API URL - modify this for different environments
-    API_BASE_URL: window.MED_APP_API_URL || 'http://localhost:3000/api',
+    API_BASE_URL: window.MEDIQUX_API_URL || 'http://localhost:3000/api',
     
     // Other configurable options
     RETRY_ATTEMPTS: 3,
