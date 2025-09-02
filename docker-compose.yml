@@ -1,3 +1,10 @@
+# =============================================================================
+# Mediqux - Medical Management System Docker Compose Configuration
+# =============================================================================
+# This Docker Compose file uses environment variables from .env file
+# for easy configuration management across different environments.
+# =============================================================================
+
 services:
   # PostgreSQL Database
   postgres:
@@ -5,19 +12,19 @@ services:
     container_name: postgres_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: medical_app
-      POSTGRES_USER: medboy
-      POSTGRES_PASSWORD: SpaceMed@123
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
       - ./database:/docker-entrypoint-initdb.d
     networks:
-      - medical_network
+      - mediqux_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U medboy -d medical_app"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,38 +33,45 @@ services:
   backend:
     build: ./backend
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT}:3000"
     environment:
-      - NODE_ENV=development
-      - DB_HOST=postgres  # Use service name for container communication
-      - DB_PORT=5432
-      - DB_NAME=medical_app
-      - DB_USER=medboy
-      - DB_PASSWORD=SpaceMed@123
+      - NODE_ENV=${NODE_ENV}
+      - DEBUG=${DEBUG}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
+      - UPLOAD_PATH=${UPLOAD_PATH}
     volumes:
       - ./backend:/app
       - /app/node_modules  # Anonymous volume to preserve node_modules
-      - ./uploads:/app/uploads  # For PDF uploads
+      - ${UPLOAD_DATA_PATH}:/app/uploads  # For PDF uploads
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - medical_network
+      - mediqux_network
 
   # Frontend web server
   frontend:
-    image: nginx:alpine
+    build: ./frontend
     ports:
-      - "8080:80"
-    volumes:
-      - ./frontend:/usr/share/nginx/html
+      - "${FRONTEND_PORT}:80"
+    environment:
+      - MEDIQUX_API_URL=${MEDIQUX_API_URL}
     networks:
-      - medical_network
+      - mediqux_network
 
 volumes:
   postgres_data:
     driver: local
 
 networks:
-  medical_network:
+  mediqux_network:
     driver: bridge
