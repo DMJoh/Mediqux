@@ -13,7 +13,8 @@ async function apiCall(endpoint, options = {}, retryCount = 0) {
         if (window.authManager) {
             const response = await window.authManager.apiRequest(endpoint, options);
             if (!response) {
-                throw new Error('Authentication failed');
+                // Auth manager is handling logout/redirect - don't throw error
+                return { success: false, error: 'Authentication required' };
             }
             return await response.json();
         } else {

@@ -1,8 +1,57 @@
 /* Custom styles for Medical Management System */
 
+/* CSS Variables for Theme Support */
+:root {
+    /* Light Theme (Default) */
+    --bs-body-bg: #f8f9fa;
+    --bs-body-color: #212529;
+    --bs-border-color: #dee2e6;
+    --bs-card-bg: #ffffff;
+    --bs-modal-bg: #ffffff;
+    --bs-navbar-bg: #0d6efd;
+    --bs-navbar-color: #ffffff;
+    --bs-navbar-brand-color: #ffffff;
+    --bs-navbar-link-color: rgba(255,255,255,0.85);
+    --bs-navbar-link-hover-color: #ffffff;
+    --bs-table-bg: #ffffff;
+    --bs-table-hover-bg: #f5f5f5;
+    --bs-form-control-bg: #ffffff;
+    --bs-form-control-border: #ced4da;
+    --bs-dropdown-bg: #ffffff;
+    --bs-dropdown-border: #dee2e6;
+    --card-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    --card-shadow-hover: 0 4px 8px rgba(0,0,0,0.15);
+    --alert-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Dark Theme */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #1a1d20;
+    --bs-body-color: #e9ecef;
+    --bs-border-color: #495057;
+    --bs-card-bg: #2d3238;
+    --bs-modal-bg: #2d3238;
+    --bs-navbar-bg: #1a252f;
+    --bs-navbar-color: #e9ecef;
+    --bs-navbar-brand-color: #ffffff;
+    --bs-navbar-link-color: rgba(233,236,239,0.75);
+    --bs-navbar-link-hover-color: #ffffff;
+    --bs-table-bg: #2d3238;
+    --bs-table-hover-bg: #3c4044;
+    --bs-form-control-bg: #2d3238;
+    --bs-form-control-border: #495057;
+    --bs-dropdown-bg: #2d3238;
+    --bs-dropdown-border: #495057;
+    --card-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    --card-shadow-hover: 0 4px 8px rgba(0,0,0,0.4);
+    --alert-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
 body {
-    background-color: #f8f9fa;
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Navigation customization */
@@ -13,15 +62,17 @@ body {
 
 /* Card enhancements */
 .card {
-    border: none;
+    border: 1px solid var(--bs-border-color);
     border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: var(--card-shadow);
+    background-color: var(--bs-card-bg);
+    color: var(--bs-body-color);
+    transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, color 0.3s ease;
 }
 
 .card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    box-shadow: var(--card-shadow-hover);
 }
 
 /* Status indicators */
@@ -79,15 +130,22 @@ body {
 
 /* Table enhancements */
 .table {
-    background: white;
+    background: var(--bs-table-bg);
     border-radius: 8px;
     overflow: hidden;
+    color: var(--bs-body-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .table th {
-    background-color: #f8f9fa;
-    border-bottom: 2px solid #dee2e6;
+    background-color: var(--bs-table-hover-bg);
+    border-bottom: 2px solid var(--bs-border-color);
+    color: var(--bs-body-color);
     font-weight: 600;
+}
+
+.table tbody tr:hover {
+    background-color: var(--bs-table-hover-bg);
 }
 
 /* Loading states */
@@ -114,13 +172,26 @@ body {
 }
 
 /* Modal enhancements */
+.modal-content {
+    background-color: var(--bs-modal-bg);
+    color: var(--bs-body-color);
+    border: 1px solid var(--bs-border-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 .modal-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
+    background-color: var(--bs-table-hover-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
 }
 
 .modal-title {
     font-weight: 600;
+    color: var(--bs-body-color);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--bs-border-color);
 }
 
 /* Fixed alert positioning */
@@ -130,9 +201,115 @@ body {
     right: 20px !important;
     z-index: 1050 !important;
     max-width: 400px !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    box-shadow: var(--alert-shadow) !important;
     border: none !important;
     animation: slideInRight 0.3s ease-out;
+}
+
+/* Form control theme support */
+.form-control, .form-select {
+    background-color: var(--bs-form-control-bg);
+    border-color: var(--bs-form-control-border);
+    color: var(--bs-body-color);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--bs-form-control-bg);
+    color: var(--bs-body-color);
+}
+
+/* Dropdown theme support */
+.dropdown-menu {
+    background-color: var(--bs-dropdown-bg);
+    border-color: var(--bs-dropdown-border);
+    color: var(--bs-body-color);
+}
+
+.dropdown-item {
+    color: var(--bs-body-color);
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+    background-color: var(--bs-table-hover-bg);
+    color: var(--bs-body-color);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1040;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    background-color: var(--bs-card-bg);
+    color: var(--bs-body-color);
+    box-shadow: var(--card-shadow);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.theme-toggle:hover {
+    box-shadow: var(--card-shadow-hover);
+    transform: scale(1.05);
+}
+
+/* Responsive positioning for theme toggle */
+@media (max-width: 768px) {
+    .theme-toggle {
+        width: 45px;
+        height: 45px;
+        top: 15px;
+        right: 15px;
+        font-size: 1.1rem;
+    }
+}
+
+/* Navbar theme support */
+.navbar {
+    background-color: var(--bs-navbar-bg) !important;
+    border-bottom: 1px solid var(--bs-border-color);
+    transition: background-color 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    color: var(--bs-navbar-brand-color) !important;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+/* Force navbar brand to be white in both themes */
+.navbar .navbar-brand,
+.navbar .navbar-brand:hover,
+.navbar .navbar-brand:focus {
+    color: #ffffff !important;
+}
+
+.navbar .navbar-brand i {
+    color: #ffffff !important;
+}
+
+.navbar-nav .nav-link {
+    color: var(--bs-navbar-link-color) !important;
+    transition: color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link:focus {
+    color: var(--bs-navbar-link-hover-color) !important;
+}
+
+/* Dark theme navbar shadow */
+[data-bs-theme="dark"] .navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 @keyframes slideInRight {
@@ -153,6 +330,14 @@ body {
         left: 10px !important;
         max-width: calc(100vw - 20px) !important;
     }
+}
+
+/* Footer theme support */
+footer.bg-light {
+    background-color: var(--bs-card-bg) !important;
+    color: var(--bs-body-color) !important;
+    border-color: var(--bs-border-color) !important;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 /* Responsive adjustments */
