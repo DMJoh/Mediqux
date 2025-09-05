@@ -62,9 +62,14 @@ body {
 
 /* Card enhancements */
 .card {
-    border: 1px solid var(--bs-border-color);
     border-radius: 10px;
     box-shadow: var(--card-shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Card styling for cards without Bootstrap background colors */
+.card:not(.bg-primary):not(.bg-secondary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info):not(.bg-light):not(.bg-dark) {
+    border: 1px solid var(--bs-border-color);
     background-color: var(--bs-card-bg);
     color: var(--bs-body-color);
     transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s ease, color 0.3s ease;
@@ -73,6 +78,41 @@ body {
 .card:hover {
     transform: translateY(-2px);
     box-shadow: var(--card-shadow-hover);
+}
+
+/* Card header styles - only apply to headers without Bootstrap background classes */
+.card-header:not([class*="bg-"]) {
+    background-color: var(--bs-card-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Card body styling - only apply to bodies in cards without Bootstrap background colors */
+.card:not(.bg-primary):not(.bg-secondary):not(.bg-success):not(.bg-danger):not(.bg-warning):not(.bg-info):not(.bg-light):not(.bg-dark) .card-body {
+    background-color: var(--bs-card-bg);
+    color: var(--bs-body-color);
+}
+
+/* Table header dark mode support */
+[data-bs-theme="dark"] .table-light {
+    background-color: #495057;
+    border-color: #5a6169;
+    color: #e9ecef;
+}
+
+[data-bs-theme="dark"] .table-light th {
+    background-color: #495057;
+    border-color: #5a6169;
+    color: #e9ecef;
+}
+
+/* Table styles for dark mode */
+[data-bs-theme="dark"] .table {
+    --bs-table-bg: var(--bs-table-bg);
+    --bs-table-hover-bg: var(--bs-table-hover-bg);
+    --bs-table-color: var(--bs-body-color);
+    --bs-table-border-color: var(--bs-border-color);
 }
 
 /* Status indicators */
@@ -235,8 +275,26 @@ body {
     color: var(--bs-body-color);
 }
 
-/* Theme toggle button */
-.theme-toggle {
+/* Theme toggle button - Navbar version */
+.theme-toggle-nav {
+    border: none;
+    background-color: transparent;
+    color: var(--bs-body-color);
+    transition: all 0.3s ease;
+}
+
+.theme-toggle-nav:hover {
+    background-color: transparent;
+    color: var(--bs-primary);
+    border: none;
+}
+
+.theme-toggle-nav:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Theme toggle button - Floating fallback version */
+.theme-toggle-float {
     position: fixed;
     top: 20px;
     right: 20px;
@@ -256,14 +314,16 @@ body {
     font-size: 1.2rem;
 }
 
-.theme-toggle:hover {
+.theme-toggle-float:hover {
     box-shadow: var(--card-shadow-hover);
     transform: scale(1.05);
+    background-color: var(--bs-body-color);
+    color: var(--bs-card-bg);
 }
 
-/* Responsive positioning for theme toggle */
+/* Responsive positioning for floating theme toggle */
 @media (max-width: 768px) {
-    .theme-toggle {
+    .theme-toggle-float {
         width: 45px;
         height: 45px;
         top: 15px;
