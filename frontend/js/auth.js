@@ -330,8 +330,8 @@ class AuthManager {
         try {
             const response = await fetch(`${this.baseURL}${endpoint}`, config);
             
-            if (response.status === 401) {
-                // Token expired or invalid
+            if (response.status === 401 || response.status === 403) {
+                // Token expired, invalid, or forbidden - treat as authentication failure
                 this.logout();
                 return null;
             }
