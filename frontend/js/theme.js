@@ -1,3 +1,15 @@
+// Immediately apply saved theme to prevent flash
+(function() {
+    const savedTheme = localStorage.getItem('mediqux-theme') || 'light';
+    const htmlElement = document.documentElement;
+    
+    if (savedTheme === 'dark') {
+        htmlElement.setAttribute('data-bs-theme', 'dark');
+    } else {
+        htmlElement.setAttribute('data-bs-theme', 'light');
+    }
+})();
+
 // Theme Management for Mediqux
 class ThemeManager {
     constructor() {
@@ -43,17 +55,37 @@ class ThemeManager {
             return;
         }
 
-        const toggle = document.createElement('button');
-        toggle.id = 'theme-toggle';
-        toggle.className = 'theme-toggle';
-        toggle.setAttribute('aria-label', 'Toggle theme');
-        toggle.setAttribute('title', 'Toggle light/dark theme');
+        // Try to add to navbar first, fallback to body
+        const navbar = document.querySelector('.navbar .container');
+        const userDropdown = document.querySelector('.nav-item.dropdown');
         
-        // Add click handler
-        toggle.addEventListener('click', () => this.toggleTheme());
-        
-        // Add to page
-        document.body.appendChild(toggle);
+        if (navbar && userDropdown) {
+            // Create toggle button for navbar
+            const toggle = document.createElement('button');
+            toggle.id = 'theme-toggle';
+            toggle.className = 'btn btn-outline-secondary me-3 theme-toggle-nav';
+            toggle.setAttribute('aria-label', 'Toggle theme');
+            toggle.setAttribute('title', 'Toggle light/dark theme');
+            
+            // Add click handler
+            toggle.addEventListener('click', () => this.toggleTheme());
+            
+            // Insert before user dropdown
+            userDropdown.parentNode.insertBefore(toggle, userDropdown);
+        } else {
+            // Fallback: create floating toggle
+            const toggle = document.createElement('button');
+            toggle.id = 'theme-toggle';
+            toggle.className = 'theme-toggle-float';
+            toggle.setAttribute('aria-label', 'Toggle theme');
+            toggle.setAttribute('title', 'Toggle light/dark theme');
+            
+            // Add click handler
+            toggle.addEventListener('click', () => this.toggleTheme());
+            
+            // Add to body
+            document.body.appendChild(toggle);
+        }
         
         // Update initial icon
         this.updateToggleIcon();
@@ -64,10 +96,10 @@ class ThemeManager {
         if (!toggle) return;
 
         if (this.currentTheme === 'dark') {
-            toggle.innerHTML = '☀️'; // Sun icon for switching to light
+            toggle.innerHTML = '<i class="bi bi-sun-fill"></i>'; // Sun icon for switching to light
             toggle.setAttribute('title', 'Switch to light theme');
         } else {
-            toggle.innerHTML = '🌙'; // Moon icon for switching to dark  
+            toggle.innerHTML = '<i class="bi bi-moon-fill"></i>'; // Moon icon for switching to dark  
             toggle.setAttribute('title', 'Switch to dark theme');
         }
     }
