@@ -28,10 +28,5 @@ window.getApiBaseUrl = function() {
 // Helper function to update API URL dynamically (if needed)
 window.setApiBaseUrl = function(url) {
     ENV_CONFIG.API_BASE_URL = url;
-    console.log('API Base URL updated to:', url);
 };
 
-console.log('Frontend configuration loaded:', {
-    API_BASE_URL: ENV_CONFIG.API_BASE_URL,
-    environment: window.location.hostname === 'localhost' ? 'development' : 'production'
-});

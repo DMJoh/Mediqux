@@ -285,5 +285,4 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(loadUpcomingAppointments, 5 * 60 * 1000);
     }
     
-    console.log('Mediqux initialized');
 });

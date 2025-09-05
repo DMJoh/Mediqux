@@ -249,7 +249,6 @@ function showLoading(show) {
 
 // Open modal for adding new prescription
 function openAddPrescriptionModal() {
-    console.log('Opening add prescription modal');
     currentEditingId = null;
     
     document.getElementById('modalTitle').innerHTML = '<i class="bi bi-plus-circle"></i> New Prescription';
@@ -394,7 +393,6 @@ async function savePrescription() {
         status: document.getElementById('prescriptionStatus').value
     };
     
-    console.log('Prescription data to save:', prescriptionData);
     
     try {
         const saveBtn = document.getElementById('savePrescriptionBtn');
@@ -404,14 +402,12 @@ async function savePrescription() {
         let response;
         if (currentEditingId) {
             // Update existing prescription
-            console.log('Updating prescription:', currentEditingId);
             response = await apiCall(`/prescriptions/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(prescriptionData)
             });
         } else {
             // Create new prescription
-            console.log('Creating new prescription');
             response = await apiCall('/prescriptions', {
                 method: 'POST',
                 body: JSON.stringify(prescriptionData)
@@ -442,12 +438,10 @@ async function savePrescription() {
 // Edit prescription
 async function editPrescription(id) {
     try {
-        console.log('Editing prescription with ID:', id);
         const response = await apiCall(`/prescriptions/${id}`);
         
         if (response.success) {
             const prescription = response.data;
-            console.log('Received prescription data for editing:', prescription);
             currentEditingId = id;
             
             // Load dropdowns first

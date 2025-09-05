@@ -366,7 +366,6 @@ async function saveDoctor() {
         institution_ids: selectedInstitutions
     };
     
-    console.log('Doctor data to save:', doctorData);
     
     try {
         const saveBtn = document.getElementById('saveDoctorBtn');
@@ -376,14 +375,12 @@ async function saveDoctor() {
         let response;
         if (currentEditingId) {
             // Update existing doctor
-            console.log('Updating doctor:', currentEditingId);
             response = await apiCall(`/doctors/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(doctorData)
             });
         } else {
             // Create new doctor
-            console.log('Creating new doctor');
             response = await apiCall('/doctors', {
                 method: 'POST',
                 body: JSON.stringify(doctorData)
@@ -412,7 +409,6 @@ async function saveDoctor() {
 
 // View doctor details
 async function viewDoctor(id) {
-    console.log('Viewing doctor details for ID:', id);
     
     try {
         // Show the modal first

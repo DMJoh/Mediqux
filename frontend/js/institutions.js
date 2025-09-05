@@ -340,7 +340,6 @@ async function saveInstitution() {
         website: website.value.trim() || null
     };
     
-    console.log('Institution data to save:', institutionData);
     
     try {
         const saveBtn = document.getElementById('saveInstitutionBtn');
@@ -350,14 +349,12 @@ async function saveInstitution() {
         let response;
         if (currentEditingId) {
             // Update existing institution
-            console.log('Updating institution:', currentEditingId);
             response = await apiCall(`/institutions/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(institutionData)
             });
         } else {
             // Create new institution
-            console.log('Creating new institution');
             response = await apiCall('/institutions', {
                 method: 'POST',
                 body: JSON.stringify(institutionData)

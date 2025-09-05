@@ -336,7 +336,6 @@ async function saveCondition() {
         severity: document.getElementById('severity').value || null
     };
     
-    console.log('Condition data to save:', conditionData);
     
     try {
         const saveBtn = document.getElementById('saveConditionBtn');
@@ -346,14 +345,12 @@ async function saveCondition() {
         let response;
         if (currentEditingId) {
             // Update existing condition
-            console.log('Updating condition:', currentEditingId);
             response = await apiCall(`/conditions/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(conditionData)
             });
         } else {
             // Create new condition
-            console.log('Creating new condition');
             response = await apiCall('/conditions', {
                 method: 'POST',
                 body: JSON.stringify(conditionData)

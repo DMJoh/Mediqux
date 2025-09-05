@@ -182,7 +182,6 @@ function populatePatientDropdowns() {
     modalSelect.innerHTML = '<option value="">Select Patient</option>' + options;
     filterSelect.innerHTML = '<option value="">All Patients</option>' + options;
     
-    console.log(`Populated patient dropdowns with ${patients.length} patients`);
 }
 
 // Populate doctor dropdowns
@@ -202,7 +201,6 @@ function populateDoctorDropdowns() {
     modalSelect.innerHTML = '<option value="">Select Doctor (Optional)</option>' + options;
     filterSelect.innerHTML = '<option value="">All Doctors</option>' + options;
     
-    console.log(`Populated doctor dropdowns with ${doctors.length} doctors`);
 }
 
 // Populate institution dropdowns
@@ -220,7 +218,6 @@ function populateInstitutionDropdowns() {
     
     modalSelect.innerHTML = '<option value="">Select Institution (Optional)</option>' + options;
     
-    console.log(`Populated institution dropdown with ${institutions.length} institutions`);
 }
 
 // Display appointments in table
@@ -480,7 +477,6 @@ async function saveAppointment() {
         diagnosis: document.getElementById('diagnosis').value.trim() || null
     };
     
-    console.log('Appointment data to save:', appointmentData);
     
     try {
         const saveBtn = document.getElementById('saveAppointmentBtn');
@@ -490,14 +486,12 @@ async function saveAppointment() {
         let response;
         if (currentEditingId) {
             // Update existing appointment
-            console.log('Updating appointment:', currentEditingId);
             response = await apiCall(`/appointments/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(appointmentData)
             });
         } else {
             // Create new appointment
-            console.log('Creating new appointment');
             response = await apiCall('/appointments', {
                 method: 'POST',
                 body: JSON.stringify(appointmentData)

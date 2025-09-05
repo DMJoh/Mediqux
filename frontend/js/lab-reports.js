@@ -419,7 +419,6 @@ function showLoading(show) {
 
 // Open upload modal
 function openUploadModal() {
-    console.log('Opening upload modal');
     document.getElementById('uploadForm').reset();
     document.getElementById('processingStatus').style.display = 'none';
     document.getElementById('extractedValues').style.display = 'none';
@@ -431,7 +430,6 @@ function openUploadModal() {
 
 // Open manual entry modal
 function openManualEntryModal() {
-    console.log('Opening manual entry modal');
     currentEditingId = null;
     document.getElementById('manualEntryForm').reset();
     document.getElementById('manualTestResultId').value = '';
@@ -866,7 +864,6 @@ async function saveManualEntry() {
         lab_values: labValues
     };
     
-    console.log('Manual entry data:', testResultData);
     
     try {
         const saveBtn = document.getElementById('saveManualBtn');
@@ -1556,7 +1553,6 @@ async function deletePanel() {
 
 // PDF Review Functions
 function showPDFReviewModal(extractedData) {
-    console.log('showPDFReviewModal called with:', extractedData);
     extractedPDFData = extractedData;
     
     // Check if modal element exists
@@ -1580,7 +1576,6 @@ function showPDFReviewModal(extractedData) {
     try {
         const modal = new bootstrap.Modal(modalElement);
         modal.show();
-        console.log('PDF Review modal should now be visible');
     } catch (error) {
         console.error('Error showing PDF Review modal:', error);
         showAlert('Error showing PDF Review modal: ' + error.message, 'danger');
@@ -1588,7 +1583,6 @@ function showPDFReviewModal(extractedData) {
 }
 
 function displayReviewValues(labValues) {
-    console.log('displayReviewValues called with:', labValues);
     const container = document.getElementById('reviewValuesContainer');
     
     if (!container) {
@@ -1597,7 +1591,6 @@ function displayReviewValues(labValues) {
     }
     
     if (!labValues || labValues.length === 0) {
-        console.log('No lab values to display');
         container.innerHTML = `
             <div class="text-center text-muted py-5">
                 <i class="bi bi-exclamation-triangle"></i>
@@ -1726,7 +1719,6 @@ async function saveReviewedValues() {
             pdf_file_path: extractedPDFData.pdfFilePath
         };
         
-        console.log('Sending request data:', requestData);
         
         const response = await window.authManager.apiRequest('/test-results', {
             method: 'POST',
@@ -1735,7 +1727,6 @@ async function saveReviewedValues() {
         
         
         const result = await response.json();
-        console.log('Response data:', result);
         
         if (!response.ok) {
             throw new Error(result.message || result.error || `HTTP ${response.status}: Request failed`);

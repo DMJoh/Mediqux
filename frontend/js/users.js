@@ -159,7 +159,6 @@ function showLoading(show) {
 
 // Open add user modal
 function openAddUserModal() {
-    console.log('Opening add user modal');
     currentEditingId = null;
     document.getElementById('userForm').reset();
     document.getElementById('userId').value = '';
@@ -249,7 +248,6 @@ async function saveUser() {
         userData.password = password;
     }
     
-    console.log('User data:', userData);
     
     try {
         const saveBtn = document.getElementById('saveUserBtn');

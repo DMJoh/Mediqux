@@ -212,7 +212,6 @@ function displayMedications() {
             try {
                 ingredients = JSON.parse(ingredients);
             } catch (e) {
-                console.warn('Failed to parse active_ingredients:', ingredients);
                 ingredients = [];
             }
         }
@@ -366,7 +365,6 @@ function updateSelectedForms() {
     const container = document.getElementById('selectedForms');
     const hiddenInput = document.getElementById('dosageForms');
     
-    console.log('Updating selected forms display:', selectedForms);
     
     container.innerHTML = selectedForms.map(form => 
         `<span class="badge bg-primary me-1 mb-1">
@@ -376,7 +374,6 @@ function updateSelectedForms() {
     ).join('');
     
     hiddenInput.value = JSON.stringify(selectedForms);
-    console.log('Hidden input value set to:', hiddenInput.value);
 }
 
 // Add strength
@@ -472,7 +469,6 @@ function updateSelectedIngredients() {
 
 // Open modal for adding new medication
 function openAddMedicationModal() {
-    console.log('Opening add medication modal');
     currentEditingId = null;
     selectedForms = [];
     selectedStrengths = [];
@@ -503,12 +499,10 @@ function clearAllFieldErrors() {
 // Edit medication
 async function editMedication(id) {
     try {
-        console.log('Editing medication with ID:', id);
         const response = await apiCall(`/medications/${id}`);
         
         if (response.success) {
             const medication = response.data;
-            console.log('Received medication data for editing:', medication);
             currentEditingId = id;
             
             // Populate form
@@ -528,7 +522,6 @@ async function editMedication(id) {
                 try {
                     ingredients = JSON.parse(ingredients);
                 } catch (e) {
-                    console.warn('Failed to parse active_ingredients:', ingredients);
                     ingredients = [];
                 }
             }
@@ -543,7 +536,6 @@ async function editMedication(id) {
             updateSelectedStrengths();
             updateSelectedIngredients();
             
-            console.log('Edit medication data loaded:', {
                 forms: selectedForms,
                 strengths: selectedStrengths,
                 ingredients: activeIngredients
@@ -594,8 +586,6 @@ async function saveMedication() {
         description: document.getElementById('description').value.trim() || null
     };
     
-    console.log('Medication data to save:', medicationData);
-    console.log('Current arrays state:', {
         selectedForms: selectedForms,
         selectedStrengths: selectedStrengths,
         activeIngredients: activeIngredients
@@ -609,14 +599,12 @@ async function saveMedication() {
         let response;
         if (currentEditingId) {
             // Update existing medication
-            console.log('Updating medication:', currentEditingId);
             response = await apiCall(`/medications/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(medicationData)
             });
         } else {
             // Create new medication
-            console.log('Creating new medication');
             response = await apiCall('/medications', {
                 method: 'POST',
                 body: JSON.stringify(medicationData)
