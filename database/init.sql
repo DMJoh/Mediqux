@@ -469,26 +469,6 @@ CROSS JOIN (VALUES
 WHERE p.name = 'Thyroid Function Tests'
 ON CONFLICT (panel_id, parameter_name) DO NOTHING;
 
--- Sample medical conditions with ICD codes
-INSERT INTO medical_conditions (name, description, icd_code, category, severity) VALUES
-    ('Hypertension', 'High blood pressure', 'I10', 'Cardiovascular', 'Medium'),
-    ('Type 2 Diabetes Mellitus', 'Non-insulin dependent diabetes', 'E11.9', 'Endocrine', 'High'),
-    ('Hyperlipidemia', 'High cholesterol levels', 'E78.5', 'Metabolic', 'Medium'),
-    ('Asthma', 'Chronic respiratory condition', 'J45.9', 'Respiratory', 'Medium'),
-    ('Chronic Kidney Disease', 'Progressive loss of kidney function', 'N18.9', 'Renal', 'High'),
-    ('Osteoarthritis', 'Joint degeneration', 'M19.9', 'Musculoskeletal', 'Medium'),
-    ('Depression', 'Major depressive disorder', 'F32.9', 'Mental Health', 'Medium'),
-    ('Migraine', 'Recurrent headaches', 'G43.909', 'Neurological', 'Low')
-ON CONFLICT (name) DO NOTHING;
-
--- Sample medications with structured data
-INSERT INTO medications (name, generic_name, dosage_forms, active_ingredients, manufacturer, description) VALUES
-    ('Lisinopril 10mg', 'Lisinopril', ARRAY['Tablet'], '[{"name": "Lisinopril", "strength": "10mg"}]', 'Generic Pharma', 'ACE inhibitor for hypertension'),
-    ('Metformin 500mg', 'Metformin Hydrochloride', ARRAY['Tablet'], '[{"name": "Metformin HCl", "strength": "500mg"}]', 'Generic Pharma', 'Antidiabetic medication'),
-    ('Atorvastatin 20mg', 'Atorvastatin Calcium', ARRAY['Tablet'], '[{"name": "Atorvastatin Calcium", "strength": "20mg"}]', 'Generic Pharma', 'Statin for cholesterol management'),
-    ('Albuterol Inhaler', 'Albuterol Sulfate', ARRAY['Inhaler'], '[{"name": "Albuterol Sulfate", "strength": "90mcg per actuation"}]', 'RespiCorp', 'Bronchodilator for asthma'),
-    ('Ibuprofen 400mg', 'Ibuprofen', ARRAY['Tablet', 'Capsule'], '[{"name": "Ibuprofen", "strength": "400mg"}]', 'Generic Pharma', 'NSAID for pain and inflammation')
-ON CONFLICT (name) DO NOTHING;
 
 -- =============================================================================
 -- COMPLETION MESSAGE
@@ -503,7 +483,7 @@ BEGIN
     RAISE NOTICE 'Tables created: 14';
     RAISE NOTICE 'Indexes created: 35+';
     RAISE NOTICE 'Triggers created: 11';
-    RAISE NOTICE 'Sample data inserted: Lab panels, conditions, medications';
+    RAISE NOTICE 'Sample data inserted: Lab panels only';
     RAISE NOTICE '';
     RAISE NOTICE 'Next steps:';
     RAISE NOTICE '1. Create admin user via application';
