@@ -1,0 +1,86 @@
+# =============================================================================
+# Mediqux - Medical Management System Docker Compose Configuration
+# =============================================================================
+# This Docker Compose file uses environment variables from .env file
+# for easy configuration management across different environments.
+# =============================================================================
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:17-alpine
+    container_name: mediqux_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - mediqux_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API server
+  backend:
+    build: ./backend
+    container_name: mediqux_backend
+    ports:
+      - "${BACKEND_PORT}:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - DEBUG=${DEBUG}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
+      - UPLOAD_PATH=${UPLOAD_PATH}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules  # Anonymous volume to preserve node_modules
+      - ${UPLOAD_DATA_PATH}:/app/uploads  # For PDF uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mediqux_network
+
+  # Frontend web server
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mediqux_frontend
+    ports:
+      - "${FRONTEND_PORT}:80"
+    environment:
+      - MEDIQUX_API_URL=${MEDIQUX_API_URL}
+    volumes:
+      - ./frontend/css:/usr/share/nginx/html/css
+      - ./frontend/js:/usr/share/nginx/html/js
+    networks:
+      - mediqux_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  mediqux_network:
+    driver: bridge
