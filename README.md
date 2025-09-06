@@ -1,4 +1,4 @@
-# 🏥 Mediqux - Medical Management System
+# 🏥 Mediqux - Medical Record System
 
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
@@ -6,20 +6,21 @@
 
 > **🔒 PRIVACY FIRST: Mediqux is designed to run entirely on your local infrastructure. No data leaves your environment - all processing, storage, and PDF analysis happens locally on your servers.**
 
-A comprehensive, privacy-focused medical management system for healthcare facilities. Built for complete local deployment with no external dependencies or cloud services.
+A comprehensive, privacy-focused medical record system for individuals, families, and healthcare practices. Built for complete local deployment with no external dependencies or cloud services.
 
 ## 🌟 Why Mediqux?
 
 ### 🔐 **100% Local & Private**
 - **No cloud dependencies** - Everything runs on your infrastructure
 - **Local PDF processing** - Lab reports analyzed offline using local libraries
-- **Complete data sovereignty** - Your patient data never leaves your premises
+- **Complete data sovereignty** - Your medical data never leaves your premises
 - **No internet required** for core functionality (only for initial setup)
 
-### 🏥 **Healthcare-Focused Design**
-- Built specifically for medical facilities and healthcare operations
-- Supports complex medical workflows and relationships
-- Designed with healthcare data sensitivity in mind
+### 🏠 **Flexible Health Management**
+- **Personal Use**: Perfect for individuals and families managing their own health records
+- **Clinical Use**: Ideal for small clinics, private practices, and independent healthcare providers
+- **Complete Privacy**: Designed for maximum data control whether at home or in practice
+- **Scalable**: Works equally well for single users or small healthcare teams
 
 ## 📸 Screenshots
 
@@ -32,32 +33,32 @@ See the complete user interface with screenshots of all major features and pages
 ## 🚀 Features
 
 ### 👥 **Patient & Provider Management**
-- **Patient Records**: Complete demographic information, contact details, emergency contacts
-- **Doctor Management**: Healthcare provider profiles, specializations, license tracking
-- **Institution Management**: Hospitals, clinics, laboratories with contact information
-- **Doctor-Institution Relationships**: Many-to-many relationships for complex healthcare networks
+- **Patient Records**: Track medical records for individuals, family members, or clinic patients
+- **Healthcare Providers**: Manage doctors, specialists, and healthcare professional information
+- **Medical Facilities**: Track hospitals, clinics, labs, and healthcare institutions
+- **Provider Networks**: Organize healthcare teams and their professional relationships
 
 ### 📅 **Appointment & Visit Management**
-- **Appointment Scheduling**: Patient visits, consultation booking
+- **Appointment Scheduling**: Track medical appointments and visits for personal or clinical use
 - **Visit Types**: Consultation, Follow-up, Emergency, Surgery, Therapy
-- **Status Tracking**: Scheduled, Confirmed, In-Progress, Completed, Cancelled
-- **Notes & Diagnosis**: Detailed visit documentation
+- **Visit History**: Maintain detailed records of all medical encounters
+- **Clinical Documentation**: Record visit details, diagnoses, treatment plans, and outcomes
 
-### 💊 **Medication & Prescription System**
-- **Comprehensive Drug Database**: Medication catalog with JSONB active ingredients
-- **Advanced Medication Data**: Dosage forms, strengths, manufacturer information
-- **Prescription Management**: Link medications to appointments and patient visits
-- **Patient Medication History**: Current and past medications with status tracking
-- **Smart Search**: Search by name, generic name, or active ingredients
+### 💊 **Medication & Prescription Management**
+- **Comprehensive Drug Database**: Medication catalog with active ingredients and detailed information
+- **Prescription Management**: Track prescriptions for personal use or clinical practice
+- **Medication History**: Monitor current and past medications with dosages and interactions
+- **Treatment Integration**: Connect medications to specific visits, conditions, and treatment plans
+- **Advanced Search**: Find medications by name, generic name, or active ingredients
 
-### 🏷️ **Medical Conditions & Coding**
-- **Disease Catalog**: Comprehensive medical conditions database
-- **ICD Code Support**: International Classification of Diseases coding
-- **Condition Categories**: Organized by medical specialty and system
-- **Severity Levels**: Low, Medium, High, Critical classification
-- **Usage Tracking**: See how conditions are used across prescriptions
+### 🏷️ **Medical Conditions & Diagnoses**
+- **Condition Management**: Track medical conditions and diagnoses for personal or clinical use
+- **ICD Code Support**: International Classification of Diseases coding for medical accuracy
+- **Clinical Organization**: Organize by medical specialty, body system, and severity
+- **Progress Monitoring**: Track condition severity and progression over time
+- **Treatment Integration**: Link conditions to medications, treatments, and outcomes
 
-### 🧪 **Lab Reports Management**
+### 🧪 **Laboratory Results Management**
 - **PDF Upload & Processing**: Secure local PDF upload with basic text extraction
 - **Pattern-Based Value Detection**: Simple pattern recognition for common lab panels:
   - Complete Blood Count (CBC)
@@ -75,25 +76,25 @@ See the complete user interface with screenshots of all major features and pages
 
 > **📝 Note**: PDF text extraction uses basic pattern matching and is not perfect. It provides a starting point for data entry but extracted values should always be verified against the original document. The system is designed to assist with data entry, not replace manual review.
 
-### 🔐 **Authentication & Security**
-- **JWT-Based Authentication**: Secure token-based login system
-- **Role-Based Access Control (RBAC)**: Admin and user roles with different permissions
-- **Patient Data Filtering**: Users only see data for their associated patients
-- **Session Management**: Automatic logout on token expiration
-- **Password Security**: Secure password hashing and validation
+### 🔐 **Privacy & Security**
+- **Secure Login**: JWT-based authentication for your personal data
+- **Multi-User Support**: Family members can have separate accounts with access controls
+- **Data Privacy**: Each user only sees their own medical records
+- **Session Security**: Automatic logout for data protection
+- **Password Protection**: Secure password hashing and validation
 
 ### 🎨 **User Experience**
 - **Responsive Design**: Mobile-friendly Bootstrap 5 interface
 - **Dark/Light Theme**: Toggle between themes with persistent user preference
-- **Intuitive Navigation**: Clean, healthcare-focused UI design
-- **Advanced Search & Filtering**: Quick access to patient and medical data
+- **Intuitive Navigation**: Clean, user-friendly interface designed for personal use
+- **Advanced Search & Filtering**: Quick access to your medical records and data
 - **Real-time Health Monitoring**: System status and component health checks
 
-### 📊 **Reporting & Analytics**
-- **Dashboard Overview**: System health, recent activities, quick stats
-- **Usage Statistics**: Patient counts, appointment summaries, medication usage
-- **Lab Report Analytics**: Test result trends and basic value analysis
-- **Export Capabilities**: PDF downloads with descriptive filenames
+### 📊 **Personal Health Analytics**
+- **Health Dashboard**: Overview of your recent activities and health metrics
+- **Health Statistics**: Appointment history, medication tracking, lab trends
+- **Lab Trend Analysis**: Track your lab results over time
+- **Export Capabilities**: Generate reports and export your medical data
 
 ### 🔧 **System Administration**
 - **Health Check Endpoints**: Comprehensive system monitoring
@@ -260,39 +261,63 @@ PGID=1000  # Your group ID
 
 ---
 
-## 🏥 Usage Guide
+## 🏠 Usage Guide
 
 ### 👤 **First-Time Setup**
-1. **Create Admin Account**: First user becomes admin automatically
-2. **Add Institutions**: Set up your healthcare facilities
-3. **Add Doctors**: Register healthcare providers
-4. **Configure Lab Panels**: Set up standard lab test panels
-5. **Start Adding Patients**: Begin patient management
+
+**For Personal Use:**
+1. **Create Your Account**: Set up your personal/family medical record system
+2. **Add Family Members**: Create records for family members you'll be managing
+3. **Add Healthcare Providers**: Enter your doctors, specialists, and healthcare team
+4. **Add Medical Facilities**: Record hospitals, clinics, and labs you visit
+5. **Configure Lab Panels**: Set up common lab tests and panels you receive
+
+**For Clinical Use:**
+1. **Admin Setup**: Create administrative account for practice management
+2. **Staff Accounts**: Set up accounts for healthcare staff with appropriate permissions
+3. **Provider Profiles**: Add doctor and specialist information for your practice
+4. **Facility Information**: Configure your clinic/practice details and partner facilities
+5. **Standard Panels**: Set up commonly ordered lab panels and test templates
 
 ### 📱 **Daily Operations**
-- **Patient Check-in**: Create appointments, update patient records
-- **Lab Report Processing**: Upload PDFs, review and correct extracted values
-- **Prescription Management**: Create prescriptions during visits
-- **Data Review**: Use search and filtering to find information quickly
 
-### 🔐 **User Roles**
-- **Admin**: Full access to all features, user management
-- **User**: Limited to assigned patients and their data
-- **Doctor**: Can be assigned to specific institutions
+**Personal Use:**
+- **Track Appointments**: Record your medical visits, outcomes, and follow-ups
+- **Lab Management**: Upload and organize your lab reports with automated processing
+- **Medication Tracking**: Maintain comprehensive prescription and medication records
+- **Health Analytics**: Review health trends and search through your complete medical history
+
+**Clinical Use:**
+- **Patient Management**: Schedule appointments, document visits, track patient care
+- **Clinical Documentation**: Record diagnoses, treatment plans, and patient progress
+- **Lab Integration**: Process patient lab results with automated value extraction
+- **Practice Analytics**: Monitor clinic operations, patient trends, and health outcomes
+
+### 🔐 **Access Control**
+
+**Personal/Family Mode:**
+- **Primary User**: Full access to manage all family medical records
+- **Family Members**: Individual accounts with access to their own health data
+- **Shared Access**: Controlled sharing of medical information between family members
+
+**Clinical Mode:**
+- **Administrators**: Full practice management and user administration capabilities
+- **Healthcare Staff**: Role-based access to patient records and clinical features
+- **Patient Privacy**: Strict data segregation ensuring patient confidentiality
 
 ---
 
 ## 🔌 API Documentation
 
-### 🏥 Core Medical Entities
+### 🏠 Core Medical Records API
 ```
-GET|POST|PUT|DELETE /api/patients        # Patient management
-GET|POST|PUT|DELETE /api/doctors         # Healthcare providers
-GET|POST|PUT|DELETE /api/institutions    # Medical facilities
-GET|POST|PUT|DELETE /api/appointments    # Visit scheduling
-GET|POST|PUT|DELETE /api/medications     # Drug catalog
-GET|POST|PUT|DELETE /api/conditions      # Medical conditions
-GET|POST|PUT|DELETE /api/prescriptions   # Prescription management
+GET|POST|PUT|DELETE /api/patients        # Patient records (personal/family or clinical)
+GET|POST|PUT|DELETE /api/doctors         # Healthcare provider management
+GET|POST|PUT|DELETE /api/institutions    # Medical facility information
+GET|POST|PUT|DELETE /api/appointments    # Your appointment history
+GET|POST|PUT|DELETE /api/medications     # Personal medication database
+GET|POST|PUT|DELETE /api/conditions      # Your health conditions
+GET|POST|PUT|DELETE /api/prescriptions   # Prescription tracking
 ```
 
 ### 🧪 Lab Reports & File Management
@@ -482,7 +507,7 @@ curl http://your-server:3000/api/health
 - **NonCommercial** — You may not use the material for commercial purposes
 - **ShareAlike** — If you remix or transform, you must distribute under the same license
 
-**Perfect for:** Hospitals, clinics, research institutions, educational use, personal medical record keeping.
+**Perfect for:** Personal medical record keeping, family health tracking, small clinics, private practices, independent healthcare providers, educational use.
 
 **Not for:** Commercial software companies, SaaS providers, or selling as a product.
 
@@ -490,7 +515,7 @@ curl http://your-server:3000/api/health
 
 ## 🤝 Contributing
 
-We welcome contributions to make Mediqux better for the healthcare community!
+We welcome contributions to make Mediqux better for health record management in personal and clinical settings!
 
 ### 🛠️ **How to Contribute**
 1. **Fork** the repository
@@ -529,12 +554,18 @@ curl http://localhost:3000/api/system/database
 
 ---
 
-## 🏥 **Built for Healthcare, By Healthcare**
+## 🏠 **Built for Privacy-First Health Management**
 
-Mediqux is designed specifically for healthcare environments where **data privacy**, **security**, and **local control** are paramount. Every feature is built with medical workflows in mind, ensuring your patient data remains completely under your control.
+Mediqux is designed for anyone who values **complete control** over medical records. Whether you're an individual managing your family's health data at home, or a healthcare provider running a privacy-focused practice, every feature is built with maximum data sovereignty in mind.
 
-**Start your secure, local medical management system today!** 🚀
+**Perfect for:**
+- 👨‍👩‍👧‍👦 **Individuals & Families**: Complete control over your personal health records
+- 🩺 **Small Clinics & Private Practices**: Privacy-focused patient management
+- 👨‍⚕️ **Independent Healthcare Providers**: Professional-grade medical record system
+- 🎓 **Educational Use**: Medical training and health informatics learning
+
+**Start your secure, local medical record system today!** 🚀
 
 ---
 
-*Made with ❤️ for healthcare providers who value privacy and control over their data.*
+*Made with ❤️ for everyone who values privacy and control over their health data.*
