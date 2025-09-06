@@ -145,10 +145,10 @@ See the complete user interface with screenshots of all major features and pages
 mkdir mediqux && cd mediqux
 
 # Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/your-repo/mediqux/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/docker-compose.yml
 
 # Download environment template
-curl -O https://raw.githubusercontent.com/your-repo/mediqux/main/.env.example
+curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
 
 # Create your environment configuration
 cp .env.example .env
@@ -565,6 +565,32 @@ Mediqux is designed for anyone who values **complete control** over medical reco
 - 🎓 **Educational Use**: Medical training and health informatics learning
 
 **Start your secure, local medical record system today!** 🚀
+
+---
+
+## 🙏 Acknowledgments
+
+We extend our gratitude to the following projects, communities, and tools that made Mediqux possible:
+
+### **Core Technologies**
+- **[Node.js](https://nodejs.org/)**: JavaScript runtime enabling scalable server-side development
+- **[PostgreSQL](https://www.postgresql.org/)**: Advanced open-source relational database system providing robust data management
+- **[Express.js](https://expressjs.com/)**: Fast, minimalist web framework for Node.js
+- **[Bootstrap](https://getbootstrap.com/)**: Responsive CSS framework for modern web interfaces
+
+### **Development & Infrastructure**
+- **[Docker](https://www.docker.com/)**: Containerization platform enabling consistent deployment across environments
+- **[PDF-Parse](https://www.npmjs.com/package/pdf-parse)**: Pure JavaScript PDF parsing library for local document processing
+
+### **Development Assistance**
+- **[Claude Code](https://claude.ai/code)**: AI-powered development assistant for code generation, architecture design, security analysis, and comprehensive documentation
+
+### **Security & Authentication**
+- **[bcrypt](https://www.npmjs.com/package/bcrypt)**: Industry-standard password hashing library
+- **[JSON Web Tokens (JWT)](https://jwt.io/)**: Secure token-based authentication standard
+
+### **Community & Open Source**
+Special thanks to the open-source community for providing the foundational tools and libraries that enable privacy-focused, locally-hosted healthcare solutions. This project stands on the shoulders of countless contributors who believe in accessible, secure technology.
 
 ---
 
