@@ -1,5 +1,5 @@
 # Use Node.js 22 official image
-FROM node:22-alpine
+FROM node:24-alpine
 
 # Install required packages
 RUN apk add --no-cache shadow su-exec
