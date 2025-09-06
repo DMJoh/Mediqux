@@ -147,11 +147,8 @@ mkdir mediqux && cd mediqux
 # Download docker-compose.yml
 curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/docker-compose.yml
 
-# Download environment template
-curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
-
-# Create your environment configuration
-cp .env.example .env
+# Download environment template directly as .env
+curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
 ```
 
 **Step 2: Configure Environment**
