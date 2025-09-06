@@ -21,6 +21,12 @@ A comprehensive, privacy-focused medical management system for healthcare facili
 - Supports complex medical workflows and relationships
 - Designed with healthcare data sensitivity in mind
 
+## 📸 Screenshots
+
+**[View Application Screenshots →](SCREENSHOTS.md)**
+
+See the complete user interface with screenshots of all major features and pages.
+
 ---
 
 ## 🚀 Features
