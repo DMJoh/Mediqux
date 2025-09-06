@@ -21,7 +21,7 @@ services:
       retries: 5
 
   backend:
-    image: ghcr.io/dmjoh/med-app/mediqux-backend:latest
+    image: ghcr.io/dmjoh/mediqux/mediqux-backend:${IMAGE_TAG}
     container_name: mediqux_backend
     environment:
       NODE_ENV: production
@@ -55,7 +55,7 @@ services:
       retries: 3
 
   frontend:
-    image: ghcr.io/dmjoh/med-app/mediqux-frontend:latest
+    image: ghcr.io/dmjoh/mediqux/mediqux-frontend:${IMAGE_TAG}
     container_name: mediqux_frontend
     environment:
       MEDIQUX_API_URL: ${MEDIQUX_API_URL}
