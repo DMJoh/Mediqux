@@ -281,7 +281,7 @@ function displayAppointments() {
                     }
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark">${appointment.type || 'General'}</span>
+                    <span class="badge bg-secondary">${appointment.type || 'General'}</span>
                 </td>
                 <td>
                     ${statusBadge}

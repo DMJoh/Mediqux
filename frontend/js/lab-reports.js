@@ -16,6 +16,19 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Helper function to capitalize status values for database compatibility
+function capitalizeStatus(status) {
+    if (!status) return 'Normal';
+    const statusMap = {
+        'normal': 'Normal',
+        'high': 'High', 
+        'low': 'Low',
+        'critical': 'Critical',
+        'abnormal': 'Abnormal'
+    };
+    return statusMap[status.toLowerCase()] || 'Normal';
+}
+
 // Common lab test templates
 const COMMON_TESTS = {
     CBC: [
@@ -729,7 +742,7 @@ function addEmptyValueRow() {
         value: '',
         unit: '',
         reference_range: '',
-        status: 'normal',
+        status: 'Normal',
         raw_match: 'Manually added'
     };
     
@@ -781,7 +794,7 @@ async function saveSuggestedValues() {
                     value: parseFloat(parameterValue) || parameterValue,
                     unit: unit || null,
                     reference_range: referenceRange || null,
-                    status: status || 'normal'
+                    status: capitalizeStatus(status)
                 });
             }
         });
@@ -848,7 +861,7 @@ async function saveManualEntry() {
         value: parseFloat(parameterValues[index]),
         unit: parameterUnits[index] || null,
         reference_range: referenceRanges[index] || null,
-        status: parameterStatuses[index] || 'normal'
+        status: capitalizeStatus(parameterStatuses[index])
     })).filter(val => val.parameter_name && !isNaN(val.value));
     
     if (labValues.length === 0) {
@@ -975,7 +988,7 @@ function displayLabValuesDetails(report) {
         detailsHTML += `
             <div class="mb-3">
                 <h6>Extracted Text</h6>
-                <div class="border rounded p-3 bg-light" style="max-height: 200px; overflow-y: auto;">
+                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;">
                     <pre class="mb-0" style="white-space: pre-wrap; font-size: 0.85em;">${report.extracted_text}</pre>
                 </div>
             </div>
@@ -1225,7 +1238,7 @@ function displayPanelsList() {
                         <h6 class="card-title mb-1">${escapeHtml(panel.name)}</h6>
                         <small class="text-muted">${panel.category || 'Blood'}</small>
                         <div class="mt-1">
-                            <span class="badge bg-light text-dark">${panel.parameter_count || 0} parameters</span>
+                            <span class="badge bg-secondary">${panel.parameter_count || 0} parameters</span>
                         </div>
                     </div>
                     <i class="bi bi-chevron-right text-muted"></i>
@@ -1677,7 +1690,7 @@ function addManualValueToReview() {
         parameter_name: '',
         value: '',
         unit: '',
-        status: 'normal',
+        status: 'Normal',
         reference_range: null,
         confidence: null
     };

@@ -176,7 +176,7 @@ function displayConditions() {
                     ${condition.description ? `<br><small class="text-muted">${condition.description.substring(0, 100)}${condition.description.length > 100 ? '...' : ''}</small>` : ''}
                 </td>
                 <td>
-                    ${condition.icd_code ? `<code class="bg-light px-2 py-1 rounded">${condition.icd_code}</code>` : '<small class="text-muted">Not set</small>'}
+                    ${condition.icd_code ? `<code class="px-2 py-1 rounded border">${condition.icd_code}</code>` : '<small class="text-muted">Not set</small>'}
                 </td>
                 <td>
                     ${condition.category ? `<span class="badge bg-info">${condition.category}</span>` : '<small class="text-muted">Uncategorized</small>'}
@@ -185,7 +185,7 @@ function displayConditions() {
                     ${severityBadge}
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark">${usageCount} usage${usageCount !== 1 ? 's' : ''}</span>
+                    <span class="badge bg-secondary">${usageCount} usage${usageCount !== 1 ? 's' : ''}</span>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">

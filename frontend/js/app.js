@@ -198,7 +198,7 @@ async function loadUpcomingAppointments() {
                 
                 return `
                     <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="border rounded p-3 h-100 ${isToday ? 'border-warning bg-light' : ''}">
+                        <div class="border rounded p-3 h-100 ${isToday ? 'border-warning border-2' : ''}">
                             <div class="d-flex flex-column h-100">
                                 <div class="flex-grow-1">
                                     <div class="fw-medium text-primary mb-1">

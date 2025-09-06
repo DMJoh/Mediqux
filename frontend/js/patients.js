@@ -126,7 +126,7 @@ function displayPatients() {
                 ${patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'Not specified'}
             </td>
             <td>
-                <span class="badge bg-light text-dark">${patient.gender || 'Not specified'}</span>
+                <span class="badge bg-secondary">${patient.gender || 'Not specified'}</span>
             </td>
             <td>
                 ${patient.phone ? `<a href="tel:${patient.phone}">${patient.phone}</a>` : 'Not provided'}

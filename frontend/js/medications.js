@@ -276,7 +276,7 @@ function displayMedications() {
                     ${medication.manufacturer || '<small class="text-muted">Not specified</small>'}
                 </td>
                 <td>
-                    <span class="badge bg-light text-dark">${usageDisplay}</span>
+                    <span class="badge bg-secondary">${usageDisplay}</span>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
@@ -453,7 +453,7 @@ function updateSelectedIngredients() {
         container.innerHTML = '<small class="text-muted">No ingredients added yet</small>';
     } else {
         container.innerHTML = activeIngredients.map(ingredient => 
-            `<div class="d-flex justify-content-between align-items-center bg-white p-2 mb-1 rounded border">
+            `<div class="d-flex justify-content-between align-items-center p-2 mb-1 rounded border">
                 <div>
                     <strong>${ingredient.name}</strong> - <span class="text-muted">${ingredient.dosage}</span>
                 </div>
@@ -536,11 +536,6 @@ async function editMedication(id) {
             updateSelectedStrengths();
             updateSelectedIngredients();
             
-                forms: selectedForms,
-                strengths: selectedStrengths,
-                ingredients: activeIngredients
-            });
-            
             // Update modal title
             document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Medication';
             document.getElementById('saveMedicationBtn').innerHTML = '<i class="bi bi-save"></i> Update Medication';
@@ -585,11 +580,6 @@ async function saveMedication() {
         manufacturer: document.getElementById('manufacturer').value.trim() || null,
         description: document.getElementById('description').value.trim() || null
     };
-    
-        selectedForms: selectedForms,
-        selectedStrengths: selectedStrengths,
-        activeIngredients: activeIngredients
-    });
     
     try {
         const saveBtn = document.getElementById('saveMedicationBtn');
