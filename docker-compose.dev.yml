@@ -34,7 +34,7 @@ services:
     build: ./backend
     container_name: mediqux_backend
     ports:
-      - "${BACKEND_PORT}:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     environment:
       - NODE_ENV=${NODE_ENV}
       - DEBUG=${DEBUG}
@@ -48,13 +48,13 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - SESSION_SECRET=${SESSION_SECRET}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE}
-      - UPLOAD_PATH=${UPLOAD_PATH}
+      - UPLOAD_PATH=${UPLOAD_PATH:-/app/uploads}
       - PUID=${PUID:-1000}
       - PGID=${PGID:-1000}
     volumes:
       - ./backend:/app
       - /app/node_modules  # Anonymous volume to preserve node_modules
-      - ${UPLOAD_DATA_PATH}:/app/uploads  # For PDF uploads
+      - ./uploads:/app/uploads  # For PDF uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       dockerfile: Dockerfile
     container_name: mediqux_frontend
     ports:
-      - "${FRONTEND_PORT}:80"
+      - "${FRONTEND_PORT:-8080}:80"
     environment:
       - MEDIQUX_API_URL=${MEDIQUX_API_URL}
     volumes:
