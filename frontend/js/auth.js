@@ -5,12 +5,30 @@ class AuthManager {
         this.token = localStorage.getItem('authToken');
         this.user = JSON.parse(localStorage.getItem('user') || 'null');
         
+        // Clear malformed tokens on startup
+        this.validateAndClearTokens();
+        
         // Initialize if we're on the login page
         if (window.location.pathname.includes('login.html')) {
             this.initLoginPage();
         } else {
             // Check authentication for protected pages
             this.checkAuth();
+        }
+    }
+
+    // Validate and clear malformed tokens
+    validateAndClearTokens() {
+        if (this.token) {
+            // Check if token looks like a valid JWT (has 3 parts separated by dots)
+            const tokenParts = this.token.split('.');
+            if (tokenParts.length !== 3 || this.token.length < 50) {
+                console.log('Clearing malformed token from localStorage');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                this.token = null;
+                this.user = null;
+            }
         }
     }
 
@@ -26,7 +44,18 @@ class AuthManager {
     // Check if any users exist (initial setup)
     async checkInitialSetup() {
         try {
-            const response = await fetch(`${this.baseURL}/auth/check-setup`);
+            // Make request without authentication headers (public endpoint)
+            const response = await fetch(`${this.baseURL}/auth/check-setup`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const result = await response.json();
             
             if (result.success && !result.data.hasUsers) {
