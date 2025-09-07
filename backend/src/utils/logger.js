@@ -1,5 +1,4 @@
-const fs = require('fs');
-const path = require('path');
+// Structured logging for STDOUT/Docker logs
 
 // Logger levels in order of severity
 const LOG_LEVELS = {
@@ -19,26 +18,11 @@ class Logger {
     
     // Enable query logging based on DEBUG or LOG_LEVEL=DEBUG
     this.queryLogging = this.debugMode || this.currentLevel >= LOG_LEVELS.DEBUG;
-    
-    // Create logs directory if it doesn't exist
-    this.ensureLogDirectory();
   }
 
   parseLogLevel(level) {
     const upperLevel = level.toString().toUpperCase();
     return LOG_LEVELS[upperLevel] !== undefined ? LOG_LEVELS[upperLevel] : LOG_LEVELS.INFO;
-  }
-
-  ensureLogDirectory() {
-    const logsDir = path.join(__dirname, '../../logs');
-    if (!fs.existsSync(logsDir)) {
-      try {
-        fs.mkdirSync(logsDir, { recursive: true });
-      } catch (error) {
-        // If we can't create logs directory, continue with console only
-        console.warn('Could not create logs directory:', error.message);
-      }
-    }
   }
 
   formatMessage(level, message, meta = {}) {
@@ -50,35 +34,12 @@ class Logger {
       ...meta
     };
 
-    // For console output, make it human readable
-    const consoleMessage = `${timestamp} [${level.toUpperCase()}] ${message}`;
-    
-    return {
-      consoleMessage,
-      logEntry: JSON.stringify(logEntry)
-    };
+    // For console output, use structured JSON for better parsing
+    return JSON.stringify(logEntry);
   }
 
   shouldLog(level) {
     return LOG_LEVELS[level.toUpperCase()] <= this.currentLevel;
-  }
-
-  writeToFile(logEntry, level) {
-    try {
-      const logFile = path.join(__dirname, '../../logs', `app-${new Date().toISOString().split('T')[0]}.log`);
-      const errorLogFile = path.join(__dirname, '../../logs', `error-${new Date().toISOString().split('T')[0]}.log`);
-      
-      // Write to main log file
-      fs.appendFileSync(logFile, logEntry + '\n');
-      
-      // Write errors to separate error log file
-      if (level.toUpperCase() === 'ERROR') {
-        fs.appendFileSync(errorLogFile, logEntry + '\n');
-      }
-    } catch (error) {
-      // If file writing fails, continue with console only
-      console.warn('Could not write to log file:', error.message);
-    }
   }
 
   log(level, message, meta = {}) {
@@ -86,29 +47,24 @@ class Logger {
       return;
     }
 
-    const { consoleMessage, logEntry } = this.formatMessage(level, message, meta);
+    const logEntry = this.formatMessage(level, message, meta);
 
-    // Console output with appropriate method
+    // Output structured JSON to console
     switch (level.toUpperCase()) {
       case 'ERROR':
-        console.error(consoleMessage);
+        console.error(logEntry);
         break;
       case 'WARN':
-        console.warn(consoleMessage);
+        console.warn(logEntry);
         break;
       case 'DEBUG':
         if (this.debugMode) {
-          console.debug(consoleMessage);
+          console.debug(logEntry);
         }
         break;
       default:
-        console.log(consoleMessage);
+        console.log(logEntry);
     }
-
-    // Write to file (async to not block)
-    setImmediate(() => {
-      this.writeToFile(logEntry, level);
-    });
   }
 
   error(message, meta = {}) {

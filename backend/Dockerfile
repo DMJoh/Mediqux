@@ -1,31 +1,62 @@
-# Use Node.js 22 official image
-FROM node:22-alpine
+# =============================================================================
+# Multi-stage build for optimized production image
+# =============================================================================
 
-# Install required packages
-RUN apk add --no-cache shadow su-exec
-
-# Set working directory
+# Stage 1: Builder - Install dependencies and build tools
+FROM node:24-alpine AS builder
 WORKDIR /app
 
-# Copy package files first
+# Install build dependencies
+RUN apk add --no-cache --virtual .build-deps \
+    python3 make g++ \
+    && apk add --no-cache dumb-init
+
+# Copy package files
 COPY package*.json ./
 
-# Install dependencies as root
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production --no-fund --no-audit && \
+    npm cache clean --force
 
-# Copy source code
-COPY . .
+# Stage 2: Production - Create minimal runtime image
+FROM node:24-alpine AS production
 
-# Create required directories
-RUN mkdir -p /app/uploads/lab-reports /app/logs
+# Install runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    shadow \
+    su-exec \
+    && rm -rf /var/cache/apk/*
 
-# Copy entrypoint script
+# Create app directory
+WORKDIR /app
+
+# Copy built dependencies from builder stage
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy application code (using .dockerignore to exclude unnecessary files)
+COPY --chown=node:node . .
+
+# Create required directories (ownership will be handled by entrypoint)
+RUN mkdir -p /app/uploads/lab-reports
+
+# Copy and set executable permissions for entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# Expose port
+# Remove unnecessary files to reduce size
+RUN rm -rf \
+    /tmp/* \
+    /var/tmp/* \
+    /usr/share/man \
+    /usr/share/doc \
+    ~/.npm \
+    /root/.npm
+
+# Note: User switching handled by entrypoint.sh based on PUID/PGID
+
 EXPOSE 3000
 
-# Use entrypoint script
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "/usr/local/bin/entrypoint.sh"]
 CMD ["node", "server.js"]

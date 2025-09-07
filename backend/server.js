@@ -4,6 +4,7 @@ const path = require('path');
 require('dotenv').config();
 
 const logger = require('./src/utils/logger');
+const { sequelize } = require('./src/models');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,15 +30,18 @@ if (!fs.existsSync(uploadsDir)) {
 app.use('/uploads', express.static('uploads'));
 
 
-// System database connectivity check
+// System database connectivity check (enhanced with Sequelize)
 app.get('/api/system/database', async (req, res) => {
   try {
-    const db = require('./src/database/db');
-    const result = await db.query('SELECT NOW() as current_time, version() as postgres_version');
+    // Test Sequelize connection
+    await sequelize.authenticate();
+    const [results] = await sequelize.query('SELECT NOW() as current_time, version() as postgres_version');
+    
     res.json({
       success: true,
-      message: 'Database connection successful',
-      data: result.rows[0]
+      message: 'Database connection successful (Sequelize)',
+      orm: 'Sequelize',
+      data: results[0]
     });
   } catch (error) {
     logger.error('Database test failed', { error: error.message, stack: error.stack });
@@ -110,13 +114,35 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`Backend server running on port ${PORT}`, { 
-    port: PORT, 
-    environment: process.env.NODE_ENV || 'development',
-    logLevel: process.env.LOG_LEVEL || 'INFO',
-    debugMode: process.env.DEBUG === 'true'
-  });
-  logger.info(`Health check: http://localhost:${PORT}/api/health`);
-});
+// Database initialization and server startup
+async function initializeServer() {
+  try {
+    // Test Sequelize connection
+    logger.info('Testing database connection...');
+    await sequelize.authenticate();
+    logger.info('Database connection established successfully');
+    
+    // Note: We're not auto-running migrations. Users should run them manually.
+    logger.info('Database ready. Run migrations with: npm run db:migrate');
+    
+    // Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      logger.info(`Backend server running on port ${PORT}`, { 
+        port: PORT, 
+        environment: process.env.NODE_ENV || 'development',
+        logLevel: process.env.LOG_LEVEL || 'INFO',
+        debugMode: process.env.DEBUG === 'true',
+        orm: 'Sequelize'
+      });
+      logger.info(`Health check: http://localhost:${PORT}/api/health`);
+      logger.info(`Database test: http://localhost:${PORT}/api/system/database`);
+    });
+    
+  } catch (error) {
+    logger.error('Failed to initialize server:', error);
+    process.exit(1);
+  }
+}
+
+// Initialize server
+initializeServer();

@@ -1,6 +1,9 @@
 #!/bin/sh
+set -e
 
-# Default values
+echo "🚀 Starting Mediqux Backend..."
+
+# Default values for user/group IDs
 PUID=${PUID:-1000}
 PGID=${PGID:-1000}
 
@@ -18,8 +21,19 @@ fi
 USER_NAME=$(getent passwd $PUID | cut -d: -f1)
 GROUP_NAME=$(getent group $PGID | cut -d: -f1)
 
-# Change ownership of app directory
-chown -R $USER_NAME:$GROUP_NAME /app/uploads /app/logs
+# Ensure upload directories exist and have correct permissions
+mkdir -p /app/uploads/lab-reports
+chown -R $USER_NAME:$GROUP_NAME /app/uploads
 
+# Run database migrations automatically on startup
+echo "🔍 Running database migrations..."
+if su-exec $USER_NAME npm run db:migrate; then
+    echo "✅ Database migrations completed successfully"
+else
+    echo "❌ Database migrations failed"
+    exit 1
+fi
+
+echo "✅ Starting Node.js server..."
 # Switch to the user and run the command
 exec su-exec $USER_NAME "$@"

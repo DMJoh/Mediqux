@@ -10,7 +10,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - mediqux_network
     restart: unless-stopped
@@ -41,7 +40,6 @@ services:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
       - mediqux_uploads:/app/uploads
-      - mediqux_logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,8 +74,6 @@ volumes:
   postgres_data:
     driver: local
   mediqux_uploads:
-    driver: local
-  mediqux_logs:
     driver: local
 
 networks:
