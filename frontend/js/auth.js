@@ -23,7 +23,6 @@ class AuthManager {
             // Check if token looks like a valid JWT (has 3 parts separated by dots)
             const tokenParts = this.token.split('.');
             if (tokenParts.length !== 3 || this.token.length < 50) {
-                console.log('Clearing malformed token from localStorage');
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('user');
                 this.token = null;
@@ -57,16 +56,12 @@ class AuthManager {
             }
             
             const result = await response.json();
-            console.log('Setup check result:', result);
             
             if (result.success && !result.data.hasUsers) {
-                console.log('No users found - showing signup form');
                 // Show setup alert and signup form
                 document.getElementById('setupAlert').classList.remove('d-none');
                 this.showSignupForm();
                 document.getElementById('signupLink').classList.add('d-none');
-            } else {
-                console.log('Users found - showing login form');
             }
         } catch (error) {
             console.error('Setup check failed:', error);
@@ -226,18 +221,9 @@ class AuthManager {
 
     // Show signup form
     showSignupForm() {
-        console.log('showSignupForm() called');
-        const loginForm = document.getElementById('loginForm');
-        const signupSection = document.getElementById('signupSection');
-        const signupLink = document.getElementById('signupLink');
-        
-        console.log('Elements found:', { loginForm, signupSection, signupLink });
-        
-        if (loginForm) loginForm.classList.add('d-none');
-        if (signupSection) signupSection.classList.remove('d-none');
-        if (signupLink) signupLink.classList.add('d-none');
-        
-        console.log('Signup form should now be visible');
+        document.getElementById('loginForm').classList.add('d-none');
+        document.getElementById('signupSection').classList.remove('d-none');
+        document.getElementById('signupLink').classList.add('d-none');
     }
 
     // Show login form
