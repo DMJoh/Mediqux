@@ -10,17 +10,17 @@ A comprehensive medical record system for individuals, families, and small healt
 
 ## 📖 Table of Contents
 
-- [Key Features](#key-features)
-- [Tech Stack](#tech-stack)
-- [Installation](#installation)
-- [Configuration](#configuration)
+- [Key Features](#-key-features)
+- [Tech Stack](#️-tech-stack)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
 - [Screenshots](SCREENSHOTS.md)
-- [Logging & Monitoring](#logging--monitoring)
-- [Updates & Maintenance](#updates--maintenance)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [Support](#support)
-- [Acknowledgments](#acknowledgments)
+- [Logging & Monitoring](#-logging--monitoring)
+- [Updates & Maintenance](#-updates--maintenance)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [Support](#-support)
+- [Acknowledgments](#-acknowledgments)
 
 ## 🌟 Key Features
 
