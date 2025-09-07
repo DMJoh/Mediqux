@@ -13,6 +13,15 @@
     
     <!-- Theme Management - Load early to prevent flash -->
     <script src="js/theme.js"></script>
+    
+    <!-- Early setup check to prevent flash -->
+    <script>
+        // Hide the login form initially until we check setup status
+        document.documentElement.style.setProperty('--login-visibility', 'hidden');
+    </script>
+    <style>
+        #loginForm { visibility: var(--login-visibility, visible); }
+    </style>
 </head>
 <body>
     <div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
