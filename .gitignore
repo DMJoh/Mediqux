@@ -35,6 +35,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # App specific
-logs/
-uploads/
 CLAUDE.md
+uploads
