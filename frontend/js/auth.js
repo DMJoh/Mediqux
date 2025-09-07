@@ -1,7 +1,7 @@
 // Authentication management
 class AuthManager {
     constructor() {
-        this.baseURL = 'http://localhost:3000/api';
+        this.baseURL = window.getApiBaseUrl();
         this.token = localStorage.getItem('authToken');
         this.user = JSON.parse(localStorage.getItem('user') || 'null');
         
