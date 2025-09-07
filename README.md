@@ -8,6 +8,20 @@
 
 A comprehensive medical record system for individuals, families, and small healthcare practices. Built for complete local deployment with automated lab report processing.
 
+## 📖 Table of Contents
+
+- [Key Features](#-key-features)
+- [Tech Stack](#-tech-stack)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Screenshots](SCREENSHOTS.md)
+- [Logging & Monitoring](#-logging--monitoring)
+- [Updates & Maintenance](#-updates--maintenance)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [Support](#-support)
+- [Acknowledgments](#-acknowledgments)
+
 ## 🌟 Key Features
 
 ### 📋 **Core Medical Management**
