@@ -3,10 +3,25 @@
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
+[![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
 
 A comprehensive medical record system for individuals, families, and small healthcare practices. Built for complete local deployment with automated lab report processing.
+
+## 📖 Table of Contents
+
+- [Key Features](#-key-features)
+- [Tech Stack](#️-tech-stack)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Screenshots](SCREENSHOTS.md)
+- [Logging & Monitoring](#-logging--monitoring)
+- [Updates & Maintenance](#-updates--maintenance)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [Support](#-support)
+- [Acknowledgments](#-acknowledgments)
 
 ## 🌟 Key Features
 
@@ -205,29 +220,20 @@ curl http://your-server:3000/api/health
 - **Community**: [GitHub Issues](https://github.com/DMJoh/Mediqux/issues)
 
 ---
-## 🙏 Acknowledgments
+## 🙏 Acknowledgements
 
-We extend our gratitude to the following projects, communities, and tools that made Mediqux possible:
+Built with these excellent open-source technologies:
 
-### **Core Technologies**
-- **[Node.js](https://nodejs.org/)**: JavaScript runtime enabling scalable server-side development
-- **[PostgreSQL](https://www.postgresql.org/)**: Advanced open-source relational database system providing robust data management
-- **[Express.js](https://expressjs.com/)**: Fast, minimalist web framework for Node.js
-- **[Bootstrap](https://getbootstrap.com/)**: Responsive CSS framework for modern web interfaces
+- **[Node.js](https://nodejs.org/)** & **[Express.js](https://expressjs.com/)** - Server runtime and web framework
+- **[PostgreSQL](https://www.postgresql.org/)** & **[Sequelize](https://sequelize.org/)** - Database and ORM
+- **[Docker](https://www.docker.com/)** - Containerization platform
+- **[Bootstrap](https://getbootstrap.com/)** - Responsive UI framework
+- **[PDF-Parse](https://www.npmjs.com/package/pdf-parse)** - Local PDF processing
+- **[bcrypt](https://www.npmjs.com/package/bcrypt)** & **[JWT](https://jwt.io/)** - Security and authentication
+- **[Claude Code](https://claude.ai/code)** - AI development assistance
 
-### **Development & Infrastructure**
-- **[Docker](https://www.docker.com/)**: Containerization platform enabling consistent deployment across environments
-- **[PDF-Parse](https://www.npmjs.com/package/pdf-parse)**: Pure JavaScript PDF parsing library for local document processing
+Special thanks to the open-source community for enabling privacy-focused, locally-hosted healthcare solutions.
 
-### **Development Assistance**
-- **[Claude Code](https://claude.ai/code)**: AI-powered development assistant for code generation, architecture design, security analysis, and comprehensive documentation
-
-### **Security & Authentication**
-- **[bcrypt](https://www.npmjs.com/package/bcrypt)**: Industry-standard password hashing library
-- **[JSON Web Tokens (JWT)](https://jwt.io/)**: Secure token-based authentication standard
-
-### **Community & Open Source**
-Special thanks to the open-source community for providing the foundational tools and libraries that enable privacy-focused, locally-hosted healthcare solutions. This project stands on the shoulders of countless contributors who believe in accessible, secure technology.
 
 
 **Built for privacy-first medical record management.** 🏥
