@@ -244,6 +244,7 @@ We extend our gratitude to the following projects, communities, and tools that m
 Special thanks to the open-source community for providing the foundational tools and libraries that enable privacy-focused, locally-hosted healthcare solutions. This project stands on the shoulders of countless contributors who believe in accessible, secure technology.
 
 
+
 **Built for privacy-first medical record management.** 🏥
 
 *Made with ❤️ by developers who believe in data sovereignty.*
