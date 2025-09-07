@@ -3,6 +3,7 @@
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
+[![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
 
