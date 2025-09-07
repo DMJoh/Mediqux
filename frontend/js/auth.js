@@ -62,6 +62,9 @@ class AuthManager {
                 document.getElementById('setupAlert').classList.remove('d-none');
                 this.showSignupForm();
                 document.getElementById('signupLink').classList.add('d-none');
+            } else {
+                // Users exist, show normal login form
+                this.showLoginForm();
             }
         } catch (error) {
             console.error('Setup check failed:', error);
@@ -224,6 +227,8 @@ class AuthManager {
         document.getElementById('loginForm').classList.add('d-none');
         document.getElementById('signupSection').classList.remove('d-none');
         document.getElementById('signupLink').classList.add('d-none');
+        // Make forms visible now that we've decided what to show
+        document.documentElement.style.setProperty('--login-visibility', 'visible');
     }
 
     // Show login form
@@ -231,6 +236,8 @@ class AuthManager {
         document.getElementById('loginForm').classList.remove('d-none');
         document.getElementById('signupSection').classList.add('d-none');
         document.getElementById('signupLink').classList.remove('d-none');
+        // Make forms visible now that we've decided what to show
+        document.documentElement.style.setProperty('--login-visibility', 'visible');
     }
 
     // Check authentication for protected pages
