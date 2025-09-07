@@ -30,7 +30,6 @@ services:
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      SESSION_SECRET: ${SESSION_SECRET}
       FRONTEND_URL: ${FRONTEND_URL}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
@@ -78,4 +77,5 @@ volumes:
 
 networks:
   mediqux_network:
+    name: mediqux_network
     driver: bridge

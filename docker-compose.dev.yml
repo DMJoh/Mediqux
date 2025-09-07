@@ -20,7 +20,6 @@ services:
       - "${DB_PORT}:5432"
     volumes:
       - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
-      - ./database:/docker-entrypoint-initdb.d
     networks:
       - mediqux_network
     healthcheck:
@@ -46,7 +45,6 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - FRONTEND_URL=${FRONTEND_URL}
       - JWT_SECRET=${JWT_SECRET}
-      - SESSION_SECRET=${SESSION_SECRET}
       - MAX_FILE_SIZE=${MAX_FILE_SIZE}
       - UPLOAD_PATH=${UPLOAD_PATH:-/app/uploads}
       - PUID=${PUID:-1000}
@@ -60,6 +58,11 @@ services:
         condition: service_healthy
     networks:
       - mediqux_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Frontend web server
   frontend:
@@ -83,4 +86,5 @@ volumes:
 
 networks:
   mediqux_network:
+    name: mediqux_network
     driver: bridge
