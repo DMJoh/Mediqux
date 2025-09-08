@@ -68,13 +68,12 @@ curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/docker-c
 curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
 ```
 
-**Step 2: Configure Environment**
+**Step 2: Configure Environment**   
 Edit `.env` file with your settings:
 ```bash
 # Database Configuration (Change these!)
 POSTGRES_PASSWORD=your_secure_database_password
 JWT_SECRET=your_long_random_jwt_secret_key
-SESSION_SECRET=your_session_secret_key
 
 # API Configuration
 MEDIQUX_API_URL=http://your-server:3000/api
@@ -91,11 +90,11 @@ PGID=1000
 **Step 3: Deploy**
 ```bash
 # Start all services (migrations run automatically)
-docker-compose up -d
+docker compose up -d
 
 # Check deployment status
-docker-compose ps
-docker-compose logs
+docker compose ps
+docker compose logs
 ```
 
 **Step 4: Access Your Installation**
@@ -122,7 +121,7 @@ cd mediqux
 cp .env.example .env
 
 # Start development environment (migrations run automatically)
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 
 # The system will build from source code and run migrations
 ```
@@ -155,13 +154,13 @@ LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
 
 ```bash
 # View logs
-docker-compose logs -f backend
+docker compose logs -f backend
 
 # Parse JSON logs with jq
-docker-compose logs backend | jq
+docker compose logs backend | jq
 
 # Filter by log level
-docker-compose logs backend | jq 'select(.level=="ERROR")'
+docker compose logs backend | jq 'select(.level=="ERROR")'
 
 # Enable debug logging
 LOG_LEVEL=DEBUG docker-compose up -d
@@ -175,8 +174,8 @@ curl http://localhost:3000/api/system/database
 
 ```bash
 # Update to latest version
-docker-compose pull
-docker-compose up -d
+docker compose pull
+docker compose up -d
 
 # Database backup
 docker exec mediqux_postgres pg_dump -U mediqux_user mediqux_db > backup.sql
@@ -192,8 +191,8 @@ docker exec mediqux_backend npm run db:migrate:status
 
 **Cannot connect to database:**
 ```bash
-docker-compose ps postgres
-docker-compose logs postgres
+docker compose ps postgres
+docker compose logs postgres
 ```
 
 **File upload fails:**
