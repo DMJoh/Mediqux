@@ -136,8 +136,18 @@ SESSION_SECRET=your_session_secret_key_here
 POSTGRES_PASSWORD=your_secure_database_password
 
 # Network
-MEDIQUX_API_URL=http://your-server:3000/api
+# If you are using a reverse proxy this can be,
+# MEDIQUX_API_URL=https://sub.domain.tld/api 
+# FRONTEND_URL=https://domain.tld
+MEDIQUX_API_URL=http://your-server:3000/api 
 FRONTEND_URL=http://your-server:8080
+
+# Port Configuration (customizable)
+# Port values should be same as MEDIQUX_API_URL and FRONTEND_URL
+# This variables allows to customise the ports on which docker 
+# services are exposed on your server.
+BACKEND_PORT=3000       
+FRONTEND_PORT=8080
 
 # File Uploads
 MAX_FILE_SIZE=50MB
