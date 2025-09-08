@@ -7,7 +7,7 @@
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
 
-A comprehensive medical record system for individuals, families, and small healthcare practices. Built for complete local deployment with automated lab report processing.
+A comprehensive medical record system for individuals and families. Built for complete local deployment with automated lab report processing.
 
 ## 📖 Table of Contents
 
@@ -34,7 +34,7 @@ A comprehensive medical record system for individuals, families, and small healt
 
 ### 🧪 **Lab Reports (Advanced)**
 - **PDF Upload** - Drag-and-drop lab report files
-- **Smart Extraction** - AI-powered value detection for common panels (CBC, CMP, Lipid, etc.)
+- **Smart Extraction** - Lab panel value detection for common panels (CBC, CMP, Lipid, etc.)
 - **Review System** - Edit and verify extracted values before saving
 - **Manual Entry** - Full forms for manual lab data entry
 - **Secure Storage** - Files stored locally with descriptive names
