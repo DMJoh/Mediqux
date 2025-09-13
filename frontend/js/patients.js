@@ -123,7 +123,11 @@ function displayPatients() {
                 <strong>${patient.first_name} ${patient.last_name}</strong>
             </td>
             <td>
-                ${patient.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : 'Not specified'}
+                ${patient.date_of_birth ?
+                    (() => {
+                        const date = new Date(patient.date_of_birth);
+                        return `${date.getUTCDate()}/${date.getUTCMonth() + 1}/${date.getUTCFullYear()}`;
+                    })() : 'Not specified'}
             </td>
             <td>
                 <span class="badge bg-secondary">${patient.gender || 'Not specified'}</span>
@@ -427,12 +431,13 @@ function populatePatientView(patient) {
                         <div class="row mt-2">
                             <div class="col-sm-4 fw-semibold">Date of Birth:</div>
                             <div class="col-sm-8">
-                                ${patient.date_of_birth ? 
-                                    new Date(patient.date_of_birth).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long', 
-                                        day: 'numeric'
-                                    }) : 'Not specified'}
+                                ${patient.date_of_birth ?
+                                    (() => {
+                                        const date = new Date(patient.date_of_birth);
+                                        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+                                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                                        return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+                                    })() : 'Not specified'}
                                 ${age ? `<small class="text-muted d-block">${age} years old</small>` : ''}
                             </div>
                         </div>
