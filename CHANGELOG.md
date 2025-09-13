@@ -5,6 +5,23 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2025-09-13
+
+### 🐛 Bug Fixes
+
+#### Timezone Handling
+- **Fixed appointment timezone conversion issue** - Appointments now save and display in correct local time instead of showing UTC offset errors
+- **Resolved datetime-local input handling** - Frontend properly converts local time to UTC for storage and back to local time for display
+- **Universal timezone support** - System now works correctly for any user timezone (GMT+5:30, GMT-5, etc.)
+- **Fixed edit form datetime population** - Edit forms now show the original time entered instead of displaying UTC time with offset
+
+### 🔧 Technical Improvements
+- Enhanced datetime handling in `appointments.js` for proper timezone conversion
+- Improved datetime-local input value processing for consistent behavior across timezones
+- Better separation of concerns between frontend time display and backend UTC storage
+
+---
+
 ## [1.0.0] - 2025-09-07
 
 ### 🎉 Initial Release
