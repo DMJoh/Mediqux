@@ -4,10 +4,9 @@ const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
-// Middleware to authenticate JWT tokens
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
   
   try {
     if (!token) {
@@ -17,10 +16,8 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Check if user still exists and is active
     const result = await db.query(
       'SELECT id, username, role, is_active, patient_id FROM users WHERE id = $1',
       [decoded.userId]
@@ -33,7 +30,6 @@ const authenticateToken = async (req, res, next) => {
       });
     }
 
-    // Add user info to request
     req.user = {
       id: decoded.userId,
       username: decoded.username,
@@ -54,7 +50,6 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Middleware to check for specific roles
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -75,29 +70,23 @@ const requireRole = (roles) => {
   };
 };
 
-// Middleware to check if user is admin
 const requireAdmin = requireRole(['admin']);
 
-// Middleware to add patient filtering for restricted users
 const addPatientFilter = (req, res, next) => {
-  // Admin users can see all data
   if (req.user.role === 'admin') {
-    req.patientFilter = null; // No filter
+    req.patientFilter = null;
     return next();
   }
 
-  // Regular users can only see data for their associated patient
   if (req.user.patientId) {
     req.patientFilter = req.user.patientId;
   } else {
-    // User with no patient association can't see any patient-related data
     req.patientFilter = 'none';
   }
   
   next();
 };
 
-// Helper function to build patient-filtered WHERE clause
 const buildPatientFilter = (req, patientIdColumn = 'patient_id', alias = '') => {
   if (!req.patientFilter) {
     return { whereClause: '', params: [] };
