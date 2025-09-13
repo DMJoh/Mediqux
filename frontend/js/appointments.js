@@ -363,9 +363,13 @@ function openAddAppointmentModal() {
     document.getElementById('status').value = 'scheduled';
     document.getElementById('diagnosisSection').style.display = 'none';
     
-    // Set minimum date to today
     const now = new Date();
-    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
     document.getElementById('appointmentDateTime').min = localDateTime;
     
     // Clear any previous validation states
@@ -396,9 +400,13 @@ async function editAppointment(id) {
             document.getElementById('doctorId').value = appointment.doctor_id || '';
             document.getElementById('institutionId').value = appointment.institution_id || '';
             
-            // Format datetime for input
             const appointmentDate = new Date(appointment.appointment_date);
-            const localDateTime = new Date(appointmentDate.getTime() - appointmentDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            const year = appointmentDate.getFullYear();
+            const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(appointmentDate.getDate()).padStart(2, '0');
+            const hours = String(appointmentDate.getHours()).padStart(2, '0');
+            const minutes = String(appointmentDate.getMinutes()).padStart(2, '0');
+            const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
             document.getElementById('appointmentDateTime').value = localDateTime;
             
             document.getElementById('appointmentType').value = appointment.type || '';
@@ -466,11 +474,14 @@ async function saveAppointment() {
         return;
     }
     
+    const localDateTime = appointmentDateTime.value;
+    const appointmentDate = new Date(localDateTime);
+    
     const appointmentData = {
         patient_id: patientId.value,
         doctor_id: document.getElementById('doctorId').value || null,
         institution_id: document.getElementById('institutionId').value || null,
-        appointment_date: appointmentDateTime.value,
+        appointment_date: appointmentDate.toISOString(),
         type: document.getElementById('appointmentType').value || null,
         status: document.getElementById('status').value,
         notes: document.getElementById('notes').value.trim() || null,
