@@ -1,24 +1,18 @@
-// Mediqux - Frontend JavaScript
-// Configuration (now loaded from config.js)
 const CONFIG = {
     get API_BASE() { return window.getApiBaseUrl(); },
     get RETRY_ATTEMPTS() { return window.ENV_CONFIG.RETRY_ATTEMPTS; },
     get RETRY_DELAY() { return window.ENV_CONFIG.RETRY_DELAY; }
 };
 
-// Enhanced API call function with authentication and retry logic
 async function apiCall(endpoint, options = {}, retryCount = 0) {
     try {
-        // Use auth manager if available, otherwise direct API call
         if (window.authManager) {
             const response = await window.authManager.apiRequest(endpoint, options);
             if (!response) {
-                // Auth manager is handling logout/redirect - don't throw error
                 return { success: false, error: 'Authentication required' };
             }
             return await response.json();
         } else {
-            // Fallback for non-authenticated calls
             const response = await fetch(`${CONFIG.API_BASE}${endpoint}`, {
                 headers: {
                     'Content-Type': 'application/json',
@@ -36,7 +30,6 @@ async function apiCall(endpoint, options = {}, retryCount = 0) {
     } catch (error) {
         console.error(`API call failed (attempt ${retryCount + 1}):`, error);
         
-        // Retry logic for network errors
         if (retryCount < CONFIG.RETRY_ATTEMPTS && error.name === 'TypeError') {
             await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
             return apiCall(endpoint, options, retryCount + 1);
@@ -47,9 +40,7 @@ async function apiCall(endpoint, options = {}, retryCount = 0) {
     }
 }
 
-// Enhanced alert system with fixed positioning
 function showAlert(message, type = 'info', autoClose = true) {
-    // Remove existing alerts
     const existingAlert = document.querySelector('.alert-fixed');
     if (existingAlert) {
         existingAlert.remove();
@@ -72,10 +63,8 @@ function showAlert(message, type = 'info', autoClose = true) {
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     `;
     
-    // Add to body instead of container
     document.body.appendChild(alertDiv);
     
-    // Auto-remove after 5 seconds if enabled
     if (autoClose) {
         setTimeout(() => {
             if (alertDiv.parentNode) {
@@ -86,7 +75,6 @@ function showAlert(message, type = 'info', autoClose = true) {
     }
 }
 
-// Enhanced system health check with detailed info
 async function checkSystemHealth() {
     const statusDiv = document.getElementById('systemStatus');
     
@@ -119,11 +107,9 @@ async function checkSystemHealth() {
     }
 }
 
-// Load dashboard stats with loading states
 async function loadDashboardStats() {
     const stats = ['totalPatients', 'totalDoctors', 'totalInstitutions', 'totalAppointments'];
     
-    // Show loading state
     stats.forEach(stat => {
         const element = document.getElementById(stat);
         if (element) {
@@ -132,7 +118,6 @@ async function loadDashboardStats() {
     });
     
     try {
-        // Load actual counts from APIs
         const [patientsResponse, doctorsResponse, institutionsResponse, appointmentsResponse] = await Promise.allSettled([
             apiCall('/patients'),
             apiCall('/doctors'),
@@ -140,28 +125,24 @@ async function loadDashboardStats() {
             apiCall('/appointments/stats/summary')
         ]);
         
-        // Update patient count
         if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
             document.getElementById('totalPatients').textContent = patientsResponse.value.count || 0;
         } else {
             document.getElementById('totalPatients').textContent = '0';
         }
         
-        // Update doctor count
         if (doctorsResponse.status === 'fulfilled' && doctorsResponse.value.success) {
             document.getElementById('totalDoctors').textContent = doctorsResponse.value.count || 0;
         } else {
             document.getElementById('totalDoctors').textContent = '0';
         }
         
-        // Update institution count
         if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
             document.getElementById('totalInstitutions').textContent = institutionsResponse.value.count || 0;
         } else {
             document.getElementById('totalInstitutions').textContent = '0';
         }
         
-        // Update appointment count
         if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
             document.getElementById('totalAppointments').textContent = appointmentsResponse.value.data.total_appointments || 0;
         } else {
@@ -178,7 +159,6 @@ async function loadDashboardStats() {
     }
 }
 
-// Load upcoming appointments for dashboard
 async function loadUpcomingAppointments() {
     const appointmentsDiv = document.getElementById('upcomingAppointments');
     
@@ -188,7 +168,6 @@ async function loadUpcomingAppointments() {
         if (response && response.success && response.data && response.data.length > 0) {
             const appointments = response.data;
             
-            // Create responsive grid layout for appointments
             const appointmentsHtml = appointments.map((appointment, index) => {
                 const appointmentDate = new Date(appointment.appointment_date);
                 const today = new Date();
@@ -235,7 +214,6 @@ async function loadUpcomingAppointments() {
                 </div>
             `;
         } else if (response && response.success) {
-            // API call successful but no appointments
             appointmentsDiv.innerHTML = `
                 <div class="text-center py-3 text-muted">
                     <i class="bi bi-calendar-x fs-4"></i>
@@ -244,7 +222,6 @@ async function loadUpcomingAppointments() {
                 </div>
             `;
         } else {
-            // API call failed or returned error
             console.error('API returned error:', response);
             appointmentsDiv.innerHTML = `
                 <div class="text-center py-3 text-warning">
@@ -266,22 +243,17 @@ async function loadUpcomingAppointments() {
     }
 }
 
-// Initialize dashboard when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if we're on the dashboard page
     if (document.getElementById('systemStatus')) {
         checkSystemHealth();
         loadDashboardStats();
         
-        // Wait a bit for authentication to be ready before loading appointments
         setTimeout(() => {
             loadUpcomingAppointments();
         }, 1000);
         
-        // Auto-refresh system status using configurable interval
         setInterval(checkSystemHealth, window.ENV_CONFIG.HEALTH_CHECK_INTERVAL);
         
-        // Auto-refresh upcoming appointments every 5 minutes
         setInterval(loadUpcomingAppointments, 5 * 60 * 1000);
     }
     
