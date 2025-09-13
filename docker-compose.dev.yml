@@ -1,12 +1,5 @@
-# =============================================================================
-# Mediqux - Medical Management System Docker Compose Configuration
-# =============================================================================
-# This Docker Compose file uses environment variables from .env file
-# for easy configuration management across different environments.
-# =============================================================================
-
 services:
-  # PostgreSQL Database
+  postgres:
   postgres:
     image: postgres:17-alpine
     container_name: mediqux_postgres
@@ -28,7 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Backend API server
   backend:
     build: ./backend
     container_name: mediqux_backend
@@ -51,8 +43,8 @@ services:
       - PGID=${PGID:-1000}
     volumes:
       - ./backend:/app
-      - /app/node_modules  # Anonymous volume to preserve node_modules
-      - ./uploads:/app/uploads  # For PDF uploads
+      - /app/node_modules
+      - ./uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,7 +56,6 @@ services:
       timeout: 10s
       retries: 3
 
-  # Frontend web server
   frontend:
     build: 
       context: ./frontend
