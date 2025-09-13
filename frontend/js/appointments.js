@@ -1,5 +1,3 @@
-// Appointment management JavaScript
-
 let allAppointments = [];
 let filteredAppointments = [];
 let patients = [];
@@ -7,7 +5,6 @@ let doctors = [];
 let institutions = [];
 let currentEditingId = null;
 
-// Make functions globally available
 window.saveAppointment = saveAppointment;
 window.editAppointment = editAppointment;
 window.deleteAppointment = deleteAppointment;
@@ -15,7 +12,6 @@ window.viewAppointment = viewAppointment;
 window.openAddAppointmentModal = openAddAppointmentModal;
 window.clearFilters = clearFilters;
 
-// Initialize appointments page
 document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('appointmentsTableBody')) {
         loadAppointments();
@@ -25,15 +21,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Setup event listeners
 function setupEventListeners() {
-    // Search and filter functionality
     document.getElementById('searchInput').addEventListener('input', filterAppointments);
     document.getElementById('statusFilter').addEventListener('change', filterAppointments);
     document.getElementById('patientFilter').addEventListener('change', filterAppointments);
     document.getElementById('doctorFilter').addEventListener('change', filterAppointments);
     
-    // Show/hide diagnosis field based on status
     document.getElementById('status').addEventListener('change', function() {
         const diagnosisSection = document.getElementById('diagnosisSection');
         if (this.value === 'completed') {
@@ -44,7 +37,6 @@ function setupEventListeners() {
     });
 }
 
-// Show field-specific error
 function showFieldError(input, message) {
     input.classList.add('is-invalid');
     input.classList.remove('is-valid');
@@ -55,7 +47,6 @@ function showFieldError(input, message) {
     }
 }
 
-// Clear field-specific error
 function clearFieldError(input) {
     input.classList.remove('is-invalid');
     if (input.value.trim()) {
@@ -65,7 +56,6 @@ function clearFieldError(input) {
     }
 }
 
-// Load all appointments
 async function loadAppointments() {
     try {
         showLoading(true);
@@ -83,7 +73,6 @@ async function loadAppointments() {
     } catch (error) {
         console.error('Error loading appointments:', error);
         showAlert('Error loading appointments: ' + error.message, 'danger');
-        // Show empty state instead of infinite loading
         allAppointments = [];
         filteredAppointments = [];
         displayAppointments();
@@ -93,7 +82,6 @@ async function loadAppointments() {
     }
 }
 
-// Load dropdown data (patients, doctors, institutions)
 async function loadDropdownData() {
     try {
         const [patientsResponse, doctorsResponse, institutionsResponse] = await Promise.allSettled([
@@ -103,7 +91,6 @@ async function loadDropdownData() {
         ]);
         
         
-        // Load patients
         if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
             patients = patientsResponse.value.data;
             populatePatientDropdowns();
@@ -113,7 +100,6 @@ async function loadDropdownData() {
             populatePatientDropdowns();
         }
         
-        // Load doctors
         if (doctorsResponse.status === 'fulfilled' && doctorsResponse.value.success) {
             doctors = doctorsResponse.value.data;
             populateDoctorDropdowns();
@@ -123,7 +109,6 @@ async function loadDropdownData() {
             populateDoctorDropdowns();
         }
         
-        // Load institutions
         if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
             institutions = institutionsResponse.value.data;
             populateInstitutionDropdowns();
@@ -134,7 +119,6 @@ async function loadDropdownData() {
         }
     } catch (error) {
         console.error('Error loading dropdown data:', error);
-        // Initialize empty dropdowns to prevent errors
         patients = [];
         doctors = [];
         institutions = [];
@@ -144,7 +128,6 @@ async function loadDropdownData() {
     }
 }
 
-// Load appointment statistics
 async function loadAppointmentStats() {
     try {
         const response = await apiCall('/appointments/stats/summary');
@@ -157,7 +140,6 @@ async function loadAppointmentStats() {
         }
     } catch (error) {
         console.error('Error loading appointment stats:', error);
-        // Set defaults
         document.getElementById('totalAppointmentsCount').textContent = '0';
         document.getElementById('upcomingCount').textContent = '0';
         document.getElementById('completedCount').textContent = '0';
@@ -165,7 +147,6 @@ async function loadAppointmentStats() {
     }
 }
 
-// Populate patient dropdowns
 function populatePatientDropdowns() {
     const modalSelect = document.getElementById('patientId');
     const filterSelect = document.getElementById('patientFilter');
@@ -184,7 +165,6 @@ function populatePatientDropdowns() {
     
 }
 
-// Populate doctor dropdowns
 function populateDoctorDropdowns() {
     const modalSelect = document.getElementById('doctorId');
     const filterSelect = document.getElementById('doctorFilter');
@@ -203,7 +183,6 @@ function populateDoctorDropdowns() {
     
 }
 
-// Populate institution dropdowns
 function populateInstitutionDropdowns() {
     const modalSelect = document.getElementById('institutionId');
     
@@ -220,7 +199,6 @@ function populateInstitutionDropdowns() {
     
 }
 
-// Display appointments in table
 function displayAppointments() {
     const tbody = document.getElementById('appointmentsTableBody');
     const tableDiv = document.getElementById('appointmentsTable');
@@ -240,7 +218,6 @@ function displayAppointments() {
         const now = new Date();
         const isPast = appointmentDate < now;
         
-        // Status badge styling
         let statusBadge = '';
         switch (appointment.status) {
             case 'scheduled':
@@ -304,7 +281,6 @@ function displayAppointments() {
     }).join('');
 }
 
-// Filter appointments based on search and filters
 function filterAppointments() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     const statusFilter = document.getElementById('statusFilter').value;
@@ -332,7 +308,6 @@ function filterAppointments() {
     updateAppointmentCount();
 }
 
-// Clear all filters
 function clearFilters() {
     document.getElementById('searchInput').value = '';
     document.getElementById('statusFilter').value = '';
@@ -343,17 +318,14 @@ function clearFilters() {
     updateAppointmentCount();
 }
 
-// Update appointment count badge
 function updateAppointmentCount() {
     document.getElementById('appointmentCount').textContent = filteredAppointments.length;
 }
 
-// Show/hide loading spinner
 function showLoading(show) {
     document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
 }
 
-// Open modal for adding new appointment
 function openAddAppointmentModal() {
     currentEditingId = null;
     document.getElementById('modalTitle').innerHTML = '<i class="bi bi-calendar-plus"></i> Schedule Appointment';
@@ -372,11 +344,9 @@ function openAddAppointmentModal() {
     const localDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
     document.getElementById('appointmentDateTime').min = localDateTime;
     
-    // Clear any previous validation states
     clearAllFieldErrors();
 }
 
-// Clear all field errors
 function clearAllFieldErrors() {
     const form = document.getElementById('appointmentForm');
     const inputs = form.querySelectorAll('.form-control, .form-select');
@@ -385,7 +355,6 @@ function clearAllFieldErrors() {
     });
 }
 
-// Edit appointment
 async function editAppointment(id) {
     try {
         const response = await apiCall(`/appointments/${id}`);
@@ -394,7 +363,6 @@ async function editAppointment(id) {
             const appointment = response.data;
             currentEditingId = id;
             
-            // Populate form
             document.getElementById('appointmentId').value = appointment.id;
             document.getElementById('patientId').value = appointment.patient_id || '';
             document.getElementById('doctorId').value = appointment.doctor_id || '';
@@ -414,7 +382,6 @@ async function editAppointment(id) {
             document.getElementById('notes').value = appointment.notes || '';
             document.getElementById('diagnosis').value = appointment.diagnosis || '';
             
-            // Show diagnosis section if completed
             const diagnosisSection = document.getElementById('diagnosisSection');
             if (appointment.status === 'completed') {
                 diagnosisSection.style.display = 'block';
@@ -422,11 +389,9 @@ async function editAppointment(id) {
                 diagnosisSection.style.display = 'none';
             }
             
-            // Update modal title
             document.getElementById('modalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Appointment';
             document.getElementById('saveAppointmentBtn').innerHTML = '<i class="bi bi-save"></i> Update Appointment';
             
-            // Clear validation states and show modal
             clearAllFieldErrors();
             new bootstrap.Modal(document.getElementById('appointmentModal')).show();
         }
@@ -435,16 +400,13 @@ async function editAppointment(id) {
     }
 }
 
-// Save appointment (create or update)
 async function saveAppointment() {
     const form = document.getElementById('appointmentForm');
     
-    // Clear all previous validation states
     clearAllFieldErrors();
     
     let hasErrors = false;
     
-    // Validate required fields
     const patientId = document.getElementById('patientId');
     const appointmentDateTime = document.getElementById('appointmentDateTime');
     
@@ -458,7 +420,6 @@ async function saveAppointment() {
         hasErrors = true;
     }
     
-    // Validate appointment time is not in the past (for new scheduled appointments)
     if (appointmentDateTime.value && !currentEditingId) {
         const selectedDate = new Date(appointmentDateTime.value);
         const now = new Date();
@@ -469,7 +430,6 @@ async function saveAppointment() {
         }
     }
     
-    // If there are validation errors, stop here
     if (hasErrors) {
         return;
     }
@@ -496,13 +456,11 @@ async function saveAppointment() {
         
         let response;
         if (currentEditingId) {
-            // Update existing appointment
             response = await apiCall(`/appointments/${currentEditingId}`, {
                 method: 'PUT',
                 body: JSON.stringify(appointmentData)
             });
         } else {
-            // Create new appointment
             response = await apiCall('/appointments', {
                 method: 'POST',
                 body: JSON.stringify(appointmentData)
@@ -513,8 +471,8 @@ async function saveAppointment() {
         if (response.success) {
             showAlert(response.message, 'success');
             bootstrap.Modal.getInstance(document.getElementById('appointmentModal')).hide();
-            loadAppointments(); // Reload the appointment list
-            loadAppointmentStats(); // Reload stats
+            loadAppointments();
+            loadAppointmentStats();
         } else {
             showAlert(response.error || 'Failed to save appointment', 'danger');
         }
@@ -530,14 +488,11 @@ async function saveAppointment() {
     }
 }
 
-// View appointment details
 async function viewAppointment(id) {
     try {
-        // Show the modal first
         const modal = new bootstrap.Modal(document.getElementById('appointmentDetailsModal'));
         modal.show();
         
-        // Show loading state
         document.getElementById('appointmentDetailsLoading').style.display = 'block';
         document.getElementById('appointmentDetailsContent').style.display = 'none';
         
@@ -547,13 +502,11 @@ async function viewAppointment(id) {
             const appointment = response.data;
             displayAppointmentDetails(appointment);
             
-            // Setup edit button in details modal
             document.getElementById('editFromDetailsBtn').onclick = () => {
                 bootstrap.Modal.getInstance(document.getElementById('appointmentDetailsModal')).hide();
-                setTimeout(() => editAppointment(id), 300); // Small delay for smooth transition
+                setTimeout(() => editAppointment(id), 300);
             };
             
-            // Hide loading and show content
             document.getElementById('appointmentDetailsLoading').style.display = 'none';
             document.getElementById('appointmentDetailsContent').style.display = 'block';
         } else {
@@ -570,7 +523,6 @@ async function viewAppointment(id) {
     }
 }
 
-// Display appointment details in modal
 function displayAppointmentDetails(appointment) {
     const content = document.getElementById('appointmentDetailsContent');
     const appointmentDate = new Date(appointment.appointment_date);
@@ -708,7 +660,6 @@ function displayAppointmentDetails(appointment) {
     `;
 }
 
-// Get appropriate status badge color
 function getStatusBadgeColor(status) {
     switch (status?.toLowerCase()) {
         case 'scheduled':
@@ -724,7 +675,6 @@ function getStatusBadgeColor(status) {
     }
 }
 
-// Format date and time for display
 function formatDateTime(dateString) {
     if (!dateString) return 'N/A';
     
@@ -736,7 +686,6 @@ function formatDateTime(dateString) {
     }
 }
 
-// Delete appointment
 async function deleteAppointment(id, date) {
     if (!confirm(`Are you sure you want to delete the appointment on ${date}?\n\nThis action cannot be undone.`)) {
         return;
@@ -749,8 +698,8 @@ async function deleteAppointment(id, date) {
         
         if (response.success) {
             showAlert(response.message, 'success');
-            loadAppointments(); // Reload the appointment list
-            loadAppointmentStats(); // Reload stats
+            loadAppointments();
+            loadAppointmentStats();
         } else {
             showAlert(response.error || 'Failed to delete appointment', 'danger');
         }

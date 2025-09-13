@@ -7,15 +7,13 @@ const router = express.Router();
 const db = require('../database/db');
 const { authenticateToken, addPatientFilter } = require('../middleware/auth');
 
-// Helper function to generate descriptive PDF filename
 function generatePdfFilename(testName, testDate, firstName, lastName) {
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    return date.toISOString().split('T')[0];
   };
   
   const sanitizeFilename = (str) => {
-    // Replace spaces with underscores and remove special characters
     return str.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase();
   };
   
@@ -26,9 +24,6 @@ function generatePdfFilename(testName, testDate, firstName, lastName) {
   return `${testNameClean}_${dateFormatted}_${patientName || 'unknown'}.pdf`;
 }
 
-// Lab Panel Management Endpoints (must be before /:id routes)
-
-// Get all lab panels
 router.get('/panels', async (req, res) => {
   try {
     const result = await db.query(`
@@ -62,7 +57,6 @@ router.get('/panels', async (req, res) => {
   }
 });
 
-// Get specific lab panel with parameters
 router.get('/panels/:id', async (req, res) => {
   try {
     const panelId = req.params.id;
@@ -98,7 +92,6 @@ router.get('/panels/:id', async (req, res) => {
   }
 });
 
-// Create new lab panel
 router.post('/panels', async (req, res) => {
   try {
     const { name, description, category = 'Blood', parameters = [] } = req.body;
@@ -110,7 +103,6 @@ router.post('/panels', async (req, res) => {
       });
     }
     
-    // Check if panel with same name exists
     const existingPanel = await db.query(
       'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1)',
       [name.trim()]
@@ -123,11 +115,9 @@ router.post('/panels', async (req, res) => {
       });
     }
     
-    // Start transaction
     await db.query('BEGIN');
     
     try {
-      // Create the panel
       const panelResult = await db.query(
         `INSERT INTO lab_panels (name, description, category) 
          VALUES ($1, $2, $3) 
@@ -137,7 +127,6 @@ router.post('/panels', async (req, res) => {
       
       const newPanel = panelResult.rows[0];
       
-      // Add parameters if provided
       if (parameters && parameters.length > 0) {
         for (const param of parameters) {
           if (param.parameter_name && param.parameter_name.trim()) {
@@ -161,7 +150,6 @@ router.post('/panels', async (req, res) => {
       
       await db.query('COMMIT');
       
-      // Fetch the complete panel with parameters
       const completePanel = await db.query(
         `SELECT p.*, 
           json_agg(
@@ -201,7 +189,6 @@ router.post('/panels', async (req, res) => {
   }
 });
 
-// Update lab panel
 router.put('/panels/:id', async (req, res) => {
   try {
     const panelId = req.params.id;
@@ -214,7 +201,6 @@ router.put('/panels/:id', async (req, res) => {
       });
     }
     
-    // Check if panel exists
     const existingPanel = await db.query(
       'SELECT id FROM lab_panels WHERE id = $1',
       [panelId]
@@ -227,7 +213,6 @@ router.put('/panels/:id', async (req, res) => {
       });
     }
     
-    // Check if another panel with same name exists
     const duplicatePanel = await db.query(
       'SELECT id FROM lab_panels WHERE LOWER(name) = LOWER($1) AND id != $2',
       [name.trim(), panelId]
@@ -240,7 +225,6 @@ router.put('/panels/:id', async (req, res) => {
       });
     }
     
-    // Update the panel
     const result = await db.query(
       `UPDATE lab_panels 
        SET name = $1, description = $2, category = $3, updated_at = CURRENT_TIMESTAMP 
@@ -264,12 +248,10 @@ router.put('/panels/:id', async (req, res) => {
   }
 });
 
-// Delete lab panel
 router.delete('/panels/:id', async (req, res) => {
   try {
     const panelId = req.params.id;
     
-    // Check if panel exists
     const existingPanel = await db.query(
       'SELECT id, name FROM lab_panels WHERE id = $1',
       [panelId]
@@ -282,14 +264,11 @@ router.delete('/panels/:id', async (req, res) => {
       });
     }
     
-    // Start transaction
     await db.query('BEGIN');
     
     try {
-      // Delete parameters first
       await db.query('DELETE FROM lab_panel_parameters WHERE panel_id = $1', [panelId]);
       
-      // Delete the panel
       await db.query('DELETE FROM lab_panels WHERE id = $1', [panelId]);
       
       await db.query('COMMIT');
@@ -312,7 +291,6 @@ router.delete('/panels/:id', async (req, res) => {
   }
 });
 
-// Add parameter to lab panel
 router.post('/panels/:id/parameters', async (req, res) => {
   try {
     const panelId = req.params.id;
@@ -332,7 +310,6 @@ router.post('/panels/:id/parameters', async (req, res) => {
       });
     }
     
-    // Check if panel exists
     const panelExists = await db.query(
       'SELECT id FROM lab_panels WHERE id = $1',
       [panelId]
@@ -345,7 +322,6 @@ router.post('/panels/:id/parameters', async (req, res) => {
       });
     }
     
-    // Check if parameter already exists in this panel
     const parameterExists = await db.query(
       'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2)',
       [panelId, parameter_name.trim()]
@@ -358,7 +334,6 @@ router.post('/panels/:id/parameters', async (req, res) => {
       });
     }
     
-    // Add the parameter
     const result = await db.query(
       `INSERT INTO lab_panel_parameters 
        (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
@@ -390,7 +365,6 @@ router.post('/panels/:id/parameters', async (req, res) => {
   }
 });
 
-// Update parameter in lab panel
 router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
   try {
     const { panelId, parameterId } = req.params;
@@ -410,7 +384,6 @@ router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
       });
     }
     
-    // Check if parameter exists
     const parameterExists = await db.query(
       'SELECT id FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
       [parameterId, panelId]
@@ -423,7 +396,6 @@ router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
       });
     }
     
-    // Check if another parameter with same name exists in this panel
     const duplicateParameter = await db.query(
       'SELECT id FROM lab_panel_parameters WHERE panel_id = $1 AND LOWER(parameter_name) = LOWER($2) AND id != $3',
       [panelId, parameter_name.trim(), parameterId]
@@ -470,12 +442,10 @@ router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
   }
 });
 
-// Delete parameter from lab panel
 router.delete('/panels/:panelId/parameters/:parameterId', async (req, res) => {
   try {
     const { panelId, parameterId } = req.params;
     
-    // Check if parameter exists
     const parameterExists = await db.query(
       'SELECT id, parameter_name FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
       [parameterId, panelId]
@@ -488,7 +458,6 @@ router.delete('/panels/:panelId/parameters/:parameterId', async (req, res) => {
       });
     }
     
-    // Delete the parameter
     await db.query(
       'DELETE FROM lab_panel_parameters WHERE id = $1 AND panel_id = $2',
       [parameterId, panelId]
@@ -508,7 +477,6 @@ router.delete('/panels/:panelId/parameters/:parameterId', async (req, res) => {
   }
 });
 
-// Configure multer for PDF uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
     const uploadsDir = path.join(__dirname, '../../uploads/lab-reports');
@@ -521,7 +489,6 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    // Generate unique filename with timestamp
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, `lab-report-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -541,136 +508,100 @@ const upload = multer({
   }
 });
 
-// Local PDF parsing patterns for common lab values
 const LAB_PATTERNS = {
-  // Hemoglobin patterns - handles both formats
   hemoglobin: [
-    // Standard format: "Hemoglobin: 15.5 g/dL"
     /h[ae]moglobin[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
     /hb[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
-    // Indian format: "15.5 HAEMOGLOBIN (HB)" followed by unit
     /(\d+(?:\.\d+)?)\s+h[ae]moglobin\s*\(hb\).*?g[m]?\/dl/is,
     /(\d+(?:\.\d+)?)\s+hb\b.*?g[m]?\/dl/is
   ],
-  
-  // WBC patterns
+
   wbc: [
-    // Standard format
     /wbc\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
     /white\s*blood\s*cell[:\s]*(\d+(?:,\d+)?)/i,
-    // Indian format: "8,570 TOTAL WBC COUNT (TC)" followed by "/cumm"
     /([\d,]+)\s+total\s+wbc\s+count.*?\/cumm/is,
     /([\d,]+)\s+wbc\s+count.*?\/cumm/is
   ],
-  
-  // RBC patterns
+
   rbc: [
-    // Standard format
     /rbc\s*count[:\s]*(\d+(?:\.\d+)?)\s*million\/[μu]l/i,
     /red\s*blood\s*cell[:\s]*(\d+(?:\.\d+)?)/i,
-    // Indian format: "6.15 RBC" followed by "mill/cumm"
     /(\d+(?:\.\d+)?)\s+rbc\b.*?mill\/cumm/is
   ],
-  
-  // Platelet patterns
+
   platelets: [
-    // Standard format
     /platelet\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
     /platelets?[:\s]*(\d+(?:,\d+)?)/i,
-    // Indian format: "3.93 Lakhs/Cumm PLATELET COUNT"
     /(\d+(?:\.\d+)?)\s+lakhs?\/cumm\s+platelet\s+count/is,
     /(\d+(?:\.\d+)?)\s+platelet\s+count.*?lakhs?\/cumm/is
   ],
-  
-  // Hematocrit/PCV patterns
+
   hematocrit: [
     /hematocrit[:\s]*(\d+(?:\.\d+)?)\s*%?/i,
     /hct[:\s]*(\d+(?:\.\d+)?)/i,
     /pcv[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "47.3 PACKED CELL VOLUME (PCV)"
     /(\d+(?:\.\d+)?)\s+packed\s+cell\s+volume.*?%/is
   ],
-  
-  // ESR patterns
+
   esr: [
     /esr[:\s]*(\d+(?:\.\d+)?)\s*mm\/hr/i,
     /erythrocyte\s*sedimentation\s*rate[:\s]*(\d+(?:\.\d+)?)/i,
-    // Indian format: "4 ERYTHROCYTE SEDIMENTATION RATE (ESR)"
     /(\d+(?:\.\d+)?)\s+erythrocyte\s+sedimentation\s+rate.*?mm\/hr/is
   ],
-  
-  // Neutrophils patterns
+
   neutrophils: [
     /neutrophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "53.6 NEUTROPHILS"
     /(\d+(?:\.\d+)?)\s+neutrophils.*?%/is
   ],
-  
-  // Lymphocytes patterns
+
   lymphocytes: [
     /lymphocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "39.7 LYMPHOCYTES"
     /(\d+(?:\.\d+)?)\s+lymphocytes.*?%/is
   ],
-  
-  // Eosinophils patterns
+
   eosinophils: [
     /eosinophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "1.5 EOSINOPHILS"
     /(\d+(?:\.\d+)?)\s+eosinophils.*?%/is
   ],
-  
-  // Monocytes patterns
+
   monocytes: [
     /monocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "3.6 MONOCYTES"
     /(\d+(?:\.\d+)?)\s+monocytes.*?%/is
   ],
-  
-  // Basophils patterns
+
   basophils: [
     /basophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "1.6 BASOPHILS"
     /(\d+(?:\.\d+)?)\s+basophils.*?%/is
   ],
-  
-  // MCV patterns
+
   mcv: [
     /mcv[:\s]*(\d+(?:\.\d+)?)\s*fl/i,
-    // Indian format: "76.9 MCV"
     /(\d+(?:\.\d+)?)\s+mcv\b.*?cubic\/micro/is
   ],
-  
-  // MCH patterns
+
   mch: [
     /mch[:\s]*(\d+(?:\.\d+)?)\s*pg/i,
-    // Indian format: "25.3 MCH"
     /(\d+(?:\.\d+)?)\s+mch\b.*?pico\s+gram/is
   ],
-  
-  // MCHC patterns
+
   mchc: [
     /mchc[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    // Indian format: "32.8 MCHC"
     /(\d+(?:\.\d+)?)\s+mchc\b.*?%/is
   ],
-  
-  // Glucose patterns (for future lab reports)
+
   glucose: [
     /glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /blood\s*glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /fasting\s*glucose[:\s]*(\d+(?:\.\d+)?)/i,
     /(\d+(?:\.\d+)?)\s+glucose.*?mg\/dl/is
   ],
-  
-  // Cholesterol patterns
+
   cholesterol: [
     /total\s*cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /(\d+(?:\.\d+)?)\s+total\s+cholesterol.*?mg\/dl/is
   ],
-  
-  // Kidney function
+
   creatinine: [
     /creatinine[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /serum\s*creatinine[:\s]*(\d+(?:\.\d+)?)/i,
@@ -685,54 +616,42 @@ const LAB_PATTERNS = {
   ]
 };
 
-// Reference ranges for common lab values
 const REFERENCE_RANGES = {
-  // Blood chemistry
   glucose: { min: 70, max: 100, unit: 'mg/dL' },
   cholesterol: { max: 200, unit: 'mg/dL' },
   creatinine: { min: 0.6, max: 1.2, unit: 'mg/dL' },
   bun: { min: 7, max: 20, unit: 'mg/dL' },
   
-  // CBC parameters - Adult Male ranges (as per report)
-  hemoglobin: { min: 13.0, max: 16.0, unit: 'g/dL' }, // Male range
-  hematocrit: { min: 40, max: 50, unit: '%' }, // Male range (PCV)
+  hemoglobin: { min: 13.0, max: 16.0, unit: 'g/dL' },
+  hematocrit: { min: 40, max: 50, unit: '%' },
   wbc: { min: 4000, max: 10000, unit: '/cumm' },
-  rbc: { min: 4.5, max: 5.5, unit: 'mill/cumm' }, // Male range
-  platelets: { min: 1.5, max: 4.1, unit: 'Lakhs/cumm' }, // Convert to lakhs
-  esr: { min: 0, max: 10, unit: 'mm/hr' }, // Male range
+  rbc: { min: 4.5, max: 5.5, unit: 'mill/cumm' },
+  platelets: { min: 1.5, max: 4.1, unit: 'Lakhs/cumm' },
+  esr: { min: 0, max: 10, unit: 'mm/hr' },
   
-  // Differential count percentages
   neutrophils: { min: 40, max: 80, unit: '%' },
   lymphocytes: { min: 20, max: 40, unit: '%' },
   eosinophils: { min: 0, max: 6, unit: '%' },
   monocytes: { min: 0, max: 10, unit: '%' },
   basophils: { min: 0, max: 2, unit: '%' },
   
-  // RBC indices
   mcv: { min: 83, max: 101, unit: 'fL' },
   mch: { min: 27, max: 32, unit: 'pg' },
   mchc: { min: 31.5, max: 34.5, unit: '%' }
 };
 
-// Generic patterns to extract ANY potential lab values (restored working version)
 const GENERIC_EXTRACTION_PATTERNS = [
-  // Pattern 1: "15.5 HAEMOGLOBIN (HB) gm/dL" - Value first, then parameter and unit
   /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
   
-  // Pattern 2: "Glucose: 95 mg/dL" - Parameter first, then value and unit  
   /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)[:\s]+(\d+(?:\.\d+)?(?:,\d{3})*)\s*([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
   
-  // Pattern 3: "Hemoglobin 15.5" - Parameter and value, no clear unit
   /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+(\d+(?:\.\d+)?(?:,\d{3})*)\s*(?=\s|$)/g,
   
-  // Pattern 4: Handle percentage values "53.6 NEUTROPHILS %" - but capture more flexibly
   /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s*(\%|percent)/g,
   
-  // Pattern 5: Handle values with "Lakhs" "3.93 Lakhs/Cumm PLATELET COUNT"
   /(\d+(?:\.\d+)?)\s+(lakhs?\/\w+|million\/\w+)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)/gi
 ];
 
-// Unit standardization mapping
 const UNIT_STANDARDIZATION = {
   'gm/dl': 'g/dL',
   'gm/dL': 'g/dL', 
@@ -747,7 +666,6 @@ const UNIT_STANDARDIZATION = {
   'LAKHS/CUMM': 'Lakhs/µL'
 };
 
-// Parameter name standardization  
 const PARAMETER_STANDARDIZATION = {
   'HAEMOGLOBIN': 'Hemoglobin',
   'HAEMOGLOBIN (HB)': 'Hemoglobin',
@@ -762,65 +680,53 @@ const PARAMETER_STANDARDIZATION = {
   'PACKED CELL VOLUME': 'Hematocrit'
 };
 
-// Calculate confidence score based on pattern type and context
 function calculatePatternConfidence(patternIndex, parameter, unit) {
-  let confidence = 0.5; // Base confidence
+  let confidence = 0.5;
   
-  // Higher confidence for specific patterns
-  if (patternIndex === 0) confidence = 0.9; // Indian format with exact unit match
-  if (patternIndex === 1) confidence = 0.85; // COUNT format
-  if (patternIndex === 2) confidence = 0.8; // Percentage format
-  if (patternIndex === 3) confidence = 0.85; // Ratio format
-  if (patternIndex === 4) confidence = 0.9; // Colon format
-  if (patternIndex === 5) confidence = 0.75; // Lakhs format
-  if (patternIndex === 6) confidence = 0.7; // Simple format
+  if (patternIndex === 0) confidence = 0.9;
+  if (patternIndex === 1) confidence = 0.85;
+  if (patternIndex === 2) confidence = 0.8;
+  if (patternIndex === 3) confidence = 0.85;
+  if (patternIndex === 4) confidence = 0.9;
+  if (patternIndex === 5) confidence = 0.75;
+  if (patternIndex === 6) confidence = 0.7;
   
-  // Boost confidence for known medical units
   const medicalUnits = ['g/dL', 'mg/dL', 'mEq/L', '/µL', 'million/µL', '%', 'U/L'];
   if (medicalUnits.includes(unit)) confidence += 0.1;
   
-  // Boost confidence for known lab parameters
   const commonLabParams = ['hemoglobin', 'hematocrit', 'platelet', 'glucose', 'creatinine'];
   if (commonLabParams.some(param => parameter?.toLowerCase().includes(param))) confidence += 0.1;
   
   return Math.min(confidence, 1.0);
 }
 
-// Enhanced function to extract ALL potential lab values from text
 function extractLabValues(text) {
   const allMatches = [];
   const extractedValues = [];
   
-  // Use generic patterns to find ALL potential lab values (restored working approach)
   GENERIC_EXTRACTION_PATTERNS.forEach((pattern, patternIndex) => {
     const matches = [...text.matchAll(pattern)];
     matches.forEach(match => {
       let value, parameter, unit;
       
-      // Determine which capture group is which based on pattern type
       if (patternIndex === 0 || patternIndex === 3) {
-        // Value first patterns: "15.5 HAEMOGLOBIN gm/dL"
         value = match[1];
         parameter = match[2];
         unit = match[3] || '';
       } else if (patternIndex === 1) {
-        // Parameter first patterns: "Glucose: 95 mg/dL"
         parameter = match[1];
         value = match[2];
         unit = match[3] || '';
       } else if (patternIndex === 2) {
-        // Parameter and value only: "Hemoglobin 15.5"
         parameter = match[1];
         value = match[2];
         unit = '';
       } else if (patternIndex === 4) {
-        // Special Lakhs pattern: "3.93 Lakhs/Cumm PLATELET COUNT"
         value = match[1];
         unit = match[2];
         parameter = match[3];
       }
       
-      // Apply unit standardization
       let standardizedUnit = unit?.trim().toLowerCase();
       if (UNIT_STANDARDIZATION[standardizedUnit]) {
         unit = UNIT_STANDARDIZATION[standardizedUnit];
@@ -837,21 +743,18 @@ function extractLabValues(text) {
   });
   
   
-  // Process and clean up the matches (restored working approach)
   allMatches.forEach(match => {
     const numericValue = parseFloat(match.value?.replace(/,/g, ''));
     if (isNaN(numericValue) || !match.parameter || match.parameter.length < 2) {
-      return; // Skip invalid matches
+      return;
     }
     
-    // Clean up parameter name
     const cleanParameter = match.parameter
       .replace(/\s+/g, ' ')
       .replace(/[()]/g, '')
       .trim()
       .toLowerCase();
     
-    // Skip common false positives (but less restrictive)
     if (cleanParameter.includes('reference') || 
         cleanParameter.includes('range') ||
         cleanParameter.includes('sample') ||
@@ -863,10 +766,8 @@ function extractLabValues(text) {
       return;
     }
     
-    // Clean up unit
     let cleanUnit = match.unit?.replace(/[()]/g, '').trim() || '';
     
-    // Try to get better status using existing knowledge
     let status = 'normal';
     const parameterKey = findParameterKey(cleanParameter);
     if (parameterKey) {
@@ -875,7 +776,6 @@ function extractLabValues(text) {
         if (refRange.min && numericValue < refRange.min) status = 'low';
         else if (refRange.max && numericValue > refRange.max) status = 'high';
         
-        // Use known unit if unit is empty
         if (!cleanUnit && refRange.unit) {
           cleanUnit = refRange.unit;
         }
@@ -999,8 +899,7 @@ function formatParameterName(key) {
     monocytes: 'Monocytes',
     basophils: 'Basophils',
     
-    // RBC indices
-    mcv: 'MCV',
+      mcv: 'MCV',
     mch: 'MCH',
     mchc: 'MCHC',
     

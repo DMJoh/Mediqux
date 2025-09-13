@@ -5,6 +5,23 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2025-09-13
+
+### 🐛 Bug Fixes
+
+#### Patient Date of Birth Timezone Fix
+- **Fixed date of birth display issue** - Patient date of birth now displays the correct date in all timezones instead of showing previous day
+- **Resolved UTC midnight conversion problem** - Date-only fields now use UTC date components to prevent timezone-induced date shifts
+- **Universal date support** - Patient birth dates display correctly for users in negative timezones (GMT-5, GMT-8, etc.)
+- **Consistent date representation** - Birth dates show the same in patient list, edit forms, and detail views
+
+### 🔧 Technical Improvements
+- Enhanced date handling in `patients.js` using `getUTCDate()`, `getUTCMonth()`, `getUTCFullYear()` for date-only fields
+- Improved date display logic to prevent timezone conversion of midnight UTC timestamps
+- Better handling of date vs datetime field differences in frontend
+
+---
+
 ## [1.0.4] - 2025-09-13
 
 ### 🐛 Bug Fixes
