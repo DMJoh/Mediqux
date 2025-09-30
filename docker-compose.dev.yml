@@ -1,6 +1,5 @@
 services:
   postgres:
-  postgres:
     image: postgres:17-alpine
     container_name: mediqux_postgres
     restart: unless-stopped
@@ -8,11 +7,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "${DB_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - ${POSTGRES_DATA_PATH}:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - mediqux_network
     healthcheck:
@@ -27,20 +25,20 @@ services:
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     environment:
-      - NODE_ENV=${NODE_ENV}
-      - DEBUG=${DEBUG}
-      - LOG_LEVEL=${LOG_LEVEL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - MAX_FILE_SIZE=${MAX_FILE_SIZE}
-      - UPLOAD_PATH=${UPLOAD_PATH:-/app/uploads}
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
+      NODE_ENV: ${NODE_ENV:-development}
+      DEBUG: ${DEBUG:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      DB_HOST: postgres
+      DB_PORT: ${POSTGRES_PORT:-5432}
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      FRONTEND_URL: http://${FRONTEND_HOST:-localhost}:${FRONTEND_PORT:-8080}
+      JWT_SECRET: ${JWT_SECRET}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
+      UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -57,17 +55,19 @@ services:
       retries: 3
 
   frontend:
-    build: 
+    build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: mediqux_frontend
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     environment:
-      - MEDIQUX_API_URL=${MEDIQUX_API_URL}
+      MEDIQUX_API_URL: http://${BACKEND_HOST:-localhost}:${BACKEND_PORT:-3000}/api
     volumes:
       - ./frontend/css:/usr/share/nginx/html/css
       - ./frontend/js:/usr/share/nginx/html/js
+    depends_on:
+      - backend
     networks:
       - mediqux_network
 
