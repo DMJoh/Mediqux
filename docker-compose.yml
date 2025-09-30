@@ -25,12 +25,12 @@ services:
     environment:
       NODE_ENV: production
       DB_HOST: postgres
-      DB_PORT: ${DB_PORT}
+      DB_PORT: ${POSTGRES_PORT:-5432}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      FRONTEND_URL: ${FRONTEND_URL}
+      FRONTEND_URL: http://${FRONTEND_HOST:-localhost}:${FRONTEND_PORT:-8080}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
       PUID: ${PUID:-1000}
@@ -55,7 +55,7 @@ services:
     image: ghcr.io/dmjoh/mediqux/mediqux-frontend:${IMAGE_TAG}
     container_name: mediqux_frontend
     environment:
-      MEDIQUX_API_URL: ${MEDIQUX_API_URL}
+      MEDIQUX_API_URL: http://${BACKEND_HOST:-localhost}:${BACKEND_PORT:-3000}/api
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:

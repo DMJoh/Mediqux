@@ -68,31 +68,23 @@ curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/docker-c
 curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
 ```
 
-**Step 2: Configure Environment**   
+**Step 2: Configure Environment**
 Edit `.env` file with your settings:
 ```bash
-# Database Configuration (Change these!)
+# Database Configuration
 POSTGRES_PASSWORD=your_secure_database_password
 JWT_SECRET=your_long_random_jwt_secret_key
 
-# API Configuration
-# If you are using a reverse proxy this can be,
-# MEDIQUX_API_URL=https://sub.domain.tld/api 
-# FRONTEND_URL=https://domain.tld
-MEDIQUX_API_URL=http://your-server:3000/api 
-FRONTEND_URL=http://your-server:8080
-
-# Port Configuration (customizable)
-# Port values should be same as MEDIQUX_API_URL and FRONTEND_URL
-# This variables allows to customise the ports on which docker 
-# services are exposed on your server.
-BACKEND_PORT=3000       
+# Host and Port Configuration
+BACKEND_HOST=your-server-ip-or-domain
+BACKEND_PORT=3000
+FRONTEND_HOST=your-server-ip-or-domain
 FRONTEND_PORT=8080
 
-# Optional: Adjust file upload limits
+# File Uploads
 MAX_FILE_SIZE=10MB
 
-# Optional: User/Group IDs (usually 1000 works)
+# User/Group IDs
 PUID=1000
 PGID=1000
 ```
@@ -140,22 +132,14 @@ docker compose -f docker-compose.dev.yml up -d
 
 ### Environment Variables
 ```bash
-# Security (IMPORTANT: Change these!)
+# Security
 JWT_SECRET=your_very_long_random_secret_key_here
 POSTGRES_PASSWORD=your_secure_database_password
 
-# Network
-# If you are using a reverse proxy this can be,
-# MEDIQUX_API_URL=https://sub.domain.tld/api 
-# FRONTEND_URL=https://domain.tld
-MEDIQUX_API_URL=http://your-server:3000/api 
-FRONTEND_URL=http://your-server:8080
-
-# Port Configuration (customizable)
-# Port values should be same as MEDIQUX_API_URL and FRONTEND_URL
-# This variables allows to customise the ports on which docker 
-# services are exposed on your server.
-BACKEND_PORT=3000       
+# Host and Port Configuration
+BACKEND_HOST=your-server-ip-or-domain
+BACKEND_PORT=3000
+FRONTEND_HOST=your-server-ip-or-domain
 FRONTEND_PORT=8080
 
 # File Uploads
@@ -165,7 +149,7 @@ MAX_FILE_SIZE=50MB
 PUID=1000  # Your user ID
 PGID=1000  # Your group ID
 
-# Logging (for debugging)
+# Logging
 LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
 ```
 
