@@ -10,8 +10,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Enhanced middleware
+// Normalize FRONTEND_URL to remove :80 or :443 for standard ports
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+const normalizedOrigin = frontendUrl.replace(/:80$/, '').replace(/:443$/, '');
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: normalizedOrigin,
   credentials: true,
   exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
 }));
