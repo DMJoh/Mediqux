@@ -5,6 +5,24 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-10-01
+
+### 🔧 Configuration Improvements
+
+#### Environment Variable Simplification
+- **Simplified URL configuration** - URLs are now automatically constructed from host and port variables
+- **Removed duplicate database variables** - Eliminated redundant `DB_NAME`, `DB_USER`, `DB_PASSWORD` in favor of `POSTGRES_*` variables
+- **Separated host and port configuration** - Users can now independently configure `BACKEND_HOST`, `BACKEND_PORT`, `FRONTEND_HOST`, `FRONTEND_PORT`
+- **Automatic URL construction** - `MEDIQUX_API_URL` and `FRONTEND_URL` are now built dynamically in docker-compose.yml
+- **Reduced configuration errors** - Single source of truth for ports and hosts prevents URL/port mismatch issues
+
+### 🔧 Technical Changes
+- Renamed `DB_PORT` to `POSTGRES_PORT` for consistency
+- Updated docker-compose.yml to use environment variable substitution for URL construction
+- Enhanced .env.example with clearer comments about automatic URL construction
+
+---
+
 ## [1.0.5] - 2025-09-13
 
 ### 🐛 Bug Fixes
