@@ -5,6 +5,55 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-10-01
+
+### ⚠️ BREAKING CHANGES
+
+**Configuration file changes require migration.** Existing `.env` files will not work with the new `docker-compose.yml`.
+
+#### Variables Removed
+- `MEDIQUX_API_URL`, `FRONTEND_URL` - Now auto-constructed from host + port
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` - Use `POSTGRES_*` equivalents instead
+
+#### Variables Added
+- `BACKEND_HOST`, `BACKEND_PORT` - For backend API configuration
+- `FRONTEND_HOST`, `FRONTEND_PORT` - For frontend configuration
+- `POSTGRES_PORT` - Replaces `DB_PORT`
+
+#### Migration Steps
+
+1. **Backup your `.env`**: `cp .env .env.backup`
+
+2. **Copy new template**: `cp .env.example .env`
+
+3. **Migrate values**:
+   ```bash
+   # OLD variables → NEW variables
+   MEDIQUX_API_URL=http://localhost:3000/api → BACKEND_HOST=localhost, BACKEND_PORT=3000
+   FRONTEND_URL=http://localhost:8080 → FRONTEND_HOST=localhost, FRONTEND_PORT=8080
+   DB_NAME=mediqux_db → POSTGRES_DB=mediqux_db
+   DB_USER=mediqux_user → POSTGRES_USER=mediqux_user
+   DB_PASSWORD=password → POSTGRES_PASSWORD=password
+   DB_PORT=5432 → POSTGRES_PORT=5432
+   ```
+
+4. **Update `docker-compose.yml`** to latest version
+
+5. **Restart**: `docker-compose down && docker-compose up -d`
+
+#### Why This Change?
+
+Prevents configuration errors from port/URL mismatches. URLs are now auto-constructed in `docker-compose.yml`:
+- `MEDIQUX_API_URL` → `http://${BACKEND_HOST}:${BACKEND_PORT}/api`
+- `FRONTEND_URL` → `http://${FRONTEND_HOST}:${FRONTEND_PORT}`
+
+### 🔧 Technical Changes
+- Environment variables simplified to host + port pattern
+- Removed duplicate database configuration variables
+- Added automatic URL construction in `docker-compose.yml`
+
+---
+
 ## [1.0.6] - 2025-10-01
 
 ### 🔧 Configuration Improvements
