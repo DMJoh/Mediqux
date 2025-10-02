@@ -273,7 +273,7 @@ router.put('/change-password', async (req, res) => {
 });
 
 // Check if any users exist (for initial setup)
-router.get('/check-setup', async (req, res) => {
+router.get('/initial-config', async (req, res) => {
   try {
     const result = await db.query('SELECT COUNT(*) as user_count FROM users');
     const userCount = parseInt(result.rows[0].user_count);
