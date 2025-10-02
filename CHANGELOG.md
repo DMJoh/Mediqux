@@ -29,7 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Configuration
 - **Default allowed origins** - Pre-configured: localhost, localhost:8080, localhost:8081, 127.0.0.1, 127.0.0.1:8080, 127.0.0.1:8081
-- **Environment-based origins** - Automatically adds origin from FRONTEND_HOST and FRONTEND_PORT environment variables
+- **Automatic HTTP/HTTPS support** - Both HTTP and HTTPS versions automatically added for FRONTEND_HOST:FRONTEND_PORT
+- **Reverse proxy support** - New optional `CORS_ORIGIN` environment variable for custom domains (e.g., `https://fe.mediqux.com`)
+- **Comma-separated origins** - `CORS_ORIGIN` supports multiple origins separated by commas
 - **Port normalization support** - Origins with `:80` or `:443` are normalized for matching (e.g., `http://localhost:80` → `http://localhost`)
 
 ### ✅ Testing

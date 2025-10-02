@@ -20,12 +20,33 @@ const allowedOrigins = [
   'http://127.0.0.1:8081',
 ];
 
-// Add environment-specific origin
+// Add environment-specific origins (both HTTP and HTTPS)
 if (process.env.FRONTEND_HOST && process.env.FRONTEND_PORT) {
-  const envOrigin = `http://${process.env.FRONTEND_HOST}:${process.env.FRONTEND_PORT}`;
-  if (!allowedOrigins.includes(envOrigin)) {
-    allowedOrigins.push(envOrigin);
-  }
+  const host = process.env.FRONTEND_HOST;
+  const port = process.env.FRONTEND_PORT;
+
+  // Add both HTTP and HTTPS versions for flexibility
+  const envOrigins = [
+    `http://${host}:${port}`,
+    `https://${host}:${port}`
+  ];
+
+  envOrigins.forEach(origin => {
+    if (!allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  });
+}
+
+// Optional: Add custom CORS origins (for reverse proxy scenarios)
+// Supports comma-separated list: CORS_ORIGIN=https://fe.example.com,https://be.example.com
+if (process.env.CORS_ORIGIN) {
+  const customOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+  customOrigins.forEach(origin => {
+    if (origin && !allowedOrigins.includes(origin)) {
+      allowedOrigins.push(origin);
+    }
+  });
 }
 
 // Normalize function - removes default ports
