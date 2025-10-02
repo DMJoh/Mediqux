@@ -81,6 +81,12 @@ BACKEND_PORT=3000
 FRONTEND_HOST=your-server-ip-or-domain
 FRONTEND_PORT=8080
 
+# CORS Configuration (Optional - for reverse proxy setups)
+# Use when your public URL differs from FRONTEND_HOST:FRONTEND_PORT
+# Example: Users access https://mediqux.example.com, but Docker runs on 192.168.x.x:8080
+# CORS_ORIGIN=https://mediqux.example.com,https://api.mediqux.example.com
+CORS_ORIGIN=
+
 # File Uploads
 MAX_FILE_SIZE=10MB
 
@@ -142,6 +148,11 @@ BACKEND_PORT=3000
 FRONTEND_HOST=your-server-ip-or-domain
 FRONTEND_PORT=8080
 
+# CORS Configuration (Optional)
+# Only needed for reverse proxy setups (Nginx, Cloudflare, etc.)
+# Example: CORS_ORIGIN=https://mediqux.example.com,https://api.mediqux.com
+CORS_ORIGIN=
+
 # File Uploads
 MAX_FILE_SIZE=50MB
 
@@ -152,6 +163,8 @@ PGID=1000  # Your group ID
 # Logging
 LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
 ```
+
+**Note on CORS:** Leave `CORS_ORIGIN` empty for direct IP/localhost access. Set it only when using reverse proxy with custom domains.
 
 ## 📊 Logging & Monitoring
 
