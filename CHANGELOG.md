@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fixed ERR_BLOCKED_BY_CLIENT errors** - Resolved browser blocking issues caused by strict single-origin CORS policy
 - **Multi-origin CORS support** - Backend now accepts requests from localhost, 127.0.0.1, and configured IP addresses
 - **Enhanced port normalization** - Both incoming and allowed origins are normalized for ports 80 and 443, preventing mismatches
+- **Fixed logger formatting** - CORS blocked origins now log correctly instead of displaying character array
 - **Ad blocker compatibility** - Renamed `/auth/check-setup` endpoint to `/auth/initial-config` to avoid ad blocker interference
 
 ### 🔧 Technical Improvements
@@ -20,19 +21,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Backend (server.js)
 - **Dynamic CORS validation** - Replaced static origin string with function-based validation for multiple origins
 - **Bidirectional port normalization** - Normalizes both browser Origin header and server-configured origins for consistent matching
-- **Improved logging** - Added warning logs for blocked CORS requests to aid debugging
+- **Improved logging** - Fixed logger to properly display blocked CORS origins as objects `{ origin }`
 - **Support for no-origin requests** - Allows requests without Origin header (mobile apps, curl, Postman)
 
 #### Frontend (auth.js)
 - **Updated authentication endpoint** - Changed initial setup check from `/auth/check-setup` to `/auth/initial-config`
 
 #### Configuration
-- **Default allowed origins** - Pre-configured localhost:8080, localhost:8081, 127.0.0.1:8080, 127.0.0.1:8081
+- **Default allowed origins** - Pre-configured: localhost, localhost:8080, localhost:8081, 127.0.0.1, 127.0.0.1:8080, 127.0.0.1:8081
 - **Environment-based origins** - Automatically adds origin from FRONTEND_HOST and FRONTEND_PORT environment variables
+- **Port normalization support** - Origins with `:80` or `:443` are normalized for matching (e.g., `http://localhost:80` → `http://localhost`)
+
+### ✅ Testing
+- **Verified multi-origin access** - Tested localhost:8081, 127.0.0.1:8081, 192.168.10.152:8081
+- **Verified port normalization** - Tested http://localhost:80 normalizes to http://localhost
+- **Verified security** - Tested unauthorized origins (e.g., http://evil.com) are properly blocked and logged
 
 ### 🔒 Security
 - **Maintained security** - Multi-origin support only allows explicitly configured origins
-- **CORS error visibility** - Rejected origins are logged for security monitoring
+- **CORS error visibility** - Rejected origins are logged for security monitoring with proper formatting
 
 ---
 
