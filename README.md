@@ -75,17 +75,13 @@ Edit `.env` file with your settings:
 POSTGRES_PASSWORD=your_secure_database_password
 JWT_SECRET=your_long_random_jwt_secret_key
 
-# Host and Port Configuration
-BACKEND_HOST=your-server-ip-or-domain
-BACKEND_PORT=3000
-FRONTEND_HOST=your-server-ip-or-domain
-FRONTEND_PORT=8080
+# Public-facing URLs (URL port must match DOCKER_PORT for direct access)
+FRONTEND_URL=http://your-server-ip:8080
+BACKEND_URL=http://your-server-ip:3000/api
 
-# CORS Configuration (Optional - for reverse proxy setups)
-# Use when your public URL differs from FRONTEND_HOST:FRONTEND_PORT
-# Example: Users access https://mediqux.example.com, but Docker runs on 192.168.x.x:8080
-# CORS_ORIGIN=https://mediqux.example.com,https://api.mediqux.example.com
-CORS_ORIGIN=
+# Docker Host Ports
+FRONTEND_DOCKER_PORT=8080
+BACKEND_DOCKER_PORT=3000
 
 # File Uploads
 MAX_FILE_SIZE=10MB
@@ -142,29 +138,24 @@ docker compose -f docker-compose.dev.yml up -d
 JWT_SECRET=your_very_long_random_secret_key_here
 POSTGRES_PASSWORD=your_secure_database_password
 
-# Host and Port Configuration
-BACKEND_HOST=your-server-ip-or-domain
-BACKEND_PORT=3000
-FRONTEND_HOST=your-server-ip-or-domain
-FRONTEND_PORT=8080
+# Public-facing URLs (URL port must match DOCKER_PORT for direct access)
+FRONTEND_URL=http://your-server-ip:8080
+BACKEND_URL=http://your-server-ip:3000/api
 
-# CORS Configuration (Optional)
-# Only needed for reverse proxy setups (Nginx, Cloudflare, etc.)
-# Example: CORS_ORIGIN=https://mediqux.example.com,https://api.mediqux.com
-CORS_ORIGIN=
+# Docker Host Ports
+FRONTEND_DOCKER_PORT=8080
+BACKEND_DOCKER_PORT=3000
 
 # File Uploads
 MAX_FILE_SIZE=50MB
 
 # User Permissions
-PUID=1000  # Your user ID
-PGID=1000  # Your group ID
+PUID=1000
+PGID=1000
 
 # Logging
 LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
 ```
-
-**Note on CORS:** Leave `CORS_ORIGIN` empty for direct IP/localhost access. Set it only when using reverse proxy with custom domains.
 
 ## 📊 Logging & Monitoring
 

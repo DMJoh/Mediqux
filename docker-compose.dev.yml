@@ -23,7 +23,7 @@ services:
     build: ./backend
     container_name: mediqux_backend
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
+      - "${BACKEND_DOCKER_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       DEBUG: ${DEBUG:-true}
@@ -33,7 +33,7 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      FRONTEND_URL: http://${FRONTEND_HOST:-localhost}:${FRONTEND_PORT:-8080}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
       JWT_SECRET: ${JWT_SECRET}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
@@ -60,9 +60,9 @@ services:
       dockerfile: Dockerfile
     container_name: mediqux_frontend
     ports:
-      - "${FRONTEND_PORT:-8080}:80"
+      - "${FRONTEND_DOCKER_PORT:-8080}:80"
     environment:
-      MEDIQUX_API_URL: http://${BACKEND_HOST:-localhost}:${BACKEND_PORT:-3000}/api
+      MEDIQUX_API_URL: ${BACKEND_URL:-http://localhost:3000/api}
     volumes:
       - ./frontend/css:/usr/share/nginx/html/css
       - ./frontend/js:/usr/share/nginx/html/js
