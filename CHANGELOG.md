@@ -7,41 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.8] - 2025-10-02
 
-### 🐛 Bug Fixes
+### ⚠️ BREAKING CHANGES
 
-#### CORS and Browser Compatibility Issues
-- **Fixed ERR_BLOCKED_BY_CLIENT errors** - Resolved browser blocking issues caused by strict single-origin CORS policy
-- **Multi-origin CORS support** - Backend now accepts requests from localhost, 127.0.0.1, and configured IP addresses
-- **Enhanced port normalization** - Both incoming and allowed origins are normalized for ports 80 and 443, preventing mismatches
-- **Fixed logger formatting** - CORS blocked origins now log correctly instead of displaying character array
-- **Ad blocker compatibility** - Renamed `/auth/check-setup` endpoint to `/auth/initial-config` to avoid ad blocker interference
+**Environment variable structure simplified for better reverse proxy support.**
+
+#### Migration Required
+
+**Removed:** `BACKEND_HOST`, `BACKEND_PORT`, `FRONTEND_HOST`, `FRONTEND_PORT`
+**Added:** `BACKEND_URL`, `FRONTEND_URL`, `BACKEND_DOCKER_PORT`, `FRONTEND_DOCKER_PORT`
+**Optional:** `CORS_ORIGIN` (FRONTEND_URL is auto-allowed)
+
+**Migration:**
+```bash
+# OLD → NEW
+BACKEND_HOST=192.168.1.100  → BACKEND_URL=http://192.168.1.100:3000/api
+BACKEND_PORT=3000           → BACKEND_DOCKER_PORT=3000
+FRONTEND_HOST=192.168.1.100 → FRONTEND_URL=http://192.168.1.100:8080
+FRONTEND_PORT=8080          → FRONTEND_DOCKER_PORT=8080
+```
+
+**Why:** Full URLs support custom domains, HTTPS, and path-based routing. Fixes reverse proxy scenarios.
+
+### 🐛 Bug Fixes
+- Fixed ERR_BLOCKED_BY_CLIENT errors from strict CORS policy
+- Multi-origin CORS support (localhost, 127.0.0.1, configured URLs)
+- Port normalization for 80/443
+- Ad blocker compatibility (renamed `/auth/check-setup` to `/auth/initial-config`)
 
 ### 🔧 Technical Improvements
-
-#### Backend (server.js)
-- **Dynamic CORS validation** - Replaced static origin string with function-based validation for multiple origins
-- **Bidirectional port normalization** - Normalizes both browser Origin header and server-configured origins for consistent matching
-- **Improved logging** - Fixed logger to properly display blocked CORS origins as objects `{ origin }`
-- **Support for no-origin requests** - Allows requests without Origin header (mobile apps, curl, Postman)
-
-#### Frontend (auth.js)
-- **Updated authentication endpoint** - Changed initial setup check from `/auth/check-setup` to `/auth/initial-config`
-
-#### Configuration
-- **Default allowed origins** - Pre-configured: localhost, localhost:8080, localhost:8081, 127.0.0.1, 127.0.0.1:8080, 127.0.0.1:8081
-- **Automatic HTTP/HTTPS support** - Both HTTP and HTTPS versions automatically added for FRONTEND_HOST:FRONTEND_PORT
-- **Reverse proxy support** - New optional `CORS_ORIGIN` environment variable for custom domains (e.g., `https://fe.mediqux.com`)
-- **Comma-separated origins** - `CORS_ORIGIN` supports multiple origins separated by commas
-- **Port normalization support** - Origins with `:80` or `:443` are normalized for matching (e.g., `http://localhost:80` → `http://localhost`)
-
-### ✅ Testing
-- **Verified multi-origin access** - Tested localhost:8081, 127.0.0.1:8081, 192.168.10.152:8081
-- **Verified port normalization** - Tested http://localhost:80 normalizes to http://localhost
-- **Verified security** - Tested unauthorized origins (e.g., http://evil.com) are properly blocked and logged
-
-### 🔒 Security
-- **Maintained security** - Multi-origin support only allows explicitly configured origins
-- **CORS error visibility** - Rejected origins are logged for security monitoring with proper formatting
+- Automatic CORS from FRONTEND_URL (both HTTP/HTTPS)
+- Simplified configuration (no manual CORS setup needed)
+- Updated docker-compose.yml and .env.example
+- Multi-origin support only allows explicitly configured origins
+- CORS error visibility with proper logging
 
 ---
 
