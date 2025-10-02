@@ -9,13 +9,45 @@ const { sequelize } = require('./src/models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enhanced middleware
-// Normalize FRONTEND_URL to remove :80 or :443 for standard ports
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-const normalizedOrigin = frontendUrl.replace(/:80$/, '').replace(/:443$/, '');
+// Enhanced middleware - Support multiple origins with proper normalization
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:8080',
+  'http://localhost:8080',
+  'http://localhost:8081',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:8081',
+];
+
+// Add environment-specific origin
+if (process.env.FRONTEND_HOST && process.env.FRONTEND_PORT) {
+  const envOrigin = `http://${process.env.FRONTEND_HOST}:${process.env.FRONTEND_PORT}`;
+  if (!allowedOrigins.includes(envOrigin)) {
+    allowedOrigins.push(envOrigin);
+  }
+}
+
+// Normalize function - removes default ports
+function normalizeOrigin(url) {
+  if (!url) return url;
+  return url.replace(/:80$/, '').replace(/:443$/, '');
+}
 
 app.use(cors({
-  origin: normalizedOrigin,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+
+    // Normalize BOTH the incoming origin AND all allowed origins
+    const normalizedIncoming = normalizeOrigin(origin);
+    const normalizedAllowed = allowedOrigins.map(o => normalizeOrigin(o));
+
+    if (normalizedAllowed.includes(normalizedIncoming)) {
+      callback(null, true);
+    } else {
+      logger.warn('CORS blocked request from origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
 }));

@@ -33,7 +33,7 @@ class AuthManager {
 
     async checkInitialSetup() {
         try {
-            const response = await fetch(`${this.baseURL}/auth/check-setup`, {
+            const response = await fetch(`${this.baseURL}/auth/initial-config`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json'
