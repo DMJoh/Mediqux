@@ -12,8 +12,10 @@ const PORT = process.env.PORT || 3000;
 // Enhanced middleware - Support multiple origins with proper normalization
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:8080',
+  'http://localhost',
   'http://localhost:8080',
   'http://localhost:8081',
+  'http://127.0.0.1',
   'http://127.0.0.1:8080',
   'http://127.0.0.1:8081',
 ];
@@ -44,7 +46,7 @@ app.use(cors({
     if (normalizedAllowed.includes(normalizedIncoming)) {
       callback(null, true);
     } else {
-      logger.warn('CORS blocked request from origin:', origin);
+      logger.warn('CORS blocked request from origin:', { origin });
       callback(new Error('Not allowed by CORS'));
     }
   },
