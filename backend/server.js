@@ -9,60 +9,10 @@ const { sequelize } = require('./src/models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Enhanced middleware - Support multiple origins with proper normalization
-const allowedOrigins = [
-  'http://localhost',
-  'http://localhost:8080',
-  'http://localhost:8081',
-  'http://127.0.0.1',
-  'http://127.0.0.1:8080',
-  'http://127.0.0.1:8081',
-];
-
-// Add FRONTEND_URL and its HTTP/HTTPS variant (always allowed)
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
-if (!allowedOrigins.includes(frontendUrl)) {
-  allowedOrigins.push(frontendUrl);
-}
-// Add alternate protocol (HTTP<->HTTPS)
-const alternateProtocol = frontendUrl.replace(/^https:/, 'http:').replace(/^http:/, 'https:');
-if (alternateProtocol !== frontendUrl && !allowedOrigins.includes(alternateProtocol)) {
-  allowedOrigins.push(alternateProtocol);
-}
-
-// Optional: Add custom CORS origins (for reverse proxy with additional domains)
-// Only add if different from FRONTEND_URL. Supports comma-separated list.
-if (process.env.CORS_ORIGIN) {
-  const customOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
-  customOrigins.forEach(origin => {
-    if (origin && origin !== frontendUrl && !allowedOrigins.includes(origin)) {
-      allowedOrigins.push(origin);
-    }
-  });
-}
-
-// Normalize function - removes default ports
-function normalizeOrigin(url) {
-  if (!url) return url;
-  return url.replace(/:80$/, '').replace(/:443$/, '');
-}
-
+// CORS Configuration - Allow all origins
+// Security is handled by JWT authentication layer
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, Postman)
-    if (!origin) return callback(null, true);
-
-    // Normalize BOTH the incoming origin AND all allowed origins
-    const normalizedIncoming = normalizeOrigin(origin);
-    const normalizedAllowed = allowedOrigins.map(o => normalizeOrigin(o));
-
-    if (normalizedAllowed.includes(normalizedIncoming)) {
-      callback(null, true);
-    } else {
-      logger.warn('CORS blocked request from origin:', { origin });
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins
   credentials: true,
   exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
 }));
