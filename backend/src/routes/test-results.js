@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const router = express.Router();
 const db = require('../database/db');
 const { authenticateToken, addPatientFilter } = require('../middleware/auth');
@@ -1183,8 +1183,8 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     // Attempt PDF parsing if enabled (optional enhancement)
     if (enableParsing === 'true') {
       try {
-        const pdfBuffer = await fs.readFile(pdfFile.path);
-        const pdfData = await pdfParse(pdfBuffer);
+        const parser = new PDFParse({ url: pdfFile.path });
+        const pdfData = await parser.getText();
         extractedText = pdfData.text;
         
         if (extractedText && extractedText.length > 50) {
@@ -1299,7 +1299,9 @@ router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, 
       
       // Insert new lab values
       for (const labValue of lab_values) {
-        if (labValue.parameter_name && labValue.value !== null && labValue.value !== '') {
+        const numVal = parseFloat(labValue.value);
+        const valueInRange = !isNaN(numVal) && Math.abs(numVal) < 10_000_000;
+        if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
           await client.query(`
             INSERT INTO lab_values (
               test_result_id, parameter_name, value, unit, reference_range, status
