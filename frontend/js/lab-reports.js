@@ -235,7 +235,8 @@ function populateInstitutionDropdowns() {
 // Load appointments for selected patient
 function loadAppointmentsForPatient(patientId, targetSelectId) {
     const targetSelect = document.getElementById(targetSelectId);
-    
+    if (!targetSelect) return;
+
     if (!patientId) {
         targetSelect.innerHTML = '<option value="">No specific appointment</option>';
         return;

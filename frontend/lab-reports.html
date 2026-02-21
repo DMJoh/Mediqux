@@ -347,7 +347,7 @@
                         
                         <!-- Basic Test Information -->
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="manualPatientId" class="form-label">Patient *</label>
                                     <select class="form-select" id="manualPatientId" name="patientId" required>
@@ -356,14 +356,23 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="manualAppointmentId" class="form-label">Related Appointment</label>
+                                    <select class="form-select" id="manualAppointmentId" name="appointmentId">
+                                        <option value="">No specific appointment</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="manualTestName" class="form-label">Test Name *</label>
-                                    <input type="text" class="form-control" id="manualTestName" name="testName" 
+                                    <input type="text" class="form-control" id="manualTestName" name="testName"
                                            placeholder="e.g., Complete Blood Count" required>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="mb-3">
                                     <label for="manualTestDate" class="form-label">Test Date *</label>
                                     <input type="date" class="form-control" id="manualTestDate" name="testDate" required>
