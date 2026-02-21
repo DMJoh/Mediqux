@@ -33,7 +33,6 @@ services:
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
       JWT_SECRET: ${JWT_SECRET}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10MB}
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
