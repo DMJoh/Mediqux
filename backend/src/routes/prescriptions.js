@@ -403,10 +403,21 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Get prescription statistics
-router.get('/stats/summary', async (req, res) => {
+router.get('/stats/summary', addPatientFilter, async (req, res) => {
   try {
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: { total_prescriptions: 0, active_prescriptions: 0, unique_patients: 0, recent_prescriptions: 0 } });
+    }
+
+    let whereClause = '';
+    const queryParams = [];
+    if (req.patientFilter) {
+      whereClause = 'WHERE a.patient_id = $1';
+      queryParams.push(req.patientFilter);
+    }
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         COUNT(*) as total_prescriptions,
         COUNT(CASE WHEN COALESCE(pm.status, 'active') = 'active' THEN 1 END) as active_prescriptions,
         COUNT(DISTINCT a.patient_id) as unique_patients,
@@ -414,8 +425,9 @@ router.get('/stats/summary', async (req, res) => {
       FROM prescriptions p
       LEFT JOIN appointments a ON p.appointment_id = a.id
       LEFT JOIN patient_medications pm ON (a.patient_id = pm.patient_id AND p.medication_id = pm.medication_id)
-    `);
-    
+      ${whereClause}
+    `, queryParams);
+
     res.json({
       success: true,
       data: result.rows[0]
