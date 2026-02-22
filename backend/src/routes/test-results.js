@@ -1575,18 +1575,30 @@ router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
 });
 
 // Get test result statistics
-router.get('/stats/summary', async (req, res) => {
+router.get('/stats/summary', addPatientFilter, async (req, res) => {
   try {
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: { total_reports: 0, unique_patients: 0, recent_reports: 0, abnormal_values: 0 } });
+    }
+
+    let whereClause = '';
+    const queryParams = [];
+    if (req.patientFilter) {
+      whereClause = 'WHERE tr.patient_id = $1';
+      queryParams.push(req.patientFilter);
+    }
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         COUNT(DISTINCT tr.id) as total_reports,
         COUNT(DISTINCT tr.patient_id) as unique_patients,
         COUNT(CASE WHEN tr.created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as recent_reports,
         COUNT(CASE WHEN lv.status IN ('high', 'low', 'critical') THEN 1 END) as abnormal_values
       FROM test_results tr
       LEFT JOIN lab_values lv ON tr.id = lv.test_result_id
-    `);
-    
+      ${whereClause}
+    `, queryParams);
+
     res.json({
       success: true,
       data: result.rows[0]
