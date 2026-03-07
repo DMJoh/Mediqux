@@ -969,10 +969,13 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
         
         -- Institution information
         i.name as institution_name,
-        
+
+        -- Performed by (biochemist / lab technician)
+        CASE WHEN pb.id IS NOT NULL THEN json_build_object('id', pb.id, 'first_name', pb.first_name, 'last_name', pb.last_name, 'specialty', pb.specialty) ELSE NULL END as performed_by,
+
         -- Appointment information
         a.appointment_date,
-        
+
         -- Lab values (as JSON array)
         COALESCE(
           JSON_AGG(
@@ -995,6 +998,7 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
       LEFT JOIN institutions i ON tr.institution_id = i.id
       LEFT JOIN appointments a ON tr.appointment_id = a.id
       LEFT JOIN lab_values lv ON tr.id = lv.test_result_id
+      LEFT JOIN doctors pb ON tr.performed_by_id = pb.id
       WHERE 1=1
     `;
     
@@ -1053,7 +1057,7 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
     }
     
     query += ` 
-      GROUP BY tr.id, p.id, i.id, a.id
+      GROUP BY tr.id, p.id, i.id, a.id, pb.id
       ORDER BY tr.test_date DESC, tr.created_at DESC
     `;
     
@@ -1090,7 +1094,10 @@ router.get('/:id', authenticateToken, addPatientFilter, async (req, res) => {
         
         -- Institution information
         i.name as institution_name,
-        
+
+        -- Performed by (biochemist / lab technician)
+        CASE WHEN pb.id IS NOT NULL THEN json_build_object('id', pb.id, 'first_name', pb.first_name, 'last_name', pb.last_name, 'specialty', pb.specialty) ELSE NULL END as performed_by,
+
         -- Appointment information
         a.appointment_date,
         a.type as appointment_type,
@@ -1118,8 +1125,9 @@ router.get('/:id', authenticateToken, addPatientFilter, async (req, res) => {
       LEFT JOIN institutions i ON tr.institution_id = i.id
       LEFT JOIN appointments a ON tr.appointment_id = a.id
       LEFT JOIN lab_values lv ON tr.id = lv.test_result_id
+      LEFT JOIN doctors pb ON tr.performed_by_id = pb.id
       WHERE tr.id = $1
-      GROUP BY tr.id, p.id, i.id, a.id
+      GROUP BY tr.id, p.id, i.id, a.id, pb.id
       LIMIT 1
     `, [id]);
     
@@ -1153,6 +1161,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
       testType,
       testDate,
       institutionId,
+      performedById,
       enableParsing = 'true' // Optional parsing flag
     } = req.body;
     
@@ -1206,12 +1215,12 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
       // Create test result record with PDF file (always save PDF regardless of parsing)
       const testResultQuery = `
         INSERT INTO test_results (
-          patient_id, appointment_id, test_name, test_type, test_date, 
-          institution_id, pdf_file_path, extracted_text, structured_data
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          patient_id, appointment_id, test_name, test_type, test_date,
+          institution_id, performed_by_id, pdf_file_path, extracted_text, structured_data
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
-      
+
       const testResult = await client.query(testResultQuery, [
         patientId,
         appointmentId || null,
@@ -1219,6 +1228,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
         testType,
         testDate,
         institutionId || null,
+        performedById || null,
         pdfFile.path,
         extractedText,
         JSON.stringify({ suggested_values: suggestedValues, parsing_error: parsingError })
@@ -1351,9 +1361,10 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
       test_type,
       test_date,
       institution_id,
+      performed_by_id,
       lab_values
     } = req.body;
-    
+
     // Basic validation
     if (!patient_id || !test_name || !test_type || !test_date) {
       return res.status(400).json({
@@ -1379,18 +1390,19 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
       // Create test result record
       const testResultQuery = `
         INSERT INTO test_results (
-          patient_id, appointment_id, test_name, test_type, test_date, institution_id
-        ) VALUES ($1, $2, $3, $4, $5, $6)
+          patient_id, appointment_id, test_name, test_type, test_date, institution_id, performed_by_id
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `;
-      
+
       const testResult = await client.query(testResultQuery, [
         patient_id,
         appointment_id || null,
         test_name,
         test_type,
         test_date,
-        institution_id || null
+        institution_id || null,
+        performed_by_id || null
       ]);
       
       const testResultId = testResult.rows[0].id;
@@ -1446,6 +1458,7 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
       test_type,
       test_date,
       institution_id,
+      performed_by_id,
       lab_values
     } = req.body;
     
@@ -1461,16 +1474,18 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
           test_type = $2,
           test_date = $3,
           institution_id = $4,
+          performed_by_id = $5,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $5
+        WHERE id = $6
         RETURNING *
       `;
-      
+
       const result = await client.query(updateQuery, [
         test_name,
         test_type,
         test_date,
         institution_id || null,
+        performed_by_id || null,
         id
       ]);
       
