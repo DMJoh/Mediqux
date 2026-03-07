@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Studies - Mediqux</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIGZpbGw9IiMwZDZlZmQiIHJ4PSI0Ii8+CiAgPHBhdGggZD0iTTE2IDI0Yy0yIDAtOC00LTgtMTAgMC0zIDIuNS01IDUtNSAxLjUgMCAyLjUgMC41IDMgMS41IDAuNS0xIDEuNS0xLjUgMy0xLjUgMi41IDAgNSAyIDUgNSAwIDYtNiAxMC04IDEweiIgZmlsbD0id2hpdGUiLz4KICA8cGF0aCBkPSJNOCAxNmgzbDItNCAyIDggMi00aDMiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+
+    <!-- Theme Management - Load early to prevent flash -->
+    <script src="js/theme.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="index.html"><i class="bi bi-heart-pulse"></i> Mediqux</a>
+
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="patients.html">Patients</a>
+                <a class="nav-link" href="institutions.html">Institutions</a>
+                <a class="nav-link" href="doctors.html">Doctors</a>
+                <a class="nav-link" href="appointments.html">Appointments</a>
+                <a class="nav-link" href="conditions.html">Conditions</a>
+                <a class="nav-link" href="medications.html">Medications</a>
+                <a class="nav-link" href="prescriptions.html">Prescriptions</a>
+
+                <!-- Records Dropdown -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle active" href="#" role="button" data-bs-toggle="dropdown">
+                        Records
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="lab-reports.html">
+                            <i class="bi bi-file-earmark-medical me-2"></i>Lab Reports
+                        </a></li>
+                        <li><a class="dropdown-item active" href="diagnostic-studies.html">
+                            <i class="bi bi-body-text me-2"></i>Diagnostic Studies
+                        </a></li>
+                    </ul>
+                </div>
+
+                <!-- User Menu -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1"></i>
+                        <span class="user-name">User</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><h6 class="dropdown-header">
+                            <span class="user-name">User</span><br>
+                            <small class="text-muted user-role">Role</small>
+                        </h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header text-uppercase small fw-bold text-muted">Settings</h6></li>
+                        <li><a class="dropdown-item admin-only" href="users.html">
+                            <i class="bi bi-people me-2"></i>User Management
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item logout-btn" href="#">
+                            <i class="bi bi-box-arrow-right me-2"></i>Logout
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h1><i class="bi bi-body-text"></i> Diagnostic Studies</h1>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        <i class="bi bi-plus-circle"></i> Add Study
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body text-center">
+                        <h4 id="totalStudiesCount">0</h4>
+                        <small>Total Studies</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body text-center">
+                        <h4 id="thisMonthCount">0</h4>
+                        <small>This Month</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body text-center">
+                        <h4 id="uniquePatientsCount">0</h4>
+                        <small>Patients with Studies</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search and Filter -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search by type, region, findings...">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="patientFilter">
+                    <option value="">All Patients</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="studyTypeFilter">
+                    <option value="">All Study Types</option>
+                    <option value="MRI">MRI</option>
+                    <option value="CT Scan">CT Scan</option>
+                    <option value="Echography">Echography</option>
+                    <option value="X-Ray">X-Ray</option>
+                    <option value="Ultrasound">Ultrasound</option>
+                    <option value="PET Scan">PET Scan</option>
+                    <option value="Mammography">Mammography</option>
+                    <option value="Endoscopy">Endoscopy</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                    <i class="bi bi-x-circle"></i> Clear
+                </button>
+            </div>
+        </div>
+
+        <!-- Studies Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-list-ul"></i> Studies
+                    <span id="studyCount" class="badge bg-primary ms-2">0</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="loadingSpinner" class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading studies...</p>
+                </div>
+
+                <div id="studiesTable" style="display:none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Study Type</th>
+                                    <th>Body Region</th>
+                                    <th>Study Date</th>
+                                    <th>Ordering Physician</th>
+                                    <th>Performing Physician</th>
+                                    <th>Attachment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studiesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="noStudies" style="display:none;" class="text-center py-5">
+                    <i class="bi bi-body-text display-1 text-muted"></i>
+                    <h3 class="text-muted">No Diagnostic Studies Found</h3>
+                    <p class="text-muted">Add your first MRI, CT scan, or other diagnostic study.</p>
+                    <button class="btn btn-primary mt-2" onclick="openAddModal()">
+                        <i class="bi bi-plus-circle"></i> Add Study
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add / Edit Modal -->
+    <div class="modal fade" id="studyModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="studyModalTitle">
+                        <i class="bi bi-body-text"></i> Add Diagnostic Study
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="studyForm" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formPatientId" class="form-label">Patient *</label>
+                                    <select class="form-select" id="formPatientId" name="patient_id" required>
+                                        <option value="">Select Patient</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formStudyType" class="form-label">Study Type *</label>
+                                    <select class="form-select" id="formStudyType" name="study_type" required>
+                                        <option value="">Select Type</option>
+                                        <option value="MRI">MRI</option>
+                                        <option value="CT Scan">CT Scan</option>
+                                        <option value="Echography">Echography</option>
+                                        <option value="X-Ray">X-Ray</option>
+                                        <option value="Ultrasound">Ultrasound</option>
+                                        <option value="PET Scan">PET Scan</option>
+                                        <option value="Mammography">Mammography</option>
+                                        <option value="Endoscopy">Endoscopy</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formStudyDate" class="form-label">Study Date *</label>
+                                    <input type="date" class="form-control" id="formStudyDate" name="study_date" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formBodyRegion" class="form-label">Body Region</label>
+                                    <input type="text" class="form-control" id="formBodyRegion" name="body_region"
+                                           placeholder="e.g., Brain, Chest, Abdomen, Lumbar Spine">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formOrderingPhysician" class="form-label">Ordering Physician</label>
+                                    <select class="form-select" id="formOrderingPhysician" name="ordering_physician_id">
+                                        <option value="">Select Doctor</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="formPerformingPhysician" class="form-label">Performing Physician / Radiologist</label>
+                                    <select class="form-select" id="formPerformingPhysician" name="performing_physician_id">
+                                        <option value="">Select Doctor</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="formInstitution" class="form-label">Institution / Imaging Center</label>
+                                    <select class="form-select" id="formInstitution" name="institution_id">
+                                        <option value="">Select Institution</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="formAttachment" class="form-label">Attachment <small class="text-muted">(PDF, JPG, PNG — max 20MB)</small></label>
+                                    <input type="file" class="form-control" id="formAttachment" name="attachment"
+                                           accept=".pdf,.jpg,.jpeg,.png,.webp">
+                                    <div id="existingAttachment" class="mt-1" style="display:none;">
+                                        <small class="text-muted">Current file: <span id="existingAttachmentName"></span>
+                                        — uploading a new file will replace it.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="formClinicalIndication" class="form-label">Clinical Indication</label>
+                            <textarea class="form-control" id="formClinicalIndication" name="clinical_indication"
+                                      rows="2" placeholder="Reason for the study / symptoms"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="formFindings" class="form-label">Findings</label>
+                            <textarea class="form-control" id="formFindings" name="findings"
+                                      rows="4" placeholder="Radiologist / physician findings"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="formConclusion" class="form-label">Conclusion / Impression</label>
+                            <textarea class="form-control" id="formConclusion" name="conclusion"
+                                      rows="2" placeholder="Summary impression"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="formNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="formNotes" name="notes"
+                                      rows="2" placeholder="Any additional notes"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveStudy()">
+                        <i class="bi bi-check-circle"></i> Save Study
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="modal fade" id="viewStudyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-body-text"></i> Study Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="viewStudyBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-outline-primary" id="viewEditBtn" onclick="">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- App scripts -->
+    <script src="js/auth.js"></script>
+    <script src="js/runtime-config.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/diagnostic-studies.js"></script>
+</body>
+</html>
