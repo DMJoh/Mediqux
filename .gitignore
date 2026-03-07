@@ -37,3 +37,6 @@ vite.config.ts.timestamp-*
 # App specific
 CLAUDE.md
 uploads
+
+# Generated at container runtime by frontend/docker-entrypoint.sh
+frontend/js/runtime-config.js
