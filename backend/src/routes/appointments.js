@@ -4,10 +4,21 @@ const db = require('../database/db');
 const { addPatientFilter } = require('../middleware/auth');
 
 // Get upcoming appointments (for dashboard) - must be before /:id route
-router.get('/dashboard/upcoming', async (req, res) => {
+router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
   try {
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: [] });
+    }
+
+    let whereClause = "WHERE a.appointment_date >= NOW() AND a.status = 'scheduled'";
+    const queryParams = [];
+    if (req.patientFilter) {
+      whereClause += ' AND a.patient_id = $1';
+      queryParams.push(req.patientFilter);
+    }
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         a.id,
         a.appointment_date,
         a.type,
@@ -19,12 +30,11 @@ router.get('/dashboard/upcoming', async (req, res) => {
       FROM appointments a
       LEFT JOIN patients p ON a.patient_id = p.id
       LEFT JOIN doctors d ON a.doctor_id = d.id
-      WHERE a.appointment_date >= NOW() 
-        AND a.status = 'scheduled'
+      ${whereClause}
       ORDER BY a.appointment_date ASC
       LIMIT 5
-    `);
-    
+    `, queryParams);
+
     res.json({
       success: true,
       data: result.rows
@@ -39,18 +49,30 @@ router.get('/dashboard/upcoming', async (req, res) => {
 });
 
 // Get appointment statistics - must be before /:id route
-router.get('/stats/summary', async (req, res) => {
+router.get('/stats/summary', addPatientFilter, async (req, res) => {
   try {
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: { total_appointments: 0, upcoming: 0, completed: 0, cancelled: 0, today: 0 } });
+    }
+
+    let whereClause = '';
+    const queryParams = [];
+    if (req.patientFilter) {
+      whereClause = 'WHERE patient_id = $1';
+      queryParams.push(req.patientFilter);
+    }
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         COUNT(*) as total_appointments,
         COUNT(CASE WHEN status = 'scheduled' AND appointment_date >= NOW() THEN 1 END) as upcoming,
         COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
         COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
         COUNT(CASE WHEN appointment_date::date = CURRENT_DATE THEN 1 END) as today
       FROM appointments
-    `);
-    
+      ${whereClause}
+    `, queryParams);
+
     res.json({
       success: true,
       data: result.rows[0]

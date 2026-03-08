@@ -175,27 +175,34 @@ async function loadReportStats() {
 // Load filter options and dropdown data
 async function loadFilterOptions() {
     try {
-        const [patientsResponse, appointmentsResponse, institutionsResponse] = await Promise.allSettled([
+        const [patientsResponse, appointmentsResponse, institutionsResponse, doctorsResponse] = await Promise.allSettled([
             apiCall('/patients'),
             apiCall('/appointments'),
-            apiCall('/institutions')
+            apiCall('/institutions'),
+            apiCall('/doctors')
         ]);
-        
+
         // Load patients for filters and dropdowns
         if (patientsResponse.status === 'fulfilled' && patientsResponse.value.success) {
             patients = patientsResponse.value.data;
             populatePatientDropdowns();
         }
-        
+
         // Store appointments for later use
         if (appointmentsResponse.status === 'fulfilled' && appointmentsResponse.value.success) {
             appointments = appointmentsResponse.value.data;
         }
-        
+
         // Load institutions
         if (institutionsResponse.status === 'fulfilled' && institutionsResponse.value.success) {
             institutions = institutionsResponse.value.data;
             populateInstitutionDropdowns();
+        }
+
+        // Load doctors for performed_by dropdowns
+        if (doctorsResponse.status === 'fulfilled') {
+            const doctorData = doctorsResponse.value.data || doctorsResponse.value || [];
+            populatePerformedByDropdowns(doctorData);
         }
         
     } catch (error) {
@@ -224,18 +231,38 @@ function populatePatientDropdowns() {
 
 // Populate institution dropdowns
 function populateInstitutionDropdowns() {
-    const institutionOptions = institutions.map(inst => 
+    const institutionOptions = institutions.map(inst =>
         `<option value="${inst.id}">${inst.name}</option>`
     ).join('');
-    
-    document.getElementById('uploadInstitutionId').innerHTML = 
+
+    document.getElementById('uploadInstitutionId').innerHTML =
         '<option value="">Select Institution</option>' + institutionOptions;
+
+    const manualInst = document.getElementById('manualInstitutionId');
+    if (manualInst) {
+        manualInst.innerHTML = '<option value="">Select Institution</option>' + institutionOptions;
+    }
+}
+
+// Populate performed-by doctor dropdowns
+function populatePerformedByDropdowns(doctors) {
+    const doctorOptions = doctors.map(d =>
+        `<option value="${d.id}">Dr. ${d.first_name} ${d.last_name}${d.specialty ? ' (' + d.specialty + ')' : ''}</option>`
+    ).join('');
+    const blank = '<option value="">Select Doctor / Biochemist</option>';
+
+    const uploadEl = document.getElementById('uploadPerformedBy');
+    if (uploadEl) uploadEl.innerHTML = blank + doctorOptions;
+
+    const manualEl = document.getElementById('manualPerformedBy');
+    if (manualEl) manualEl.innerHTML = blank + doctorOptions;
 }
 
 // Load appointments for selected patient
 function loadAppointmentsForPatient(patientId, targetSelectId) {
     const targetSelect = document.getElementById(targetSelectId);
-    
+    if (!targetSelect) return;
+
     if (!patientId) {
         targetSelect.innerHTML = '<option value="">No specific appointment</option>';
         return;
@@ -872,8 +899,10 @@ async function saveManualEntry() {
     const testResultData = {
         patient_id: document.getElementById('manualPatientId').value,
         test_name: document.getElementById('manualTestName').value,
-        test_type: 'Blood', // Default for manual entry
+        test_type: document.getElementById('manualTestType')?.value || 'Blood',
         test_date: document.getElementById('manualTestDate').value,
+        institution_id: document.getElementById('manualInstitutionId')?.value || null,
+        performed_by_id: document.getElementById('manualPerformedBy')?.value || null,
         lab_values: labValues
     };
     
@@ -1025,6 +1054,12 @@ async function editReport(reportId) {
             // Format date for HTML date input (YYYY-MM-DD)
             const testDate = new Date(report.test_date).toISOString().split('T')[0];
             document.getElementById('manualTestDate').value = testDate;
+            const testTypeEl = document.getElementById('manualTestType');
+            if (testTypeEl) testTypeEl.value = report.test_type || '';
+            const instEl = document.getElementById('manualInstitutionId');
+            if (instEl) instEl.value = report.institution_id || '';
+            const perfEl = document.getElementById('manualPerformedBy');
+            if (perfEl) perfEl.value = report.performed_by?.id || '';
             document.getElementById('manualModalTitle').innerHTML = '<i class="bi bi-pencil"></i> Edit Lab Values';
             
             // Clear and populate lab values

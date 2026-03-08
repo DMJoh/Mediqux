@@ -75,11 +75,11 @@ Edit `.env` file with your settings:
 POSTGRES_PASSWORD=your_secure_database_password
 JWT_SECRET=your_long_random_jwt_secret_key
 
-# Public-facing URLs (URL port must match DOCKER_PORT for direct access)
-FRONTEND_URL=http://your-server-ip:8080
+# API URL that users' browsers will reach
+# (port must match BACKEND_DOCKER_PORT for direct access)
 BACKEND_URL=http://your-server-ip:3000/api
 
-# Docker Host Ports
+# Ports Docker exposes on your host machine
 FRONTEND_DOCKER_PORT=8080
 BACKEND_DOCKER_PORT=3000
 
@@ -138,11 +138,11 @@ docker compose -f docker-compose.dev.yml up -d
 JWT_SECRET=your_very_long_random_secret_key_here
 POSTGRES_PASSWORD=your_secure_database_password
 
-# Public-facing URLs (URL port must match DOCKER_PORT for direct access)
-FRONTEND_URL=http://your-server-ip:8080
+# API URL that users' browsers will reach
+# (port must match BACKEND_DOCKER_PORT for direct access)
 BACKEND_URL=http://your-server-ip:3000/api
 
-# Docker Host Ports
+# Ports Docker exposes on your host machine
 FRONTEND_DOCKER_PORT=8080
 BACKEND_DOCKER_PORT=3000
 

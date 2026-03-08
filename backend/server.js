@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const logger = require('./src/utils/logger');
 const { sequelize } = require('./src/models');
@@ -66,6 +66,7 @@ const conditionRoutes = require('./src/routes/conditions');
 const medicationRoutes = require('./src/routes/medications');
 const prescriptionRoutes = require('./src/routes/prescriptions');
 const testResultRoutes = require('./src/routes/test-results');
+const diagnosticStudiesRoutes = require('./src/routes/diagnostic-studies');
 
 // Public routes (no authentication required)
 app.use('/api/auth', authRoutes);
@@ -80,6 +81,7 @@ app.use('/api/conditions', authenticateToken, conditionRoutes);
 app.use('/api/medications', authenticateToken, medicationRoutes);
 app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
 app.use('/api/test-results', authenticateToken, testResultRoutes);
+app.use('/api/diagnostic-studies', authenticateToken, diagnosticStudiesRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
@@ -104,7 +106,7 @@ app.use((err, req, res, next) => {
 });
 
 // 404 handler
-app.use('*', (req, res) => {
+app.use('/*splat', (req, res) => {
   logger.warn('Route not found', { method: req.method, path: req.path });
   res.status(404).json({ error: 'Route not found' });
 });

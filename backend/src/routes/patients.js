@@ -104,7 +104,7 @@ router.post('/', async (req, res) => {
     
     const result = await db.query(`
       INSERT INTO patients (
-        first_name, last_name, date_of_birth, gender, 
+        first_name, last_name, date_of_birth, gender,
         phone, email, address, emergency_contact_name, emergency_contact_phone
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
@@ -112,10 +112,20 @@ router.post('/', async (req, res) => {
       first_name, last_name, date_of_birth, gender,
       phone, email, address, emergency_contact_name, emergency_contact_phone
     ]);
-    
+
+    const newPatient = result.rows[0];
+
+    // Auto-link the new patient to the user's account if they are non-admin and have no patient linked yet
+    if (req.user.role !== 'admin' && !req.user.patientId) {
+      await db.query(
+        'UPDATE users SET patient_id = $1 WHERE id = $2',
+        [newPatient.id, req.user.id]
+      );
+    }
+
     res.status(201).json({
       success: true,
-      data: result.rows[0],
+      data: newPatient,
       message: 'Patient created successfully'
     });
   } catch (error) {

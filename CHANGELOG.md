@@ -5,6 +5,43 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] - 2026-03-08
+
+### ⚠️ Before Upgrading
+
+**Take a full backup before upgrading to this version.** This release includes database migrations that alter the schema.
+
+Before pulling the new images and restarting, please back up your PostgreSQL database and the uploads volume. Migrations are non-destructive (additive only) and existing data will not be affected, but a backup is strongly recommended before any upgrade.
+
+### New Features
+
+#### 🩻 Diagnostic Studies Module
+- **New Diagnostic Studies section** — Dedicated module for medical imaging and studies (MRI, CT Scan, X-Ray, Ultrasound, Echography, PET Scan, Mammography, Bone Densitometry, Endoscopy, and others)
+- **Ordering & Performing Physician fields** — Track both the requesting doctor and the radiologist/performing physician per study
+- **File attachment support** — Upload PDF reports or image files (JPG/PNG) up to 20MB per study
+- **Authenticated file viewing** — Attachments served via authenticated API endpoint (blob URL pattern).
+- **Stats dashboard** — Summary cards showing total studies, recent studies, study type breakdown
+- **Search & filter** — Filter by study type with live count badge
+- **Full CRUD** — Add, edit, view detail, and delete studies with confirmation
+
+#### 🔬 Performed By field on Lab Reports
+- **Performed By doctor field** — Added to both PDF upload and manual entry modals for recording the biochemist or lab technician who performed the test
+- **Displayed in lab report details** — Performing doctor shown alongside other report metadata
+
+#### 🗂 Records Navigation Dropdown
+- **Consolidated Records menu** — Replaced flat "Lab Reports" nav link with a "Records" dropdown grouping Lab Reports and Diagnostic Studies across all pages
+
+### 🔧 Technical Improvements
+- Added Sequelize migration for `diagnostic_studies` table with FKs to patients, doctors (ordering + performing), and institutions
+- Added Sequelize migration to add nullable `performed_by_id` column to `test_results`
+- Backend diagnostic studies route uses `CASE WHEN` pattern for nullable JSON physician/institution objects (PostgreSQL `FILTER` clause is aggregate-only)
+- `frontend/js/runtime-config.js` removed from git tracking — file is generated at container startup by `frontend/docker-entrypoint.sh`
+- Removed redundant plain SQL files from `backend/migrations/` — all schema managed by Sequelize migrations in `backend/src/migrations/`
+- Improved `.env.example` documentation with clearer guidance on direct access vs reverse proxy URL configuration 
+- Removed deprecated `FRONTEND_URL` variable
+
+---
+
 ## [1.0.8] - 2025-10-02
 
 ### ⚠️ BREAKING CHANGES
