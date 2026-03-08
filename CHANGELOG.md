@@ -35,8 +35,10 @@ Before pulling the new images and restarting, please back up your PostgreSQL dat
 - Added Sequelize migration for `diagnostic_studies` table with FKs to patients, doctors (ordering + performing), and institutions
 - Added Sequelize migration to add nullable `performed_by_id` column to `test_results`
 - Backend diagnostic studies route uses `CASE WHEN` pattern for nullable JSON physician/institution objects (PostgreSQL `FILTER` clause is aggregate-only)
-- `frontend/js/runtime-config.js` removed from git tracking.
+- `frontend/js/runtime-config.js` removed from git tracking — file is generated at container startup by `frontend/docker-entrypoint.sh`
 - Removed redundant plain SQL files from `backend/migrations/` — all schema managed by Sequelize migrations in `backend/src/migrations/`
+- Improved `.env.example` documentation with clearer guidance on direct access vs reverse proxy URL configuration 
+- Removed deprecated `FRONTEND_URL` variable
 
 ---
 
