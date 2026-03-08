@@ -180,16 +180,11 @@ function renderTable() {
             ? `Dr. ${escapeHtml(s.performing_physician.first_name)} ${escapeHtml(s.performing_physician.last_name)}`
             : '<span class="text-muted">—</span>';
 
-        let attachmentBadge = '<span class="text-muted">—</span>';
-        if (s.attachment_path) {
-            const icon = s.attachment_mime_type === 'application/pdf'
-                ? 'bi-file-earmark-pdf text-danger'
-                : 'bi-file-earmark-image text-primary';
-            const filePath = window.getApiBaseUrl().replace(/\/api$/, '') + s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
-            attachmentBadge = `<a href="${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                <i class="bi ${icon}"></i> View
-            </a>`;
-        }
+        const attachmentBtn = s.attachment_path
+            ? `<button class="btn btn-outline-success" onclick="viewAttachment('${s.id}')" title="View Attachment">
+                <i class="bi bi-file-earmark-${s.attachment_mime_type === 'application/pdf' ? 'pdf' : 'image'}"></i>
+               </button>`
+            : '';
 
         return `<tr>
             <td>${patientName}</td>
@@ -198,7 +193,6 @@ function renderTable() {
             <td>${formatDate(s.study_date)}</td>
             <td>${ordering}</td>
             <td>${performing}</td>
-            <td>${attachmentBadge}</td>
             <td>
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-info" onclick="viewStudy('${s.id}')" title="View">
@@ -207,6 +201,7 @@ function renderTable() {
                     <button class="btn btn-outline-primary" onclick="editStudy('${s.id}')" title="Edit">
                         <i class="bi bi-pencil"></i>
                     </button>
+                    ${attachmentBtn}
                     <button class="btn btn-outline-danger" onclick="deleteStudy('${s.id}')" title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -315,13 +310,12 @@ function viewStudy(id) {
 
     let attachmentHtml = '<span class="text-muted">No attachment</span>';
     if (s.attachment_path) {
-        const filePath = window.getApiBaseUrl().replace(/\/api$/, '') + s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
         const icon = s.attachment_mime_type === 'application/pdf'
             ? 'bi-file-earmark-pdf text-danger'
             : 'bi-file-earmark-image text-primary';
-        attachmentHtml = `<a href="${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary">
+        attachmentHtml = `<button class="btn btn-sm btn-outline-secondary" onclick="viewAttachment('${s.id}')">
             <i class="bi ${icon}"></i> ${escapeHtml(s.attachment_original_name)}
-        </a>`;
+        </button>`;
     }
 
     document.getElementById('viewStudyBody').innerHTML = `
@@ -411,6 +405,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('patientFilter').addEventListener('change', applyFilters);
     document.getElementById('studyTypeFilter').addEventListener('change', applyFilters);
 });
+
+async function viewAttachment(studyId) {
+    try {
+        const response = await window.authManager.apiRequest(`/diagnostic-studies/${studyId}/view`);
+        if (!response) {
+            showAlert('Authentication failed', 'danger');
+            return;
+        }
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            showAlert(errorData.error || 'Failed to load attachment', 'danger');
+            return;
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (error) {
+        console.error('Error viewing attachment:', error);
+        showAlert('Error viewing attachment: ' + error.message, 'danger');
+    }
+}
+window.viewAttachment = viewAttachment;
 
 // ---- Init ----
 async function initPage() {

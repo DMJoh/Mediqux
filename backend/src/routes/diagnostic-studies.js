@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter } = require('../middleware/auth');
@@ -319,6 +320,50 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
   } catch (error) {
     console.error('Error deleting diagnostic study:', error);
     res.status(500).json({ success: false, message: 'Error deleting study' });
+  }
+});
+
+router.get('/:id/view', addPatientFilter, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(`
+      SELECT
+        ds.attachment_path,
+        ds.attachment_mime_type,
+        ds.attachment_original_name,
+        ds.study_type,
+        ds.study_date,
+        p.first_name,
+        p.last_name
+      FROM diagnostic_studies ds
+      LEFT JOIN patients p ON ds.patient_id = p.id
+      WHERE ds.id = $1 AND ds.attachment_path IS NOT NULL
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Study or attachment not found' });
+    }
+
+    const { attachment_path, attachment_mime_type, attachment_original_name, study_type, study_date, first_name, last_name } = result.rows[0];
+
+    if (!fsSync.existsSync(attachment_path)) {
+      return res.status(404).json({ success: false, error: 'Attachment file not found on server' });
+    }
+
+    const date = study_date ? new Date(study_date).toISOString().slice(0, 10) : 'unknown';
+    const patient = `${first_name}_${last_name}`.replace(/\s+/g, '_');
+    const ext = path.extname(attachment_original_name || '.pdf');
+    const filename = `${study_type}_${date}_${patient}${ext}`.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    res.setHeader('Content-Type', attachment_mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+
+    fsSync.createReadStream(attachment_path).pipe(res);
+
+  } catch (error) {
+    console.error('Error viewing study attachment:', error);
+    res.status(500).json({ success: false, error: 'Failed to view attachment' });
   }
 });
 
