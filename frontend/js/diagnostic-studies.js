@@ -185,7 +185,7 @@ function renderTable() {
             const icon = s.attachment_mime_type === 'application/pdf'
                 ? 'bi-file-earmark-pdf text-danger'
                 : 'bi-file-earmark-image text-primary';
-            const filePath = s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
+            const filePath = window.getApiBaseUrl().replace(/\/api$/, '') + s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
             attachmentBadge = `<a href="${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary">
                 <i class="bi ${icon}"></i> View
             </a>`;
@@ -315,7 +315,7 @@ function viewStudy(id) {
 
     let attachmentHtml = '<span class="text-muted">No attachment</span>';
     if (s.attachment_path) {
-        const filePath = s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
+        const filePath = window.getApiBaseUrl().replace(/\/api$/, '') + s.attachment_path.replace(/\\/g, '/').replace(/.*uploads\//, '/uploads/');
         const icon = s.attachment_mime_type === 'application/pdf'
             ? 'bi-file-earmark-pdf text-danger'
             : 'bi-file-earmark-image text-primary';
