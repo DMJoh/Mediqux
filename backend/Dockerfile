@@ -24,7 +24,7 @@ COPY --from=builder /app/node_modules ./node_modules
 
 COPY --chown=node:node . .
 
-RUN mkdir -p /app/uploads/lab-reports
+RUN mkdir -p /app/uploads/lab-reports /app/uploads/diagnostic-studies
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

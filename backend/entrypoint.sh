@@ -23,6 +23,7 @@ GROUP_NAME=$(getent group $PGID | cut -d: -f1)
 
 # Ensure upload directories exist and have correct permissions
 mkdir -p /app/uploads/lab-reports
+mkdir -p /app/uploads/diagnostic-studies
 chown -R $USER_NAME:$GROUP_NAME /app/uploads
 
 # Run database migrations automatically on startup
