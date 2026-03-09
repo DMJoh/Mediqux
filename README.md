@@ -71,25 +71,22 @@ curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.en
 **Step 2: Configure Environment**
 Edit `.env` file with your settings:
 ```bash
-# Database Configuration
+# Security — change both
 POSTGRES_PASSWORD=your_secure_database_password
 JWT_SECRET=your_long_random_jwt_secret_key
 
 # API URL that users' browsers will reach
-# (port must match BACKEND_DOCKER_PORT for direct access)
 BACKEND_URL=http://your-server-ip:3000/api
 
-# Ports Docker exposes on your host machine
 FRONTEND_DOCKER_PORT=8080
 BACKEND_DOCKER_PORT=3000
 
-# File Uploads
 MAX_FILE_SIZE=10MB
-
-# User/Group IDs
 PUID=1000
 PGID=1000
 ```
+
+> If the app loads but shows errors or can't connect, see the [URL & port configuration guide](https://github.com/DMJoh/Mediqux/wiki/Configuring-URL-&-Ports).
 
 **Step 3: Deploy**
 ```bash
@@ -245,3 +242,15 @@ Special thanks to the open-source community for enabling privacy-focused, locall
 **Built for privacy-first medical record management.** 🏥
 
 *Made with ❤️ by developers who believe in data sovereignty.*
+
+---
+
+## 📝 A Note from the Developer
+
+Mediqux was built to solve a real personal need - a private, self-hosted place to manage medical records, appointments, lab results, and diagnostic studies for my family. I couldn't find anything that fit, so I built it.
+
+This project was developed with the help of AI coding assistance. The idea, requirements, and design decisions are entirely mine, the AI helped bring them to life in code.
+
+I'm sharing this in case it's useful to others. If you use it and find a bug or have a suggestion, feel free to open an issue.
+
+> **Please note:** This is a personal project shared as-is. Review and assess it for your own needs before using it in any sensitive or clinical context.
