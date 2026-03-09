@@ -139,11 +139,26 @@ Advanced lab report system with:
 
 ---
 
+## 🩻 Diagnostic Studies
+
+**Diagnostic Imaging & Studies**
+
+![Diagnostic Studies](screenshots/11_diagnostic_studies.png)
+
+Diagnostic studies management for imaging and clinical investigations:
+- Upload and store diagnostic reports (PDF, images)
+- Track study types (X-Ray, MRI, CT Scan, Ultrasound, ECG, and more)
+- Link studies to patients and ordering doctors
+- Secure authenticated file viewing directly in the browser
+- Study date, notes, and attachment management
+
+---
+
 ## 👤 User Management
 
 **System Administration**
 
-![Users](screenshots/11_users.png)
+![Users](screenshots/12_users.png)
 
 User management and system administration:
 - User account creation and management
