@@ -12,7 +12,7 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     assignees:
-      - "dmjoh"
+      - "DMJoh"
     commit-message:
       prefix: "deps(backend)"
       include: "scope"
@@ -50,7 +50,7 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 2
     assignees:
-      - "dmjoh"
+      - "DMJoh"
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
@@ -64,7 +64,7 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 2
     assignees:
-      - "dmjoh"
+      - "DMJoh"
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
@@ -78,7 +78,7 @@ updates:
       time: "10:00"
     open-pull-requests-limit: 2
     assignees:
-      - "dmjoh"
+      - "DMJoh"
     commit-message:
       prefix: "deps(actions)"
       include: "scope"
