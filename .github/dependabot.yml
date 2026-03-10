@@ -54,6 +54,9 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
+    ignore:
+      - dependency-name: "node"
+        versions: ["21-alpine", "23-alpine", "25-alpine", "27-alpine", "29-alpine"]
 
   # Frontend Docker images
   - package-ecosystem: "docker"
@@ -68,6 +71,9 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
+    ignore:
+      - dependency-name: "node"
+        versions: ["21-alpine", "23-alpine", "25-alpine", "27-alpine", "29-alpine"]
 
   # GitHub Actions (if you add any workflows)
   - package-ecosystem: "github-actions"
