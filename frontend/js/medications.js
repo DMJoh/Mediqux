@@ -1,5 +1,12 @@
 // Medication management JavaScript
 
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 let allMedications = [];
 let filteredMedications = [];
 let currentEditingId = null;
@@ -286,7 +293,7 @@ function displayMedications() {
                         <button class="btn btn-outline-info" onclick="viewMedication('${medication.id}')" title="View Details">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-danger" onclick="deleteMedication('${medication.id}', '${medication.name.replace(/'/g, "\\'")}', ${totalUsage})" title="Delete">
+                        <button class="btn btn-outline-danger" data-name="${escapeHtml(medication.name)}" onclick="deleteMedication('${medication.id}', this.dataset.name, ${totalUsage})" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>
