@@ -19,7 +19,7 @@
     "multer": "^2.1.1",
     "pdf-parse": "^2.4.5",
     "dotenv": "^17.3.1",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
     "sequelize": "^6.37.8",
     "sequelize-cli": "^6.6.5",
