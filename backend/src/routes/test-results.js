@@ -1782,3 +1782,16 @@ router.get('/:id/lab-values', authenticateToken, addPatientFilter, async (req, r
 });
 
 module.exports = router;
+
+// Export pure utility functions for unit testing
+module.exports.generatePdfFilename = generatePdfFilename;
+module.exports.extractLabValues = extractLabValues;
+module.exports.findParameterKey = findParameterKey;
+module.exports.formatParameterForDisplay = formatParameterForDisplay;
+module.exports.calculateConfidence = calculateConfidence;
+module.exports.calculatePatternConfidence = calculatePatternConfidence;
+module.exports.removeDuplicateParameters = removeDuplicateParameters;
+module.exports.formatParameterName = formatParameterName;
+module.exports.formatReferenceRange = formatReferenceRange;
+module.exports.getUnitFromText = getUnitFromText;
+module.exports.REFERENCE_RANGES = REFERENCE_RANGES;
