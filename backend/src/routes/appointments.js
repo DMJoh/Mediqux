@@ -364,7 +364,7 @@ router.delete('/:id', async (req, res) => {
       [id]
     );
 
-    if (parseInt(linked.rows[0].count) > 0) {
+    if (Number.parseInt(linked.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: 'Cannot delete appointment: it has linked test results. Remove the test results first.'
