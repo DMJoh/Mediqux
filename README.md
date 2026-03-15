@@ -6,6 +6,8 @@
 [![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
 [![Quality Gate Status](https://sq.dawnmathews.com/api/project_badges/measure?project=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6&metric=alert_status&token=sqb_1754d0d7612e4d4fdd3145a69a3ae1ac1f7a9337)](https://sq.dawnmathews.com/dashboard?id=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6)
 [![Lines of Code](https://sq.dawnmathews.com/api/project_badges/measure?project=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6&metric=ncloc&token=sqb_1754d0d7612e4d4fdd3145a69a3ae1ac1f7a9337)](https://sq.dawnmathews.com/dashboard?id=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6)
+[![Security Rating](https://sq.dawnmathews.com/api/project_badges/measure?project=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6&metric=security_rating&token=sqb_1754d0d7612e4d4fdd3145a69a3ae1ac1f7a9337)](https://sq.dawnmathews.com/dashboard?id=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6)
+[![GitHub Release](https://img.shields.io/github/v/release/DMJoh/Mediqux)](https://github.com/DMJoh/Mediqux/releases)
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
 
