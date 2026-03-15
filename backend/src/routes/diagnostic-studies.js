@@ -268,8 +268,8 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
           if (filePath.startsWith(uploadsDir + path.sep)) {
             await fs.unlink(filePath);
           }
-        } catch (unlinkErr) {
-          logger.warn('Failed to delete old attachment file', { error: unlinkErr.message, path: attachment_path });
+        } catch (error_) {
+          logger.warn('Failed to delete old attachment file', { error: error_.message, path: attachment_path });
         }
       }
       attachment_path = req.file.path;
@@ -326,8 +326,8 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
         if (filePath.startsWith(uploadsDir + path.sep)) {
           await fs.unlink(filePath);
         }
-      } catch (unlinkErr) {
-        logger.warn('Failed to delete attachment file', { error: unlinkErr.message, path: existing.rows[0].attachment_path });
+      } catch (error_) {
+        logger.warn('Failed to delete attachment file', { error: error_.message, path: existing.rows[0].attachment_path });
       }
     }
 
