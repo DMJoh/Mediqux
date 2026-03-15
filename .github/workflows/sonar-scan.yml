@@ -6,6 +6,9 @@ on:
       - develop
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and analyze
