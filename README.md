@@ -4,6 +4,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
 [![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
+[![Quality Gate Status](https://sq.dawnmathews.com/api/project_badges/measure?project=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6&metric=alert_status&token=sqb_1754d0d7612e4d4fdd3145a69a3ae1ac1f7a9337)](https://sq.dawnmathews.com/dashboard?id=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6)
+[![Lines of Code](https://sq.dawnmathews.com/api/project_badges/measure?project=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6&metric=ncloc&token=sqb_1754d0d7612e4d4fdd3145a69a3ae1ac1f7a9337)](https://sq.dawnmathews.com/dashboard?id=DMJoh_Mediqux_3373e484-62a4-4bd7-8193-d049544ebdf6)
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
 
