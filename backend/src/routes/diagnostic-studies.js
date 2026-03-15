@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const { randomBytes } = require('crypto');
 const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter } = require('../middleware/auth');
@@ -19,7 +20,7 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueSuffix = Date.now() + '-' + randomBytes(6).toString('hex');
     cb(null, `study-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });
