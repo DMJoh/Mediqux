@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const { PDFParse } = require('pdf-parse');
+const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
 const { authenticateToken, addPatientFilter } = require('../middleware/auth');
@@ -489,7 +490,7 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + randomBytes(6).toString('hex');
     cb(null, `lab-report-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });
@@ -512,107 +513,107 @@ const LAB_PATTERNS = {
   hemoglobin: [
     /h[ae]moglobin[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
     /hb[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
-    /(\d+(?:\.\d+)?)\s+h[ae]moglobin\s*\(hb\).*?g[m]?\/dl/is,
-    /(\d+(?:\.\d+)?)\s+hb\b.*?g[m]?\/dl/is
+    /(\d+(?:\.\d+)?)\s+h[ae]moglobin\s*\(hb\)[^\r\n]{0,100}g[m]?\/dl/i,
+    /(\d+(?:\.\d+)?)\s+hb\b[^\r\n]{0,100}g[m]?\/dl/i
   ],
 
   wbc: [
     /wbc\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
     /white\s*blood\s*cell[:\s]*(\d+(?:,\d+)?)/i,
-    /([\d,]+)\s+total\s+wbc\s+count.*?\/cumm/is,
-    /([\d,]+)\s+wbc\s+count.*?\/cumm/is
+    /([\d,]+)\s+total\s+wbc\s+count[^\r\n]{0,100}\/cumm/i,
+    /([\d,]+)\s+wbc\s+count[^\r\n]{0,100}\/cumm/i
   ],
 
   rbc: [
     /rbc\s*count[:\s]*(\d+(?:\.\d+)?)\s*million\/[μu]l/i,
     /red\s*blood\s*cell[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+rbc\b.*?mill\/cumm/is
+    /(\d+(?:\.\d+)?)\s+rbc\b[^\r\n]{0,100}mill\/cumm/i
   ],
 
   platelets: [
     /platelet\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
     /platelets?[:\s]*(\d+(?:,\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+lakhs?\/cumm\s+platelet\s+count/is,
-    /(\d+(?:\.\d+)?)\s+platelet\s+count.*?lakhs?\/cumm/is
+    /(\d+(?:\.\d+)?)\s+lakhs?\/cumm\s+platelet\s+count/i,
+    /(\d+(?:\.\d+)?)\s+platelet\s+count[^\r\n]{0,100}lakhs?\/cumm/i
   ],
 
   hematocrit: [
     /hematocrit[:\s]*(\d+(?:\.\d+)?)\s*%?/i,
     /hct[:\s]*(\d+(?:\.\d+)?)/i,
     /pcv[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+packed\s+cell\s+volume.*?%/is
+    /(\d+(?:\.\d+)?)\s+packed\s+cell\s+volume[^\r\n]{0,100}%/i
   ],
 
   esr: [
     /esr[:\s]*(\d+(?:\.\d+)?)\s*mm\/hr/i,
     /erythrocyte\s*sedimentation\s*rate[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+erythrocyte\s+sedimentation\s+rate.*?mm\/hr/is
+    /(\d+(?:\.\d+)?)\s+erythrocyte\s+sedimentation\s+rate[^\r\n]{0,100}mm\/hr/i
   ],
 
   neutrophils: [
     /neutrophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+neutrophils.*?%/is
+    /(\d+(?:\.\d+)?)\s+neutrophils[^\r\n]{0,100}%/i
   ],
 
   lymphocytes: [
     /lymphocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+lymphocytes.*?%/is
+    /(\d+(?:\.\d+)?)\s+lymphocytes[^\r\n]{0,100}%/i
   ],
 
   eosinophils: [
     /eosinophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+eosinophils.*?%/is
+    /(\d+(?:\.\d+)?)\s+eosinophils[^\r\n]{0,100}%/i
   ],
 
   monocytes: [
     /monocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+monocytes.*?%/is
+    /(\d+(?:\.\d+)?)\s+monocytes[^\r\n]{0,100}%/i
   ],
 
   basophils: [
     /basophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+basophils.*?%/is
+    /(\d+(?:\.\d+)?)\s+basophils[^\r\n]{0,100}%/i
   ],
 
   mcv: [
     /mcv[:\s]*(\d+(?:\.\d+)?)\s*fl/i,
-    /(\d+(?:\.\d+)?)\s+mcv\b.*?cubic\/micro/is
+    /(\d+(?:\.\d+)?)\s+mcv\b[^\r\n]{0,100}cubic\/micro/i
   ],
 
   mch: [
     /mch[:\s]*(\d+(?:\.\d+)?)\s*pg/i,
-    /(\d+(?:\.\d+)?)\s+mch\b.*?pico\s+gram/is
+    /(\d+(?:\.\d+)?)\s+mch\b[^\r\n]{0,100}pico\s+gram/i
   ],
 
   mchc: [
     /mchc[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+mchc\b.*?%/is
+    /(\d+(?:\.\d+)?)\s+mchc\b[^\r\n]{0,100}%/i
   ],
 
   glucose: [
     /glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /blood\s*glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /fasting\s*glucose[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+glucose.*?mg\/dl/is
+    /(\d+(?:\.\d+)?)\s+glucose[^\r\n]{0,100}mg\/dl/i
   ],
 
   cholesterol: [
     /total\s*cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /(\d+(?:\.\d+)?)\s+total\s+cholesterol.*?mg\/dl/is
+    /(\d+(?:\.\d+)?)\s+total\s+cholesterol[^\r\n]{0,100}mg\/dl/i
   ],
 
   creatinine: [
     /creatinine[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /serum\s*creatinine[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+creatinine.*?mg\/dl/is
+    /(\d+(?:\.\d+)?)\s+creatinine[^\r\n]{0,100}mg\/dl/i
   ],
-  
+
   bun: [
     /bun[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
     /blood\s*urea\s*nitrogen[:\s]*(\d+(?:\.\d+)?)/i,
     /urea[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /(\d+(?:\.\d+)?)\s+bun.*?mg\/dl/is
+    /(\d+(?:\.\d+)?)\s+bun[^\r\n]{0,100}mg\/dl/i
   ]
 };
 
@@ -1263,7 +1264,11 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
       try {
-        await fs.unlink(req.file.path);
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(req.file.path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
       } catch (unlinkError) {
         console.error('Error deleting uploaded file:', unlinkError);
       }
@@ -1569,7 +1574,11 @@ router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
     // Delete PDF file if it exists
     if (filePathResult.rows.length > 0 && filePathResult.rows[0].pdf_file_path) {
       try {
-        await fs.unlink(filePathResult.rows[0].pdf_file_path);
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(filePathResult.rows[0].pdf_file_path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
       } catch (fileError) {
         console.error('Error deleting PDF file:', fileError);
         // Don't fail the request if file deletion fails
@@ -1773,3 +1782,16 @@ router.get('/:id/lab-values', authenticateToken, addPatientFilter, async (req, r
 });
 
 module.exports = router;
+
+// Export pure utility functions for unit testing
+module.exports.generatePdfFilename = generatePdfFilename;
+module.exports.extractLabValues = extractLabValues;
+module.exports.findParameterKey = findParameterKey;
+module.exports.formatParameterForDisplay = formatParameterForDisplay;
+module.exports.calculateConfidence = calculateConfidence;
+module.exports.calculatePatternConfidence = calculatePatternConfidence;
+module.exports.removeDuplicateParameters = removeDuplicateParameters;
+module.exports.formatParameterName = formatParameterName;
+module.exports.formatReferenceRange = formatReferenceRange;
+module.exports.getUnitFromText = getUnitFromText;
+module.exports.REFERENCE_RANGES = REFERENCE_RANGES;

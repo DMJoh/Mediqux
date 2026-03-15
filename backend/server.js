@@ -3,8 +3,25 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ quiet: true });
 
+const rateLimit = require('express-rate-limit');
 const logger = require('./src/utils/logger');
 const { sequelize } = require('./src/models');
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please try again later.' }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many authentication attempts, please try again later.' }
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -69,19 +86,19 @@ const testResultRoutes = require('./src/routes/test-results');
 const diagnosticStudiesRoutes = require('./src/routes/diagnostic-studies');
 
 // Public routes (no authentication required)
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 
 // Protected routes (authentication required)
-app.use('/api/users', authenticateToken, usersRoutes);
-app.use('/api/patients', authenticateToken, patientRoutes);
-app.use('/api/doctors', authenticateToken, doctorRoutes);
-app.use('/api/institutions', authenticateToken, institutionRoutes);
-app.use('/api/appointments', authenticateToken, appointmentRoutes);
-app.use('/api/conditions', authenticateToken, conditionRoutes);
-app.use('/api/medications', authenticateToken, medicationRoutes);
-app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
-app.use('/api/test-results', authenticateToken, testResultRoutes);
-app.use('/api/diagnostic-studies', authenticateToken, diagnosticStudiesRoutes);
+app.use('/api/users', apiLimiter, authenticateToken, usersRoutes);
+app.use('/api/patients', apiLimiter, authenticateToken, patientRoutes);
+app.use('/api/doctors', apiLimiter, authenticateToken, doctorRoutes);
+app.use('/api/institutions', apiLimiter, authenticateToken, institutionRoutes);
+app.use('/api/appointments', apiLimiter, authenticateToken, appointmentRoutes);
+app.use('/api/conditions', apiLimiter, authenticateToken, conditionRoutes);
+app.use('/api/medications', apiLimiter, authenticateToken, medicationRoutes);
+app.use('/api/prescriptions', apiLimiter, authenticateToken, prescriptionRoutes);
+app.use('/api/test-results', apiLimiter, authenticateToken, testResultRoutes);
+app.use('/api/diagnostic-studies', apiLimiter, authenticateToken, diagnosticStudiesRoutes);
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {

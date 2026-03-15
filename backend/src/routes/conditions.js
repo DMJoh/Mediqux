@@ -360,7 +360,7 @@ router.delete('/:id', async (req, res) => {
       WHERE mc.id = $1
     `, [id]);
     
-    const usageCount = parseInt(appointmentCheck.rows[0].count);
+    const usageCount = Number.parseInt(appointmentCheck.rows[0].count);
     
     if (usageCount > 0) {
       return res.status(400).json({
