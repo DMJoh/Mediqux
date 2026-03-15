@@ -268,7 +268,9 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
           if (filePath.startsWith(uploadsDir + path.sep)) {
             await fs.unlink(filePath);
           }
-        } catch (_) {}
+        } catch (unlinkErr) {
+          logger.warn('Failed to delete old attachment file', { error: unlinkErr.message, path: attachment_path });
+        }
       }
       attachment_path = req.file.path;
       attachment_original_name = req.file.originalname;
@@ -324,7 +326,9 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
         if (filePath.startsWith(uploadsDir + path.sep)) {
           await fs.unlink(filePath);
         }
-      } catch (_) {}
+      } catch (unlinkErr) {
+        logger.warn('Failed to delete attachment file', { error: unlinkErr.message, path: existing.rows[0].attachment_path });
+      }
     }
 
     await db.query('DELETE FROM diagnostic_studies WHERE id = $1', [req.params.id]);

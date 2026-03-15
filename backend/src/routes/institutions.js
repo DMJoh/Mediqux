@@ -204,7 +204,7 @@ router.delete('/:id', async (req, res) => {
       SELECT COUNT(*) as count FROM doctor_institutions WHERE institution_id = $1
     `, [id]);
     
-    const associationsCount = parseInt(associationsResult.rows[0].count);
+    const associationsCount = Number.parseInt(associationsResult.rows[0].count);
     
     if (associationsCount > 0) {
       await client.query('ROLLBACK');

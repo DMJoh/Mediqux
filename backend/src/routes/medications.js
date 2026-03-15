@@ -293,8 +293,8 @@ router.delete('/:id', async (req, res) => {
     `, [id]);
     
     if (usageCheck.rows.length > 0) {
-      const prescriptionCount = parseInt(usageCheck.rows[0].prescription_count) || 0;
-      const patientMedicationCount = parseInt(usageCheck.rows[0].patient_medication_count) || 0;
+      const prescriptionCount = Number.parseInt(usageCheck.rows[0].prescription_count) || 0;
+      const patientMedicationCount = Number.parseInt(usageCheck.rows[0].patient_medication_count) || 0;
       const totalUsage = prescriptionCount + patientMedicationCount;
       
       if (totalUsage > 0) {
