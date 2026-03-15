@@ -10,7 +10,10 @@
     "db:seed": "npx sequelize-cli db:seed:all",
     "db:migrate:undo": "npx sequelize-cli db:migrate:undo",
     "db:create": "npx sequelize-cli db:create",
-    "db:drop": "npx sequelize-cli db:drop"
+    "db:drop": "npx sequelize-cli db:drop",
+    "test": "jest --silent",
+    "test:coverage": "jest --coverage --silent",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "express": "^5.2.1",
@@ -27,7 +30,9 @@
     "express-rate-limit": "^8.3.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
   },
   "engines": {
     "node": ">=24.0.0"
