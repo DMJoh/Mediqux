@@ -358,18 +358,30 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    const linked = await db.query(
+      'SELECT COUNT(*) AS count FROM test_results WHERE appointment_id = $1',
+      [id]
+    );
+
+    if (parseInt(linked.rows[0].count) > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'Cannot delete appointment: it has linked test results. Remove the test results first.'
+      });
+    }
+
     const result = await db.query(`
       DELETE FROM appointments WHERE id = $1 RETURNING id, appointment_date
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Appointment not found'
       });
     }
-    
+
     res.json({
       success: true,
       message: 'Appointment deleted successfully'

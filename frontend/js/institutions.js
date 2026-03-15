@@ -1,5 +1,12 @@
 // Institution management JavaScript
 
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 let allInstitutions = [];
 let filteredInstitutions = [];
 let currentEditingId = null;
@@ -183,7 +190,7 @@ function displayInstitutions() {
                         <button class="btn btn-outline-info" onclick="viewInstitution('${institution.id}')" title="View Details">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-danger" onclick="deleteInstitution('${institution.id}', '${institution.name.replace(/'/g, "\\'")}', ${doctorCount})" title="Delete">
+                        <button class="btn btn-outline-danger" data-name="${escapeHtml(institution.name)}" onclick="deleteInstitution('${institution.id}', this.dataset.name, ${doctorCount})" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

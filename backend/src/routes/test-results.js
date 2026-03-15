@@ -1263,7 +1263,11 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
       try {
-        await fs.unlink(req.file.path);
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(req.file.path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
       } catch (unlinkError) {
         console.error('Error deleting uploaded file:', unlinkError);
       }
@@ -1569,7 +1573,11 @@ router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
     // Delete PDF file if it exists
     if (filePathResult.rows.length > 0 && filePathResult.rows[0].pdf_file_path) {
       try {
-        await fs.unlink(filePathResult.rows[0].pdf_file_path);
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(filePathResult.rows[0].pdf_file_path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
       } catch (fileError) {
         console.error('Error deleting PDF file:', fileError);
         // Don't fail the request if file deletion fails

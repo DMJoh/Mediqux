@@ -1,5 +1,12 @@
 // Medical conditions management JavaScript
 
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 let allConditions = [];
 let filteredConditions = [];
 let currentEditingId = null;
@@ -195,7 +202,7 @@ function displayConditions() {
                         <button class="btn btn-outline-info" onclick="viewCondition('${condition.id}')" title="View Details">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-danger" onclick="deleteCondition('${condition.id}', '${condition.name.replace(/'/g, "\\'")}', ${usageCount})" title="Delete">
+                        <button class="btn btn-outline-danger" data-name="${escapeHtml(condition.name)}" onclick="deleteCondition('${condition.id}', this.dataset.name, ${usageCount})" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

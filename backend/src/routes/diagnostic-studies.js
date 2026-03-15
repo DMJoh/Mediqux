@@ -262,7 +262,13 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
     if (req.file) {
       // Delete old file if exists
       if (attachment_path) {
-        try { await fs.unlink(attachment_path); } catch (_) {}
+        try {
+          const uploadsDir = path.resolve('./uploads');
+          const filePath = path.resolve(attachment_path);
+          if (filePath.startsWith(uploadsDir + path.sep)) {
+            await fs.unlink(filePath);
+          }
+        } catch (_) {}
       }
       attachment_path = req.file.path;
       attachment_original_name = req.file.originalname;
@@ -312,7 +318,13 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
 
     // Delete attachment file if exists
     if (existing.rows[0].attachment_path) {
-      try { await fs.unlink(existing.rows[0].attachment_path); } catch (_) {}
+      try {
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(existing.rows[0].attachment_path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
+      } catch (_) {}
     }
 
     await db.query('DELETE FROM diagnostic_studies WHERE id = $1', [req.params.id]);
