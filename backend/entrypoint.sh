@@ -9,12 +9,12 @@ PGID=${PGID:-1000}
 
 # Create group if it doesn't exist
 if ! getent group $PGID > /dev/null 2>&1; then
-    addgroup -g $PGID appgroup
+    groupadd -g $PGID appgroup
 fi
 
 # Create user if it doesn't exist
 if ! getent passwd $PUID > /dev/null 2>&1; then
-    adduser -D -u $PUID -G $(getent group $PGID | cut -d: -f1) appuser
+    useradd -u $PUID -g $PGID -M appuser
 fi
 
 # Get the actual user and group names
@@ -28,7 +28,7 @@ chown -R $USER_NAME:$GROUP_NAME /app/uploads
 
 # Run database migrations automatically on startup
 echo "🔍 Running database migrations..."
-if su-exec $USER_NAME npm run db:migrate; then
+if gosu $USER_NAME npm run db:migrate; then
     echo "✅ Database migrations completed successfully"
 else
     echo "❌ Database migrations failed"
@@ -37,4 +37,4 @@ fi
 
 echo "✅ Starting Node.js server..."
 # Switch to the user and run the command
-exec su-exec $USER_NAME "$@"
+exec gosu $USER_NAME "$@"
