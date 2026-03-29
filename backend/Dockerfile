@@ -1,4 +1,4 @@
-FROM node:24-slim AS builder
+FROM node:25-slim AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm ci --only=production --no-fund --no-audit && \
     npm cache clean --force
 
-FROM node:24-slim AS production
+FROM node:25-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     dumb-init \
