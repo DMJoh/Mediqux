@@ -32,7 +32,7 @@ router.post('/signup', async (req, res) => {
 
     // Check if this is the first user - make them admin
     const userCountResult = await db.query('SELECT COUNT(*) as count FROM users');
-    const isFirstUser = parseInt(userCountResult.rows[0].count) === 0;
+    const isFirstUser = Number.parseInt(userCountResult.rows[0].count) === 0;
     const userRole = isFirstUser ? 'admin' : 'user';
 
     // Create user
@@ -276,7 +276,7 @@ router.put('/change-password', async (req, res) => {
 router.get('/initial-config', async (req, res) => {
   try {
     const result = await db.query('SELECT COUNT(*) as user_count FROM users');
-    const userCount = parseInt(result.rows[0].user_count);
+    const userCount = Number.parseInt(result.rows[0].user_count);
     
     res.json({
       success: true,

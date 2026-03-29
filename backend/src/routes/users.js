@@ -171,7 +171,7 @@ router.delete('/:id', requireAdmin, async (req, res) => {
     // Prevent deleting the last admin
     if (userCheck.rows[0].role === 'admin') {
       const adminCount = await db.query('SELECT COUNT(*) as count FROM users WHERE role = $1', ['admin']);
-      if (parseInt(adminCount.rows[0].count) <= 1) {
+      if (Number.parseInt(adminCount.rows[0].count) <= 1) {
         return res.status(400).json({
           success: false,
           error: 'Cannot delete the last admin user'

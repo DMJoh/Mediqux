@@ -3,6 +3,8 @@
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
+[![GitHub Release](https://img.shields.io/github/v/release/DMJoh/Mediqux)](https://github.com/DMJoh/Mediqux/releases)
+
 [![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
 
 > **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
@@ -21,7 +23,7 @@ A comprehensive medical record system for individuals and families. Built for co
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
 - [Support](#-support)
-- [Acknowledgments](#-acknowledgments)
+- [Acknowledgements](#-acknowledgements)
 
 ## 🌟 Key Features
 
@@ -38,6 +40,12 @@ A comprehensive medical record system for individuals and families. Built for co
 - **Review System** - Edit and verify extracted values before saving
 - **Manual Entry** - Full forms for manual lab data entry
 - **Secure Storage** - Files stored locally with descriptive names
+
+### 🩻 **Diagnostic Studies**
+- **File Attachments** - Upload imaging and diagnostic study files (PDF, images)
+- **Study Management** - Track radiology, ECG, ultrasound, and other diagnostic studies
+- **Linked Records** - Associate studies with patients, doctors, and institutions
+- **Secure Local Storage** - All files stored on your own infrastructure
 
 ### 🔐 **Privacy & Security**
 - **100% Local** - No cloud services, no external APIs
@@ -232,7 +240,7 @@ Built with these excellent open-source technologies:
 - **[Docker](https://www.docker.com/)** - Containerization platform
 - **[Bootstrap](https://getbootstrap.com/)** - Responsive UI framework
 - **[PDF-Parse](https://www.npmjs.com/package/pdf-parse)** - Local PDF processing
-- **[bcrypt](https://www.npmjs.com/package/bcrypt)** & **[JWT](https://jwt.io/)** - Security and authentication
+- **[bcryptjs](https://www.npmjs.com/package/bcryptjs)** & **[JWT](https://jwt.io/)** - Security and authentication
 - **[Claude Code](https://claude.ai/code)** - AI development assistance
 
 Special thanks to the open-source community for enabling privacy-focused, locally-hosted healthcare solutions.

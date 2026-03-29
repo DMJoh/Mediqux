@@ -1,5 +1,5 @@
 const ENV_CONFIG = {
-    API_BASE_URL: window.MEDIQUX_API_URL || 'http://192.168.10.50:3000/api',
+    API_BASE_URL: window.MEDIQUX_API_URL || '/api',
     
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000,
@@ -18,4 +18,3 @@ window.getApiBaseUrl = function() {
 window.setApiBaseUrl = function(url) {
     ENV_CONFIG.API_BASE_URL = url;
 };
-

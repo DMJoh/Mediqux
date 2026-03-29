@@ -56,7 +56,7 @@ updates:
       include: "scope"
     ignore:
       - dependency-name: "node"
-        versions: ["21-alpine", "23-alpine", "25-alpine", "27-alpine", "29-alpine"]
+        versions: ["21-slim", "23-slim", "25-slim", "27-slim", "29-slim"]
 
   # Frontend Docker images
   - package-ecosystem: "docker"

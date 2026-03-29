@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter } = require('../middleware/auth');
@@ -19,7 +20,7 @@ const storage = multer.diskStorage({
     }
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const uniqueSuffix = Date.now() + '-' + randomBytes(6).toString('hex');
     cb(null, `study-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
 });
@@ -262,7 +263,15 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
     if (req.file) {
       // Delete old file if exists
       if (attachment_path) {
-        try { await fs.unlink(attachment_path); } catch (_) {}
+        try {
+          const uploadsDir = path.resolve('./uploads');
+          const filePath = path.resolve(attachment_path);
+          if (filePath.startsWith(uploadsDir + path.sep)) {
+            await fs.unlink(filePath);
+          }
+        } catch (error_) {
+          logger.warn('Failed to delete old attachment file', { error: error_.message, path: attachment_path });
+        }
       }
       attachment_path = req.file.path;
       attachment_original_name = req.file.originalname;
@@ -312,7 +321,15 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
 
     // Delete attachment file if exists
     if (existing.rows[0].attachment_path) {
-      try { await fs.unlink(existing.rows[0].attachment_path); } catch (_) {}
+      try {
+        const uploadsDir = path.resolve('./uploads');
+        const filePath = path.resolve(existing.rows[0].attachment_path);
+        if (filePath.startsWith(uploadsDir + path.sep)) {
+          await fs.unlink(filePath);
+        }
+      } catch (error_) {
+        logger.warn('Failed to delete attachment file', { error: error_.message, path: existing.rows[0].attachment_path });
+      }
     }
 
     await db.query('DELETE FROM diagnostic_studies WHERE id = $1', [req.params.id]);
