@@ -43,7 +43,7 @@ jobs:
             echo "VERSION=${BASE}-dev.${{ github.run_number }}" >> $GITHUB_ENV
           fi
 
-      - uses: SonarSource/sonarqube-scan-action@v7
+      - uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
