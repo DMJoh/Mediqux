@@ -49,7 +49,7 @@ app.use('/uploads', express.static('uploads'));
 
 
 // System database connectivity check (enhanced with Sequelize)
-app.get('/api/system/database', async (req, res) => {
+app.get('/api/system/database', apiLimiter, async (req, res) => {
   try {
     // Test Sequelize connection
     await sequelize.authenticate();
@@ -101,7 +101,7 @@ app.use('/api/test-results', apiLimiter, authenticateToken, testResultRoutes);
 app.use('/api/diagnostic-studies', apiLimiter, authenticateToken, diagnosticStudiesRoutes);
 
 // Enhanced health check with system info
-app.get('/api/health', (req, res) => {
+app.get('/api/health', apiLimiter, (req, res) => {
   res.json({ 
     status: 'Server running',
     timestamp: new Date(),

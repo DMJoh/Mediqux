@@ -1,8 +1,8 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
-const fsSync = require('fs');
+const path = require('node:path');
+const fs = require('node:fs').promises;
+const fsSync = require('node:fs');
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
@@ -82,7 +82,7 @@ router.get('/', addPatientFilter, async (req, res) => {
       params.push(req.patientFilter);
     }
 
-    const { search, study_type, patient_id } = req.query;
+    const { search, study_type } = req.query;
     let extraWhere = '';
 
     if (search) {
@@ -93,12 +93,6 @@ router.get('/', addPatientFilter, async (req, res) => {
     if (study_type) {
       params.push(study_type);
       extraWhere += ` AND ds.study_type = $${params.length}`;
-    }
-
-    // Admin can filter by specific patient
-    if (patient_id && !req.patientFilter) {
-      params.push(patient_id);
-      extraWhere += ` AND ds.patient_id = $${params.length}`;
     }
 
     const result = await db.query(`

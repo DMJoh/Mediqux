@@ -89,8 +89,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
 // Get all appointments with patient, doctor, and institution details (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
-    const { status, patient_id, doctor_id, date_from, date_to } = req.query;
-    
+    const { status, doctor_id, date_from, date_to } = req.query;
+
     let query = `
       SELECT 
         a.id,
@@ -142,12 +142,6 @@ router.get('/', addPatientFilter, async (req, res) => {
     if (status) {
       query += ` AND a.status = $${paramIndex}`;
       queryParams.push(status);
-      paramIndex++;
-    }
-    
-    if (patient_id) {
-      query += ` AND a.patient_id = $${paramIndex}`;
-      queryParams.push(patient_id);
       paramIndex++;
     }
     

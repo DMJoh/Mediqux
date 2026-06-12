@@ -6,7 +6,7 @@ const { addPatientFilter } = require('../middleware/auth');
 // Get all prescriptions with detailed information (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
-    const { search, patient_id, status } = req.query;
+    const { search, status } = req.query;
     
     let query = `
       SELECT 
@@ -85,12 +85,6 @@ router.get('/', addPatientFilter, async (req, res) => {
         d.last_name ILIKE $${paramIndex}
       )`;
       queryParams.push(`%${search}%`);
-      paramIndex++;
-    }
-    
-    if (patient_id) {
-      query += ` AND pat.id = $${paramIndex}`;
-      queryParams.push(patient_id);
       paramIndex++;
     }
     
@@ -442,13 +436,21 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
 });
 
 // Get prescriptions by patient
-router.get('/patient/:patient_id', async (req, res) => {
+router.get('/patient/:patient_id', addPatientFilter, async (req, res) => {
   try {
     const { patient_id } = req.params;
     const { status } = req.query;
-    
+
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: [], count: 0 });
+    }
+
+    if (req.patientFilter && String(req.patientFilter) !== patient_id) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     let query = `
-      SELECT 
+      SELECT
         p.*,
         m.name as medication_name,
         m.generic_name as medication_generic_name,
@@ -468,7 +470,7 @@ router.get('/patient/:patient_id', async (req, res) => {
       LEFT JOIN patient_medications pm ON (a.patient_id = pm.patient_id AND m.id = pm.medication_id)
       WHERE a.patient_id = $1
     `;
-    
+
     const queryParams = [patient_id];
     let paramIndex = 2;
     
@@ -497,12 +499,24 @@ router.get('/patient/:patient_id', async (req, res) => {
 });
 
 // Get prescriptions by appointment
-router.get('/appointment/:appointment_id', async (req, res) => {
+router.get('/appointment/:appointment_id', addPatientFilter, async (req, res) => {
   try {
     const { appointment_id } = req.params;
-    
+
+    if (req.patientFilter === 'none') {
+      return res.json({ success: true, data: [], count: 0 });
+    }
+
+    const queryParams = [appointment_id];
+    let patientWhere = '';
+
+    if (req.patientFilter) {
+      patientWhere = ` AND a.patient_id = $2`;
+      queryParams.push(req.patientFilter);
+    }
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         p.*,
         m.name as medication_name,
         m.generic_name as medication_generic_name,
@@ -512,9 +526,9 @@ router.get('/appointment/:appointment_id', async (req, res) => {
       LEFT JOIN medications m ON p.medication_id = m.id
       LEFT JOIN appointments a ON p.appointment_id = a.id
       LEFT JOIN patient_medications pm ON (a.patient_id = pm.patient_id AND m.id = pm.medication_id)
-      WHERE p.appointment_id = $1
+      WHERE p.appointment_id = $1${patientWhere}
       ORDER BY p.created_at DESC
-    `, [appointment_id]);
+    `, queryParams);
     
     res.json({
       success: true,

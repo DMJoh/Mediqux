@@ -3,8 +3,11 @@ name: Sonar Scan
 on:
   push:
     branches:
-      - develop
       - main
+  pull_request:
+    branches:
+      - main
+      - develop
 
 permissions:
   contents: read
