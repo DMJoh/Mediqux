@@ -5,6 +5,75 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-06-12
+
+### 🔒 Security Hardening
+
+This release is a focused security and quality release. No schema migrations.
+
+#### Rate Limiting
+- **Auth route limiting** — Login and registration endpoints now enforce a limit of 20 requests per 15-minute window per IP, preventing brute-force attacks
+- **API route limiting** — All API endpoints are capped at 300 requests per 15-minute window, mitigating denial-of-service via excessive polling
+- Added `express-rate-limit` as a production dependency; limits return standard `RateLimit-*` headers (RFC 6585 compliant)
+
+#### Path Traversal Prevention
+- **File deletion handlers hardened** — Upload deletion in both lab reports and diagnostic studies now validates that the resolved file path stays within the `/uploads/` directory before unlinking, preventing directory traversal attacks where a crafted path could delete arbitrary files on the host
+
+#### XSS Prevention
+- **HTML sanitization in delete buttons** — Condition, institution, medication, and other entity names are now HTML-escaped via `data-*` attributes before being injected into delete button `onclick` handlers, preventing stored XSS through entity names containing `<script>` or event handler payloads
+
+#### ReDoS Prevention (S5852)
+- **Lab report regex patterns refactored** — Regex patterns used for extracting CBC, CMP, and other lab values from PDF text no longer use unbounded `.*` with the `s` (dotAll) flag in patterns that scan across line boundaries. Replaced with `[^\r\n]{0,100}?` bounded alternatives, eliminating catastrophic backtracking risk on malformed input
+
+#### Cryptography (S2245)
+- **File upload name generation** — Both test-results and diagnostic-studies routes explicitly import `randomBytes` from `node:crypto` (built-in module path), removing any ambiguity about which `crypto` implementation is in use
+
+#### Hardcoded Credential / IP Removal (S5332)
+- **Frontend fallback API URL removed** — `frontend/js/config.js` previously fell back to a hardcoded private IP (`192.168.10.50:3000`) when `MEDIQUX_API_URL` was not injected at container startup. This is now replaced with a relative `/api` path, which works correctly in all standard deployment configurations and does not leak internal network topology
+
+### 🐛 Bug Fixes
+
+- **Appointment deletion now blocked when test results exist** — Attempting to delete an appointment that has linked lab reports previously caused a database foreign key error. The API now returns a clean `409 Conflict` with an explanatory message: _"Cannot delete appointment: it has linked test results. Remove the test results first."_
+- **Uploaded file attachments now load correctly via nginx** — PDF reports and diagnostic study attachments were unreachable in production because the nginx frontend container had no rule to forward `/uploads/` requests to the backend. Added a dedicated `location /uploads/` proxy block in `nginx-template.conf`
+
+### 🧪 Testing
+
+- **Full backend unit test suite introduced** — 3,755 lines of Jest tests across 14 files covering all routes and middleware:
+  - Auth middleware (JWT validation, RBAC, patient filter)
+  - All route handlers: auth, patients, doctors, institutions, appointments, conditions, medications, prescriptions, test results, diagnostic studies, users
+  - Logger utility
+- **Jest configuration** — `jest.config.js` with coverage reporting (lcov + text), test environment isolation via a shared `createApp.js` helper and `setup.js` that mocks Sequelize and DB modules
+- **Coverage piped to SonarQube** — CI workflow now runs tests with `--coverage` before the Sonar scan and passes the `lcov.info` report path to the scanner
+
+### 🔍 Static Analysis (SAST)
+
+- **SonarQube scanning integrated** — New `.github/workflows/sonar-scan.yml` runs on every push to `main` and `develop`. Scans backend source with `sonar-project.properties` configuration
+- **Minimal CI token permissions** — `GITHUB_TOKEN` in the Sonar workflow is scoped to `contents: read` only, following least-privilege practice
+
+### 🐳 Infrastructure
+
+#### Base Image Migration: Alpine → Debian Slim
+- **`node:24-alpine` replaced with `node:24-slim`** across all Dockerfile stages — Alpine's musl libc can trigger `SIGILL` (illegal instruction) on certain x86 CPUs that lack AVX2 support. Debian slim uses glibc, which is broadly compatible
+- **Package manager updated** — Build dependencies now installed via `apt-get` instead of `apk`
+- **`su-exec` replaced with `gosu`** — Alpine-specific privilege-dropping utility swapped for the Debian-compatible equivalent; `entrypoint.sh` updated accordingly (`addgroup`/`adduser` → `groupadd`/`useradd`, `su-exec` → `gosu`)
+- **Dependabot locked to Node LTS** — Dependabot is now configured to ignore odd-numbered (non-LTS) node base image versions (21, 23, 25, 27, 29) to prevent automatic upgrades to unstable releases
+
+### 📦 Dependency Updates
+
+| Package | From | To | Notes |
+|---|---|---|---|
+| `bcryptjs` | 2.4.3 | 3.0.3 | Security update (Dependabot) |
+| `pg` | 8.18.0 | 8.20.0 | Minor — connection improvements |
+| `multer` | 2.0.2 | 2.1.1 | Minor |
+| `dotenv` | 17.2.3 | 17.3.1 | Minor |
+| `sequelize` | 6.37.7 | 6.37.8 | Patch |
+| `docker/build-push-action` | 6 | 7 | CI action |
+| `docker/login-action` | 3 | 4 | CI action |
+| `docker/setup-buildx-action` | 3 | 4 | CI action |
+| `docker/metadata-action` | v5 | v6 | CI action |
+
+---
+
 ## [1.0.10] - 2026-03-08
 
 ### ⚠️ Before Upgrading
