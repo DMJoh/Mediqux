@@ -270,17 +270,37 @@ describe('DELETE /prescriptions/:id', () => {
 // ─── GET /patient/:patient_id ──────────────────────────────────────────────
 
 describe('GET /prescriptions/patient/:patient_id', () => {
-  it('returns prescriptions for a patient', async () => {
+  it('admin: returns prescriptions for any patient', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
     const res = await request(adminApp).get('/patient/5');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
-  it('supports status filter', async () => {
+  it('admin: supports status filter', async () => {
     db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const res = await request(adminApp).get('/patient/5').query({ status: 'active' });
     expect(res.status).toBe(200);
+  });
+
+  it('user with matching patientId can access their own patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
+    const res = await request(filteredApp).get('/patient/5');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('user with different patientId is denied access', async () => {
+    const res = await request(filteredApp).get('/patient/999');
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/access denied/i);
+  });
+
+  it('user with no patient access returns empty array', async () => {
+    const res = await request(noneApp).get('/patient/5');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.count).toBe(0);
   });
 
   it('returns 500 when DB throws', async () => {
@@ -293,11 +313,25 @@ describe('GET /prescriptions/patient/:patient_id', () => {
 // ─── GET /appointment/:appointment_id ─────────────────────────────────────
 
 describe('GET /prescriptions/appointment/:appointment_id', () => {
-  it('returns prescriptions for an appointment', async () => {
+  it('admin: returns prescriptions for any appointment', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
     const res = await request(adminApp).get('/appointment/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('user with patient access gets results filtered to their patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
+    const res = await request(filteredApp).get('/appointment/1');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('user with no patient access returns empty array', async () => {
+    const res = await request(noneApp).get('/appointment/1');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual([]);
+    expect(res.body.count).toBe(0);
   });
 
   it('returns 500 when DB throws', async () => {
@@ -307,10 +341,10 @@ describe('GET /prescriptions/appointment/:appointment_id', () => {
   });
 });
 
-// ─── GET / with patient_id filter ─────────────────────────────────────────
+// ─── GET / with patient_id filter (now ignored) ───────────────────────────
 
-describe('GET /prescriptions with patient_id filter', () => {
-  it('admin: supports patient_id query filter', async () => {
+describe('GET /prescriptions patient_id query param', () => {
+  it('patient_id query param is ignored — patient filtering is handled by RBAC middleware', async () => {
     db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const res = await request(adminApp).get('/').query({ patient_id: '5' });
     expect(res.status).toBe(200);
