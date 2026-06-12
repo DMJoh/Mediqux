@@ -85,7 +85,7 @@ describe('GET /appointments', () => {
     expect(res.status).toBe(200);
   });
 
-  it('supports patient_id filter', async () => {
+  it('patient_id query param is ignored — patient filtering is handled by RBAC middleware', async () => {
     db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const res = await request(adminApp).get('/').query({ patient_id: 1 });
     expect(res.status).toBe(200);

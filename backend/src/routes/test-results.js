@@ -945,7 +945,7 @@ function getUnitFromText(text) {
 // Get all test results (with RBAC filtering)
 router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
   try {
-    const { search, patient_id, test_type, date_range } = req.query;
+    const { search, test_type, date_range } = req.query;
     
     let query = `
       SELECT 
@@ -1029,12 +1029,6 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
         tr.test_type ILIKE $${paramIndex}
       )`;
       queryParams.push(`%${search}%`);
-      paramIndex++;
-    }
-    
-    if (patient_id) {
-      query += ` AND tr.patient_id = $${paramIndex}`;
-      queryParams.push(patient_id);
       paramIndex++;
     }
     
