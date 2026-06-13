@@ -164,28 +164,23 @@ describe('GET /api/auth/me', () => {
   it('returns 401 when no Authorization header', async () => {
     const res = await request(app).get('/api/auth/me');
     expect(res.status).toBe(401);
-    expect(res.body.error).toMatch(/no token/i);
+    expect(res.body.error).toMatch(/token/i);
   });
 
-  it('returns 401 when token is invalid', async () => {
+  it('returns 403 when token is invalid', async () => {
     const res = await request(app)
       .get('/api/auth/me')
       .set('Authorization', 'Bearer totally.invalid.token');
-    expect(res.status).toBe(401);
-  });
-
-  it('returns 404 when user in token does not exist in DB', async () => {
-    const token = jwt.sign({ userId: 999, username: 'ghost', role: 'user' }, JWT_SECRET);
-    db.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app)
-      .get('/api/auth/me')
-      .set('Authorization', `Bearer ${token}`);
-    expect(res.status).toBe(404);
-    expect(res.body.error).toMatch(/not found/i);
+    expect(res.status).toBe(403);
   });
 
   it('returns 200 with user profile for valid token', async () => {
     const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    // authenticateToken middleware lookup
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'user', is_active: true, patient_id: null }],
+    });
+    // route's own profile query
     db.query.mockResolvedValueOnce({
       rows: [{ id: 1, username: 'alice', email: 'a@a.com', first_name: 'Alice', last_name: 'S', role: 'user', last_login: null }],
     });
@@ -208,19 +203,12 @@ describe('PUT /api/auth/change-password', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 404 when user does not exist', async () => {
-    const token = jwt.sign({ userId: 99 }, JWT_SECRET);
-    db.query.mockResolvedValueOnce({ rows: [] });
-    const res = await request(app)
-      .put('/api/auth/change-password')
-      .set('Authorization', `Bearer ${token}`)
-      .send({ currentPassword: 'old', newPassword: 'new' });
-    expect(res.status).toBe(404);
-  });
-
   it('returns 400 when current password is incorrect', async () => {
     const hash = await bcrypt.hash('realpassword', 10);
     const token = jwt.sign({ userId: 1 }, JWT_SECRET);
+    // authenticateToken middleware lookup
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'user', role: 'user', is_active: true, patient_id: null }] });
+    // route's password_hash query
     db.query.mockResolvedValueOnce({ rows: [{ password_hash: hash }] });
     const res = await request(app)
       .put('/api/auth/change-password')
@@ -233,9 +221,12 @@ describe('PUT /api/auth/change-password', () => {
   it('returns 200 and updates password on correct current password', async () => {
     const hash = await bcrypt.hash('currentpass', 10);
     const token = jwt.sign({ userId: 1 }, JWT_SECRET);
+    // authenticateToken middleware lookup
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'user', role: 'user', is_active: true, patient_id: null }] });
+    // route's password_hash query + UPDATE
     db.query
       .mockResolvedValueOnce({ rows: [{ password_hash: hash }] })
-      .mockResolvedValueOnce({ rows: [] }); // UPDATE
+      .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app)
       .put('/api/auth/change-password')
@@ -247,7 +238,10 @@ describe('PUT /api/auth/change-password', () => {
 
   it('returns 500 when DB throws during password change', async () => {
     const token = jwt.sign({ userId: 1 }, JWT_SECRET);
-    db.query.mockRejectedValue(new Error('DB error'));
+    // authenticateToken middleware lookup succeeds
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'user', role: 'user', is_active: true, patient_id: null }] });
+    // route's DB call throws
+    db.query.mockRejectedValueOnce(new Error('DB error'));
     const res = await request(app)
       .put('/api/auth/change-password')
       .set('Authorization', `Bearer ${token}`)

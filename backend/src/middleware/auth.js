@@ -31,9 +31,9 @@ const authenticateToken = async (req, res, next) => {
     }
 
     req.user = {
-      id: decoded.userId,
-      username: decoded.username,
-      role: decoded.role,
+      id: result.rows[0].id,
+      username: result.rows[0].username,
+      role: result.rows[0].role,
       patientId: result.rows[0].patient_id
     };
 

@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../database/db');
 const logger = require('../utils/logger');
+const { authenticateToken } = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -165,20 +166,11 @@ router.post('/login', async (req, res) => {
 });
 
 // Get current user info
-router.get('/me', async (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'No token provided'
-      });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
     const result = await db.query(
       'SELECT id, username, email, first_name, last_name, role, last_login FROM users WHERE id = $1',
-      [decoded.userId]
+      [req.user.id]
     );
 
     if (result.rows.length === 0) {
@@ -205,32 +197,21 @@ router.get('/me', async (req, res) => {
     });
   } catch (error) {
     console.error('Get user error:', error);
-    res.status(401).json({
+    res.status(500).json({
       success: false,
-      error: 'Invalid token'
+      error: 'Failed to get user info'
     });
   }
 });
 
 // Change password
-router.put('/change-password', async (req, res) => {
+router.put('/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const token = req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'No token provided'
-      });
-    }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Get current user
     const userResult = await db.query(
       'SELECT password_hash FROM users WHERE id = $1',
-      [decoded.userId]
+      [req.user.id]
     );
 
     if (userResult.rows.length === 0) {
@@ -240,7 +221,6 @@ router.put('/change-password', async (req, res) => {
       });
     }
 
-    // Check current password
     const isValidPassword = await bcrypt.compare(currentPassword, userResult.rows[0].password_hash);
     if (!isValidPassword) {
       return res.status(400).json({
@@ -249,14 +229,12 @@ router.put('/change-password', async (req, res) => {
       });
     }
 
-    // Hash new password
     const saltRounds = 10;
     const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
-    // Update password
     await db.query(
       'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [newPasswordHash, decoded.userId]
+      [newPasswordHash, req.user.id]
     );
 
     res.json({
