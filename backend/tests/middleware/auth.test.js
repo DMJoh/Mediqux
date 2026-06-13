@@ -91,7 +91,7 @@ describe('authenticateToken', () => {
   it('populates req.user and calls next() for a valid active user', async () => {
     const token = jwt.sign({ userId: 1, username: 'admin', role: 'admin' }, JWT_SECRET);
     const { req, res, next } = mockHttp({ authorization: `Bearer ${token}` });
-    db.query.mockResolvedValue({ rows: [{ id: 1, is_active: true, patient_id: 5 }] });
+    db.query.mockResolvedValue({ rows: [{ id: 1, username: 'admin', role: 'admin', is_active: true, patient_id: 5 }] });
     await authenticateToken(req, res, next);
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({ id: 1, username: 'admin', role: 'admin', patientId: 5 });
