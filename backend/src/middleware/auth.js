@@ -9,15 +9,8 @@ const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1];
   
   try {
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: 'Access token required'
-      });
-    }
-
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     const result = await db.query(
       'SELECT id, username, role, is_active, patient_id FROM users WHERE id = $1',
       [decoded.userId]
@@ -39,9 +32,15 @@ const authenticateToken = async (req, res, next) => {
 
     next();
   } catch (error) {
-    logger.warn('Token verification failed', { 
-      error: error.message, 
-      token: token ? 'present' : 'missing' 
+    if (error.message === 'jwt must be provided') {
+      return res.status(401).json({
+        success: false,
+        error: 'Access token required'
+      });
+    }
+    logger.warn('Token verification failed', {
+      error: error.message,
+      token: token ? 'present' : 'missing'
     });
     return res.status(403).json({
       success: false,
