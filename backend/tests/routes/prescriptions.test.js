@@ -12,9 +12,13 @@ jest.mock('../../src/middleware/auth', () => ({
 const db = require('../../src/database/db');
 const prescriptionsRouter = require('../../src/routes/prescriptions');
 
+const PATIENT_UUID = '00000000-0000-0000-0000-000000000005';
+const OTHER_UUID   = '00000000-0000-0000-0000-000000000099';
+const APPT_UUID    = '00000000-0000-0000-0000-000000000001';
+
 const adminApp    = createApp(prescriptionsRouter, { role: 'admin' });
 const noneApp     = createApp(prescriptionsRouter, { role: 'user', patientId: null });
-const filteredApp = createApp(prescriptionsRouter, { role: 'user', patientId: 5 });
+const filteredApp = createApp(prescriptionsRouter, { role: 'user', patientId: PATIENT_UUID });
 
 let mockClient;
 beforeEach(() => {
@@ -78,6 +82,13 @@ describe('GET /prescriptions/stats/summary', () => {
   it('returns stats for admin', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ total_prescriptions: 5, active_prescriptions: 3 }] });
     const res = await request(adminApp).get('/stats/summary');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns filtered stats for user with patientId', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ total_prescriptions: 2, active_prescriptions: 2, unique_patients: 1, recent_prescriptions: 0 }] });
+    const res = await request(filteredApp).get('/stats/summary');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -270,34 +281,40 @@ describe('DELETE /prescriptions/:id', () => {
 // ─── GET /patient/:patient_id ──────────────────────────────────────────────
 
 describe('GET /prescriptions/patient/:patient_id', () => {
+  it('returns 400 for non-UUID patient_id', async () => {
+    const res = await request(adminApp).get('/patient/not-a-uuid');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid patient id/i);
+  });
+
   it('admin: returns prescriptions for any patient', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
-    const res = await request(adminApp).get('/patient/5');
+    const res = await request(adminApp).get(`/patient/${PATIENT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('admin: supports status filter', async () => {
     db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-    const res = await request(adminApp).get('/patient/5').query({ status: 'active' });
+    const res = await request(adminApp).get(`/patient/${PATIENT_UUID}`).query({ status: 'active' });
     expect(res.status).toBe(200);
   });
 
   it('user with matching patientId can access their own patient', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
-    const res = await request(filteredApp).get('/patient/5');
+    const res = await request(filteredApp).get(`/patient/${PATIENT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('user with different patientId is denied access', async () => {
-    const res = await request(filteredApp).get('/patient/999');
+    const res = await request(filteredApp).get(`/patient/${OTHER_UUID}`);
     expect(res.status).toBe(403);
     expect(res.body.error).toMatch(/access denied/i);
   });
 
   it('user with no patient access returns empty array', async () => {
-    const res = await request(noneApp).get('/patient/5');
+    const res = await request(noneApp).get(`/patient/${PATIENT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
     expect(res.body.count).toBe(0);
@@ -305,7 +322,7 @@ describe('GET /prescriptions/patient/:patient_id', () => {
 
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
-    const res = await request(adminApp).get('/patient/5');
+    const res = await request(adminApp).get(`/patient/${PATIENT_UUID}`);
     expect(res.status).toBe(500);
   });
 });
@@ -313,22 +330,28 @@ describe('GET /prescriptions/patient/:patient_id', () => {
 // ─── GET /appointment/:appointment_id ─────────────────────────────────────
 
 describe('GET /prescriptions/appointment/:appointment_id', () => {
+  it('returns 400 for non-UUID appointment_id', async () => {
+    const res = await request(adminApp).get('/appointment/not-a-uuid');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/invalid appointment id/i);
+  });
+
   it('admin: returns prescriptions for any appointment', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
-    const res = await request(adminApp).get('/appointment/1');
+    const res = await request(adminApp).get(`/appointment/${APPT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('user with patient access gets results filtered to their patient', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
-    const res = await request(filteredApp).get('/appointment/1');
+    const res = await request(filteredApp).get(`/appointment/${APPT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('user with no patient access returns empty array', async () => {
-    const res = await request(noneApp).get('/appointment/1');
+    const res = await request(noneApp).get(`/appointment/${APPT_UUID}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
     expect(res.body.count).toBe(0);
@@ -336,7 +359,7 @@ describe('GET /prescriptions/appointment/:appointment_id', () => {
 
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
-    const res = await request(adminApp).get('/appointment/1');
+    const res = await request(adminApp).get(`/appointment/${APPT_UUID}`);
     expect(res.status).toBe(500);
   });
 });

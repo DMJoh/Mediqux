@@ -16,6 +16,12 @@ jest.mock('../../src/middleware/auth', () => ({
   buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
 }));
 
+jest.mock('node:fs', () => ({
+  existsSync: jest.fn(),
+  createReadStream: jest.fn(),
+  promises: { mkdir: jest.fn().mockResolvedValue(undefined), unlink: jest.fn().mockResolvedValue(undefined) },
+}));
+
 const db = require('../../src/database/db');
 const diagnosticStudiesRouter = require('../../src/routes/diagnostic-studies');
 
@@ -250,6 +256,17 @@ describe('DELETE /diagnostic-studies/:id', () => {
     expect(res.body.success).toBe(true);
   });
 
+  it('returns 200 on successful deletion and attempts file cleanup', async () => {
+    const fsNode = require('node:fs');
+    fsNode.promises.unlink.mockResolvedValue(undefined);
+    db.query
+      .mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', patient_id: 1 }] })
+      .mockResolvedValueOnce({ rows: [] }); // DELETE
+    const res = await request(adminApp).delete('/1');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).delete('/1');
@@ -260,11 +277,38 @@ describe('DELETE /diagnostic-studies/:id', () => {
 // ─── GET /:id/view ────────────────────────────────────────────────────────
 
 describe('GET /diagnostic-studies/:id/view', () => {
+  let fsSync;
+  beforeAll(() => { fsSync = require('node:fs'); });
+  beforeEach(() => {
+    fsSync.existsSync.mockReset();
+    fsSync.createReadStream.mockReset();
+  });
+
   it('returns 404 when study or attachment not found', async () => {
     db.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(adminApp).get('/1/view');
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('returns 404 when attachment file does not exist on disk', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', first_name: 'John', last_name: 'Doe' }] });
+    fsSync.existsSync.mockReturnValue(false);
+    const res = await request(adminApp).get('/1/view');
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found on server/i);
+  });
+
+  it('streams the file when attachment exists on disk', async () => {
+    const { PassThrough } = require('stream');
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', first_name: 'John', last_name: 'Doe' }] });
+    fsSync.existsSync.mockReturnValue(true);
+    const mockStream = new PassThrough();
+    fsSync.createReadStream.mockReturnValue(mockStream);
+    const resPromise = request(adminApp).get('/1/view');
+    mockStream.end(); // end the stream so supertest gets a response
+    await resPromise;
+    expect(fsSync.createReadStream).toHaveBeenCalledWith('/uploads/study.pdf');
   });
 
   it('returns 500 when DB throws', async () => {
