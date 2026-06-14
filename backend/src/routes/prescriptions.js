@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter } = require('../middleware/auth');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Get all prescriptions with detailed information (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
@@ -441,6 +443,10 @@ router.get('/patient/:patient_id', addPatientFilter, async (req, res) => {
     const { patient_id } = req.params;
     const { status } = req.query;
 
+    if (!UUID_RE.test(patient_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid patient ID' });
+    }
+
     if (req.patientFilter === 'none') {
       return res.json({ success: true, data: [], count: 0 });
     }
@@ -502,6 +508,10 @@ router.get('/patient/:patient_id', addPatientFilter, async (req, res) => {
 router.get('/appointment/:appointment_id', addPatientFilter, async (req, res) => {
   try {
     const { appointment_id } = req.params;
+
+    if (!UUID_RE.test(appointment_id)) {
+      return res.status(400).json({ success: false, error: 'Invalid appointment ID' });
+    }
 
     if (req.patientFilter === 'none') {
       return res.json({ success: true, data: [], count: 0 });

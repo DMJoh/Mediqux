@@ -174,6 +174,23 @@ describe('GET /api/auth/me', () => {
     expect(res.status).toBe(403);
   });
 
+  it('returns 404 when user not found in DB after auth', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'alice', role: 'user', is_active: true, patient_id: null }] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // route profile query returns nothing
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
+  });
+
+  it('returns 500 when profile DB query throws', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'alice', role: 'user', is_active: true, patient_id: null }] });
+    db.query.mockRejectedValueOnce(new Error('DB error'));
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(500);
+  });
+
   it('returns 200 with user profile for valid token', async () => {
     const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
     // authenticateToken middleware lookup
@@ -201,6 +218,18 @@ describe('PUT /api/auth/change-password', () => {
       .put('/api/auth/change-password')
       .send({ currentPassword: 'old', newPassword: 'new' });
     expect(res.status).toBe(401);
+  });
+
+  it('returns 404 when user not found after auth', async () => {
+    const token = jwt.sign({ userId: 1 }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, username: 'user', role: 'user', is_active: true, patient_id: null }] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // password_hash query returns nothing
+    const res = await request(app)
+      .put('/api/auth/change-password')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ currentPassword: 'old', newPassword: 'new' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toMatch(/not found/i);
   });
 
   it('returns 400 when current password is incorrect', async () => {
