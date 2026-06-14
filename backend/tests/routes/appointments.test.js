@@ -12,8 +12,9 @@ jest.mock('../../src/middleware/auth', () => ({
 const db = require('../../src/database/db');
 const appointmentsRouter = require('../../src/routes/appointments');
 
-const adminApp = createApp(appointmentsRouter, { role: 'admin' });
-const noneApp  = createApp(appointmentsRouter, { role: 'user', patientId: null });
+const adminApp    = createApp(appointmentsRouter, { role: 'admin' });
+const noneApp     = createApp(appointmentsRouter, { role: 'user', patientId: null });
+const filteredApp = createApp(appointmentsRouter, { role: 'user', patientId: '00000000-0000-0000-0000-000000000005' });
 
 beforeEach(() => db.query.mockReset());
 
@@ -29,6 +30,13 @@ describe('GET /appointments/dashboard/upcoming', () => {
   it('returns upcoming appointments for admin', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 1, appointment_date: '2027-01-01' }] });
     const res = await request(adminApp).get('/dashboard/upcoming');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns upcoming appointments for user with patientId', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, appointment_date: '2027-01-01' }] });
+    const res = await request(filteredApp).get('/dashboard/upcoming');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -52,6 +60,13 @@ describe('GET /appointments/stats/summary', () => {
   it('returns stats for admin', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ total_appointments: 5, upcoming: 2, completed: 3, cancelled: 0, today: 1 }] });
     const res = await request(adminApp).get('/stats/summary');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns filtered stats for user with patientId', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ total_appointments: 2, upcoming: 1, completed: 1, cancelled: 0, today: 0 }] });
+    const res = await request(filteredApp).get('/stats/summary');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -83,6 +98,13 @@ describe('GET /appointments', () => {
     db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
     const res = await request(adminApp).get('/').query({ status: 'scheduled' });
     expect(res.status).toBe(200);
+  });
+
+  it('returns filtered appointments for user with patientId', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }], rowCount: 1 });
+    const res = await request(filteredApp).get('/');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 
   it('patient_id query param is ignored — patient filtering is handled by RBAC middleware', async () => {

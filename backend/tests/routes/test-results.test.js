@@ -4,6 +4,15 @@ const express = require('express');
 // Mock DB and auth middleware before requiring the route module
 jest.mock('../../src/database/db', () => ({ query: jest.fn(), getClient: jest.fn() }));
 jest.mock('pdf-parse', () => jest.fn());
+jest.mock('fs', () => ({
+  promises: {
+    unlink: jest.fn().mockResolvedValue(undefined),
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    access: jest.fn().mockRejectedValue(new Error('File not found')),
+  },
+  existsSync: jest.fn().mockReturnValue(false),
+  createReadStream: jest.fn(),
+}));
 jest.mock('multer', () => {
   const m = () => ({ single: () => (req, res, next) => next() });
   m.diskStorage = () => ({});
@@ -52,11 +61,20 @@ filteredApp.use(express.json());
 filteredApp.use((req, res, next) => { req.user = { id: 3, role: 'user', patientId: 5 }; req.patientFilter = 5; next(); });
 filteredApp.use('/', testResultsRouter);
 
+const fsModule = require('fs');
+
 let mockClient;
 beforeEach(() => {
   db.query.mockReset();
   mockClient = { query: jest.fn(), release: jest.fn() };
   db.getClient.mockResolvedValue(mockClient);
+  fsModule.existsSync.mockReset();
+  fsModule.existsSync.mockReturnValue(false);
+  fsModule.createReadStream.mockReset();
+  fsModule.promises.unlink.mockReset();
+  fsModule.promises.unlink.mockResolvedValue(undefined);
+  fsModule.promises.access.mockReset();
+  fsModule.promises.access.mockRejectedValue(new Error('File not found'));
 });
 
 // ─── generatePdfFilename ───────────────────────────────────────────────────
@@ -352,6 +370,20 @@ describe('extractLabValues', () => {
       expect(glu.status).toBe('high');
     }
   });
+
+  it('skips entries where value is not a valid number', () => {
+    // "abc" is not numeric — should be filtered out
+    const values = extractLabValues('Hemoglobin: abc g/dL');
+    const hb = values.find(v => v.parameter_name.toLowerCase().includes('hemoglobin'));
+    expect(hb).toBeUndefined();
+  });
+
+  it('handles pattern index 4 (value unit parameter format)', () => {
+    // GENERIC_EXTRACTION_PATTERNS[4]: (\d+) (lakhs?\/\w+|million\/\w+) (parameter)
+    const text = '1.5 lakhs/cumm Platelet Count';
+    const values = extractLabValues(text);
+    expect(Array.isArray(values)).toBe(true);
+  });
 });
 
 // ─── REFERENCE_RANGES sanity checks ───────────────────────────────────────
@@ -440,6 +472,36 @@ describe('POST /panels', () => {
     expect(res.body.success).toBe(true);
   });
 
+  it('returns 201 on successful creation with parameters', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [] })                              // no duplicate
+      .mockResolvedValueOnce({ rows: [] })                              // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 5, name: 'CBC' }] })       // INSERT panel
+      .mockResolvedValueOnce({ rows: [] })                              // INSERT parameter
+      .mockResolvedValueOnce({ rows: [] })                              // COMMIT
+      .mockResolvedValueOnce({ rows: [{ id: 5, name: 'CBC', parameters: null }] }); // SELECT
+    const res = await request(app).post('/panels').send({
+      name: 'CBC',
+      parameters: [{ parameter_name: 'Hemoglobin', unit: 'g/dL', reference_min: 12, reference_max: 16 }],
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('returns 500 and rolls back when parameter insert fails', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [] })                              // no duplicate
+      .mockResolvedValueOnce({ rows: [] })                              // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 5, name: 'CBC' }] })       // INSERT panel
+      .mockRejectedValueOnce(new Error('Insert failed'))                // parameter INSERT throws
+      .mockResolvedValueOnce({ rows: [] });                             // ROLLBACK
+    const res = await request(app).post('/panels').send({
+      name: 'CBC',
+      parameters: [{ parameter_name: 'HB' }],
+    });
+    expect(res.status).toBe(500);
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB down'));
     const res = await request(app).post('/panels').send({ name: 'Test' });
@@ -478,6 +540,12 @@ describe('PUT /panels/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
+
+  it('returns 500 when DB throws', async () => {
+    db.query.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).put('/panels/1').send({ name: 'Test' });
+    expect(res.status).toBe(500);
+  });
 });
 
 // ─── DELETE /panels/:id ───────────────────────────────────────────────────
@@ -499,6 +567,22 @@ describe('DELETE /panels/:id', () => {
     const res = await request(app).delete('/panels/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('rolls back and returns 500 when inner transaction fails', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'CBC' }] })    // panel exists
+      .mockResolvedValueOnce({ rows: [] })                           // BEGIN
+      .mockRejectedValueOnce(new Error('Delete params failed'))      // DELETE params throws
+      .mockResolvedValueOnce({ rows: [] });                          // ROLLBACK
+    const res = await request(app).delete('/panels/1');
+    expect(res.status).toBe(500);
+  });
+
+  it('returns 500 when DB throws', async () => {
+    db.query.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).delete('/panels/1');
+    expect(res.status).toBe(500);
   });
 });
 
@@ -533,6 +617,12 @@ describe('POST /panels/:id/parameters', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
   });
+
+  it('returns 500 when DB throws', async () => {
+    db.query.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).post('/panels/1/parameters').send({ parameter_name: 'HB' });
+    expect(res.status).toBe(500);
+  });
 });
 
 // ─── PUT /panels/:panelId/parameters/:parameterId ─────────────────────────
@@ -549,6 +639,15 @@ describe('PUT /panels/:panelId/parameters/:parameterId', () => {
     expect(res.status).toBe(404);
   });
 
+  it('returns 400 when another parameter with same name exists in panel', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] })   // param exists
+      .mockResolvedValueOnce({ rows: [{ id: 2 }] });  // duplicate found
+    const res = await request(app).put('/panels/1/parameters/1').send({ parameter_name: 'Duplicate' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/already exists/i);
+  });
+
   it('returns 200 on successful parameter update', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1 }] })   // param exists
@@ -556,6 +655,12 @@ describe('PUT /panels/:panelId/parameters/:parameterId', () => {
       .mockResolvedValueOnce({ rows: [{ id: 1, parameter_name: 'Updated' }] }); // UPDATE
     const res = await request(app).put('/panels/1/parameters/1').send({ parameter_name: 'Updated' });
     expect(res.status).toBe(200);
+  });
+
+  it('returns 500 when DB throws', async () => {
+    db.query.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).put('/panels/1/parameters/1').send({ parameter_name: 'HB' });
+    expect(res.status).toBe(500);
   });
 });
 
@@ -575,6 +680,12 @@ describe('DELETE /panels/:panelId/parameters/:parameterId', () => {
     const res = await request(app).delete('/panels/1/parameters/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('returns 500 when DB throws', async () => {
+    db.query.mockRejectedValue(new Error('DB error'));
+    const res = await request(app).delete('/panels/1/parameters/1');
+    expect(res.status).toBe(500);
   });
 });
 
@@ -739,6 +850,18 @@ describe('GET /:id/download', () => {
     expect(res.body.error).toMatch(/not found on server/i);
   });
 
+  it('streams the PDF file when it exists on disk', async () => {
+    const { PassThrough } = require('stream');
+    db.query.mockResolvedValueOnce({ rows: [{ pdf_file_path: '/fake/report.pdf', test_name: 'CBC', test_date: '2024-01-01', first_name: 'John', last_name: 'Doe' }] });
+    fsModule.promises.access.mockResolvedValue(undefined); // file exists
+    const mockStream = new PassThrough();
+    fsModule.createReadStream.mockReturnValue(mockStream);
+    const resPromise = request(app).get('/1/download');
+    mockStream.end();
+    await resPromise;
+    expect(fsModule.createReadStream).toHaveBeenCalledWith('/fake/report.pdf');
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(app).get('/1/download');
@@ -761,6 +884,18 @@ describe('GET /:id/view', () => {
     const res = await request(app).get('/1/view');
     expect(res.status).toBe(404);
     expect(res.body.error).toMatch(/not found on server/i);
+  });
+
+  it('streams the PDF file inline when it exists on disk', async () => {
+    const { PassThrough } = require('stream');
+    db.query.mockResolvedValueOnce({ rows: [{ pdf_file_path: '/fake/report.pdf', test_name: 'CBC', test_date: '2024-01-01', first_name: 'Jane', last_name: 'Smith' }] });
+    fsModule.existsSync.mockReturnValue(true);
+    const mockStream = new PassThrough();
+    fsModule.createReadStream.mockReturnValue(mockStream);
+    const resPromise = request(app).get('/1/view');
+    mockStream.end();
+    await resPromise;
+    expect(fsModule.createReadStream).toHaveBeenCalledWith('/fake/report.pdf');
   });
 
   it('returns 500 when DB throws', async () => {
@@ -956,6 +1091,18 @@ describe('DELETE /:id (delete test result)', () => {
     const res = await request(app).delete('/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('deletes PDF file when it is within the uploads directory', async () => {
+    const path = require('path');
+    const uploadsDir = path.resolve('./uploads');
+    const pdfPath = path.join(uploadsDir, 'lab-reports/test.pdf');
+    db.query
+      .mockResolvedValueOnce({ rows: [{ pdf_file_path: pdfPath }] })
+      .mockResolvedValueOnce({ rows: [{ test_name: 'CBC', patient_id: 5 }] });
+    const res = await request(app).delete('/1');
+    expect(res.status).toBe(200);
+    expect(fsModule.promises.unlink).toHaveBeenCalledWith(pdfPath);
   });
 
   it('returns 500 when DB throws', async () => {

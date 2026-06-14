@@ -157,6 +157,52 @@ describe('Logger', () => {
     });
   });
 
+  // ─── DEBUG-level logger instance ───────────────────────────────────────
+
+  describe('DEBUG-level logger instance', () => {
+    let debugLogger;
+
+    beforeEach(() => {
+      jest.resetModules();
+      process.env.LOG_LEVEL = 'DEBUG';
+      process.env.DEBUG = 'true';
+      debugLogger = new (require('../../src/utils/logger').constructor)();
+    });
+
+    afterEach(() => {
+      process.env.LOG_LEVEL = 'ERROR';
+      delete process.env.DEBUG;
+    });
+
+    it('calls console.debug for debug()', () => {
+      debugLogger.debug('debug message');
+      expect(consoleSpy.debug).toHaveBeenCalled();
+    });
+  });
+
+  // ─── query logging enabled ──────────────────────────────────────────────
+
+  describe('query logging enabled', () => {
+    let queryLogger;
+
+    beforeEach(() => {
+      jest.resetModules();
+      process.env.LOG_LEVEL = 'DEBUG';
+      process.env.DEBUG = 'true';
+      queryLogger = new (require('../../src/utils/logger').constructor)();
+    });
+
+    afterEach(() => {
+      process.env.LOG_LEVEL = 'ERROR';
+      delete process.env.DEBUG;
+    });
+
+    it('logs query details when queryLogging is enabled', () => {
+      queryLogger.query('SELECT * FROM users', [1], 12, 5);
+      expect(consoleSpy.debug).toHaveBeenCalled();
+    });
+  });
+
   // ─── a logger with INFO level enabled (isolated instance) ───────────────
 
   describe('INFO-level logger instance', () => {
