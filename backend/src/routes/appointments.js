@@ -235,7 +235,8 @@ router.post('/', async (req, res) => {
       appointment_date,
       type,
       status = 'scheduled',
-      notes
+      notes,
+      diagnosis
     } = req.body;
     
     // Basic validation
@@ -259,18 +260,19 @@ router.post('/', async (req, res) => {
     
     const result = await db.query(`
       INSERT INTO appointments (
-        patient_id, doctor_id, institution_id, appointment_date, 
-        type, status, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        patient_id, doctor_id, institution_id, appointment_date,
+        type, status, notes, diagnosis
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [
-      patient_id, 
-      doctor_id || null, 
-      institution_id || null, 
-      appointment_date, 
-      type || null, 
-      status, 
-      notes || null
+      patient_id,
+      doctor_id || null,
+      institution_id || null,
+      appointment_date,
+      type || null,
+      status,
+      notes || null,
+      diagnosis || null
     ]);
     
     res.status(201).json({
