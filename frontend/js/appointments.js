@@ -595,7 +595,18 @@ function displayAppointmentDetails(appointment) {
                             </div>
                         </div>
                         ` : ''}
-                        
+
+                        ${appointment.diagnosis ? `
+                        <div class="row mt-2">
+                            <div class="col-sm-4 fw-semibold">Diagnosis:</div>
+                            <div class="col-sm-8">
+                                <div style="max-height: 100px; overflow-y: auto;">
+                                    ${appointment.diagnosis}
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
                         ${appointment.created_at ? `
                         <div class="row mt-2">
                             <div class="col-sm-4 fw-semibold">Created:</div>
