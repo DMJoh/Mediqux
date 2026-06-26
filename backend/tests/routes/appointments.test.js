@@ -195,6 +195,22 @@ describe('POST /appointments', () => {
     expect(res.status).toBe(201);
   });
 
+  it('persists diagnosis when creating a completed appointment', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 7, patient_id: 1, status: 'completed', diagnosis: 'Flu' }] });
+    const res = await request(adminApp).post('/').send({
+      patient_id: 1,
+      appointment_date: '2020-01-01T10:00:00',
+      status: 'completed',
+      diagnosis: 'Flu',
+    });
+    expect(res.status).toBe(201);
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('diagnosis'),
+      expect.arrayContaining(['Flu'])
+    );
+    expect(res.body.data.diagnosis).toBe('Flu');
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).post('/').send({

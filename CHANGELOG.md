@@ -5,6 +5,30 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] - 2026-06-26
+
+### 🔒 Security (CodeQL)
+
+- **UUID validation on route params** — `:id` parameters in appointments, prescriptions, diagnostic-studies, and test-results routes are now validated as well-formed UUIDs before reaching the DB; malformed values return `400` (CodeQL #4, #5, #6, #7, #8, #50)
+- **JWT payload no longer trusted for identity** — `authenticateToken` now sources `id`, `username`, and `role` from the DB row rather than the decoded token, preventing identity spoofing via crafted JWTs; `/api/auth/me` simplified to use the same middleware (CodeQL #55, #56, #57)
+- **Rate limiting gaps closed** — `/api/health` and `/api/system/database` were missing `apiLimiter`; both now enforce the standard 300 req / 15-min limit
+
+### 🐛 Bug Fixes
+
+- **Appointment diagnosis not saved on creation** — `POST /appointments` was missing `diagnosis` in the destructure and `INSERT`, so it was silently dropped for new completed appointments
+- **Appointment diagnosis not shown in view modal** — `displayAppointmentDetails` never rendered the `diagnosis` field; now conditionally shown in the view modal
+
+### 🧪 Testing
+
+- **Expanded coverage** — 334 lines of additional tests across appointments, auth, diagnostic-studies, prescriptions, test-results, and logger; includes UUID validation edge cases and the diagnosis persistence path
+
+### 🔁 CI / CD
+
+- **CodeQL workflow added** — Runs on push/PR to `main`; trigger scoped to `main` only to skip redundant scans on feature branches
+- **SonarQube trigger corrected** — Fixed scan conditions so the workflow fires on the correct branches
+
+---
+
 ## [1.0.11] - 2026-06-12
 
 ### 🔒 Security Hardening
