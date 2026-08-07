@@ -498,7 +498,10 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB max PDF size
+    files: 1, // one PDF per request
+    fields: 20, // form fields (patientId, testName, testType, etc.)
+    fieldSize: 1 * 1024 * 1024 // 1MB max per text field
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf') {
