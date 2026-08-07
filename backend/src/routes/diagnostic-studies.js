@@ -27,7 +27,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  limits: {
+    fileSize: 20 * 1024 * 1024, // 20MB max attachment size
+    files: 1, // one attachment per request
+    fields: 20, // form fields (patient_id, study_type, etc.)
+    fieldSize: 1 * 1024 * 1024 // 1MB max per text field
+  },
   fileFilter: (req, file, cb) => {
     const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
     if (allowed.includes(file.mimetype)) {
