@@ -6,6 +6,7 @@ updates:
   # Backend Node.js dependencies
   - package-ecosystem: "npm"
     directory: "/backend"
+    target-branch: "develop"
     schedule:
       interval: "monthly"
       day: "monday"
@@ -44,6 +45,7 @@ updates:
   # Docker base images
   - package-ecosystem: "docker"
     directory: "/backend"
+    target-branch: "develop"
     schedule:
       interval: "monthly"
       day: "tuesday"
@@ -61,6 +63,7 @@ updates:
   # Frontend Docker images
   - package-ecosystem: "docker"
     directory: "/frontend"
+    target-branch: "develop"
     schedule:
       interval: "monthly"
       day: "tuesday"
@@ -78,6 +81,7 @@ updates:
   # GitHub Actions (if you add any workflows)
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "monthly"
       day: "monday"
