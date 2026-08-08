@@ -843,11 +843,12 @@ router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, 
       
       // Delete existing lab values for this test result
       await client.query('DELETE FROM lab_values WHERE test_result_id = $1', [id]);
-      
+
       // Insert new lab values
+      let insertedCount = 0;
       for (const labValue of lab_values) {
-        const numVal = parseFloat(labValue.value);
-        const valueInRange = !isNaN(numVal) && Math.abs(numVal) < 10_000_000;
+        const numVal = Number.parseFloat(labValue.value);
+        const valueInRange = !Number.isNaN(numVal) && Math.abs(numVal) < 10_000_000;
         if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
           await client.query(`
             INSERT INTO lab_values (
@@ -861,15 +862,16 @@ router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, 
             labValue.reference_range || null,
             labValue.status || 'normal'
           ]);
+          insertedCount++;
         }
       }
-      
+
       await client.query('COMMIT');
-      
+
       res.json({
         success: true,
         message: 'Lab values saved successfully',
-        count: lab_values.length
+        count: insertedCount
       });
       
     } catch (error) {
@@ -944,21 +946,27 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
       
       const testResultId = testResult.rows[0].id;
       
-      // Insert lab values if provided
+      // Insert lab values if provided, skipping any with a non-numeric or
+      // out-of-range value rather than letting Postgres reject the whole
+      // request (mirrors the same check in POST /:id/lab-values)
       if (lab_values && Array.isArray(lab_values) && lab_values.length > 0) {
         for (const labValue of lab_values) {
-          await client.query(`
-            INSERT INTO lab_values (
-              test_result_id, parameter_name, value, unit, reference_range, status
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-          `, [
-            testResultId,
-            labValue.parameter_name,
-            labValue.value,
-            labValue.unit || null,
-            labValue.reference_range || null,
-            labValue.status || 'normal'
-          ]);
+          const numVal = Number.parseFloat(labValue.value);
+          const valueInRange = !Number.isNaN(numVal) && Math.abs(numVal) < 10_000_000;
+          if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
+            await client.query(`
+              INSERT INTO lab_values (
+                test_result_id, parameter_name, value, unit, reference_range, status
+              ) VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+              testResultId,
+              labValue.parameter_name,
+              labValue.value,
+              labValue.unit || null,
+              labValue.reference_range || null,
+              labValue.status || 'normal'
+            ]);
+          }
         }
       }
       

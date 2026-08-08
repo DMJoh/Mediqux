@@ -174,7 +174,7 @@ function displayConditions() {
                 severityBadge = '<span class="badge bg-secondary">Not Set</span>';
         }
         
-        const usageCount = parseInt(condition.usage_count) || 0;
+        const usageCount = Number.parseInt(condition.usage_count) || 0;
         
         return `
             <tr>
@@ -415,7 +415,7 @@ async function viewCondition(id) {
 // Display condition details in modal
 function displayConditionDetails(condition) {
     const content = document.getElementById('conditionDetailsContent');
-    const usageCount = parseInt(condition.usage_count) || 0;
+    const usageCount = Number.parseInt(condition.usage_count) || 0;
     
     content.innerHTML = `
         <div class="row">

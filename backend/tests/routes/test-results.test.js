@@ -644,6 +644,29 @@ describe('POST / (create test result)', () => {
     expect(mockClient.release).toHaveBeenCalled();
   });
 
+  it('skips lab values with a non-numeric or out-of-range value instead of erroring', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })                              // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 10, test_name: 'CBC' }] }) // INSERT test result
+      .mockResolvedValueOnce({ rows: [] })                              // INSERT the one valid lab value
+      .mockResolvedValueOnce({ rows: [] });                             // COMMIT
+    const body = {
+      ...validBody,
+      lab_values: [
+        { parameter_name: 'Hemoglobin', value: 13.5, unit: 'g/dL' },
+        { parameter_name: 'BadValue', value: 'abc' },        // skipped: non-numeric
+        { parameter_name: 'BigNumber', value: 99999999 },    // skipped: value too large
+      ],
+    };
+    const res = await request(app).post('/').send(body);
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    // BEGIN, INSERT test_result, INSERT (only the 1 valid lab value), COMMIT = 4 calls
+    expect(mockClient.query).toHaveBeenCalledTimes(4);
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
   it('returns 500 and rolls back when transaction fails', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] });
     mockClient.query
@@ -697,6 +720,8 @@ describe('POST /:id/lab-values', () => {
     });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    // count reflects the 1 value actually inserted, not the 3 sent
+    expect(res.body.count).toBe(1);
     expect(mockClient.release).toHaveBeenCalled();
   });
 
