@@ -554,8 +554,6 @@ async function editMedication(id) {
 
 // Save medication (create or update)
 async function saveMedication() {
-    const form = document.getElementById('medicationForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

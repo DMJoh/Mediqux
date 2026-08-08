@@ -308,8 +308,6 @@ async function editCondition(id) {
 
 // Save condition (create or update)
 async function saveCondition() {
-    const form = document.getElementById('conditionForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

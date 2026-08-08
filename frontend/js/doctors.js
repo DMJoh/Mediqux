@@ -310,8 +310,6 @@ async function editDoctor(id) {
 
 // Save doctor (create or update)
 async function saveDoctor() {
-    const form = document.getElementById('doctorForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

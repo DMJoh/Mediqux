@@ -1,11 +1,9 @@
 // We test the real Logger class — not a mock
 // Spy on console methods to verify calls without polluting test output
 
-const Logger = (() => {
-  // Re-require so we get a fresh instance per test suite
-  jest.resetModules();
-  return require('../../src/utils/logger').constructor;
-})();
+// Reset the module registry so the singleton required below is a fresh
+// instance for this suite, not one left over from another test file
+jest.resetModules();
 
 // Re-import the singleton for tests that just need it working
 const logger = require('../../src/utils/logger');

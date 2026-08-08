@@ -5,6 +5,12 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔧 Code Quality
+
+- **CodeQL cleanup** — resolved all 12 open CodeQL alerts (all low-severity reliability/cleanliness findings, no vulnerabilities): removed 7 dead `const form = document.getElementById(...)` declarations left over in `saveX()` functions across appointments, prescriptions, patients, medications, doctors, institutions, and conditions pages; removed an unused `newTab` variable capturing `window.open()`'s return value in lab-reports.js; removed a `let overallStatus` variable in lab-reports.js that was assigned but never read (the actually-used `statusBadge` variable was untouched); removed an unused `Logger` variable in `logger.test.js` while preserving its `jest.resetModules()` side effect; removed an unused `path` import in `server.js`.
+
 ## [1.0.13] - 2026-08-09
 
 ### 🐛 Bug Fixes
