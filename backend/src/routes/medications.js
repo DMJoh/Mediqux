@@ -362,7 +362,7 @@ router.get('/forms/available', async (req, res) => {
     ];
     
     const existingForms = result.rows.map(row => row.form);
-    const allForms = [...new Set([...commonForms, ...existingForms])].sort();
+    const allForms = [...new Set([...commonForms, ...existingForms])].sort((a, b) => a.localeCompare(b));
     
     res.json({
       success: true,

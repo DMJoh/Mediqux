@@ -133,7 +133,7 @@ function populateTypeFilter() {
     const types = [...new Set(allInstitutions
         .map(institution => institution.type)
         .filter(type => type && type.trim())
-    )].sort();
+    )].sort((a, b) => a.localeCompare(b));
     
     const select = document.getElementById('typeFilter');
     select.innerHTML = '<option value="">All Types</option>' + 
