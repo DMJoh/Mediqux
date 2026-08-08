@@ -7,6 +7,29 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Parse a medication's active_ingredients (JSONB may come back as a string)
+// and normalize each entry to {name, dosage}. Some older seed data used a
+// `concentration` key instead of `dosage` - the app's own add-ingredient
+// form only ever writes `dosage`, so `concentration` is tolerated here as a
+// read-only fallback rather than assumed to be a second valid shape.
+function parseActiveIngredients(raw) {
+    let ingredients = raw || [];
+    if (typeof ingredients === 'string') {
+        try {
+            ingredients = JSON.parse(ingredients);
+        } catch (e) {
+            ingredients = [];
+        }
+    }
+    if (!Array.isArray(ingredients)) {
+        ingredients = [];
+    }
+    return ingredients.map(ing => ({
+        name: ing.name || '',
+        dosage: ing.dosage || ing.concentration || ''
+    }));
+}
+
 let allMedications = [];
 let filteredMedications = [];
 let currentEditingId = null;
@@ -212,22 +235,8 @@ function displayMedications() {
             : '';
         
         // Format active ingredients
-        let ingredients = medication.active_ingredients || [];
-        
-        // Handle case where active_ingredients comes back as a string (JSONB)
-        if (typeof ingredients === 'string') {
-            try {
-                ingredients = JSON.parse(ingredients);
-            } catch (e) {
-                ingredients = [];
-            }
-        }
-        
-        // Ensure ingredients is always an array
-        if (!Array.isArray(ingredients)) {
-            ingredients = [];
-        }
-        
+        const ingredients = parseActiveIngredients(medication.active_ingredients);
+
         // Format overall strengths
         const strengths = medication.strengths || [];
         
@@ -246,8 +255,8 @@ function displayMedications() {
         if (ingredients.length > 0) {
             combinedDisplay += '<div class="mt-2">';
             combinedDisplay += '<small class="text-muted d-block"><i class="bi bi-capsule"></i> Contents:</small>';
-            combinedDisplay += ingredients.map(ing => 
-                `<small class="text-success d-block ms-2">• ${ing.name}: <strong>${ing.dosage}</strong></small>`
+            combinedDisplay += ingredients.map(ing =>
+                `<small class="text-success d-block ms-2">• ${escapeHtml(ing.name)}${ing.dosage ? `: <strong>${escapeHtml(ing.dosage)}</strong>` : ''}</small>`
             ).join('');
             combinedDisplay += '</div>';
         }
@@ -459,12 +468,12 @@ function updateSelectedIngredients() {
     if (activeIngredients.length === 0) {
         container.innerHTML = '<small class="text-muted">No ingredients added yet</small>';
     } else {
-        container.innerHTML = activeIngredients.map(ingredient => 
+        container.innerHTML = activeIngredients.map(ingredient =>
             `<div class="d-flex justify-content-between align-items-center p-2 mb-1 rounded border">
                 <div>
-                    <strong>${ingredient.name}</strong> - <span class="text-muted">${ingredient.dosage}</span>
+                    <strong>${escapeHtml(ingredient.name)}</strong> - <span class="text-muted">${escapeHtml(ingredient.dosage)}</span>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeIngredient('${ingredient.name}')">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeIngredient('${escapeHtml(ingredient.name)}')">
                     <i class="bi bi-trash"></i>
                 </button>
              </div>`
@@ -523,20 +532,7 @@ async function editMedication(id) {
             selectedForms = Array.isArray(medication.dosage_forms) ? [...medication.dosage_forms] : [];
             selectedStrengths = Array.isArray(medication.strengths) ? [...medication.strengths] : [];
             
-            // Handle JSONB active_ingredients
-            let ingredients = medication.active_ingredients || [];
-            if (typeof ingredients === 'string') {
-                try {
-                    ingredients = JSON.parse(ingredients);
-                } catch (e) {
-                    ingredients = [];
-                }
-            }
-            // Ensure ingredients is always an array
-            if (!Array.isArray(ingredients)) {
-                ingredients = [];
-            }
-            activeIngredients = [...ingredients];
+            activeIngredients = parseActiveIngredients(medication.active_ingredients);
             
             // Update all displays
             updateSelectedForms();
@@ -663,18 +659,8 @@ function displayMedicationDetails(medication) {
     const patientMedicationCount = parseInt(medication.patient_medication_count) || 0;
     const totalUsage = prescriptionCount + patientMedicationCount;
     
-    // Parse active ingredients if it's JSONB
-    let activeIngredients = [];
-    if (medication.active_ingredients) {
-        try {
-            activeIngredients = typeof medication.active_ingredients === 'string' 
-                ? JSON.parse(medication.active_ingredients) 
-                : medication.active_ingredients;
-        } catch (e) {
-            activeIngredients = [];
-        }
-    }
-    
+    const activeIngredients = parseActiveIngredients(medication.active_ingredients);
+
     content.innerHTML = `
         <div class="row">
             <div class="col-md-8">
