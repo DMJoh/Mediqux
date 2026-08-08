@@ -130,12 +130,10 @@ Complete prescription management featuring:
 
 Advanced lab report system with:
 - PDF upload and local processing
-- Basic pattern recognition for common lab panels (CBC, CMP, BMP, Lipid, LFT, KFT, Thyroid)
+- Reusable lab panels with reference ranges (CBC, CMP, BMP, Lipid, LFT, KFT, Thyroid)
 - Manual lab value entry with test templates
 - Structured lab values with reference ranges
 - Descriptive PDF filenames and secure storage
-
-> **Note**: PDF text extraction uses basic pattern matching and is not perfect. Extracted values should always be verified against the original document.
 
 ---
 

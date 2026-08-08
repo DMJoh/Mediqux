@@ -5,6 +5,12 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🔥 Removed
+
+- **Automatic lab value extraction removed** — Uploading a lab report PDF no longer attempts to parse or pattern-match values out of the document. PDFs are stored as-is; use **Manual Entry** to record lab values, or the **Lab Panels** reference-range feature to define reusable panels. This removes the `pdf-parse` dependency, the pattern-matching/confidence-scoring logic in `test-results.js`, and the "review extracted values" UI (part of which was already unreachable dead code). The `extracted_text`/`structured_data` columns on `test_results` are left in place (unused) — no migration needed.
+
 ## [1.0.12] - 2026-06-26
 
 ### 🔒 Security (CodeQL)

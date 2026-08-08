@@ -2,7 +2,6 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const { PDFParse } = require('pdf-parse');
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
@@ -512,439 +511,6 @@ const upload = multer({
   }
 });
 
-const LAB_PATTERNS = {
-  hemoglobin: [
-    /h[ae]moglobin[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
-    /hb[:\s]*(\d+(?:\.\d+)?)\s*g[m]?\/dl/i,
-    /(\d+(?:\.\d+)?)\s+h[ae]moglobin\s*\(hb\)[^\r\n]{0,100}g[m]?\/dl/i,
-    /(\d+(?:\.\d+)?)\s+hb\b[^\r\n]{0,100}g[m]?\/dl/i
-  ],
-
-  wbc: [
-    /wbc\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
-    /white\s*blood\s*cell[:\s]*(\d+(?:,\d+)?)/i,
-    /([\d,]+)\s+total\s+wbc\s+count[^\r\n]{0,100}\/cumm/i,
-    /([\d,]+)\s+wbc\s+count[^\r\n]{0,100}\/cumm/i
-  ],
-
-  rbc: [
-    /rbc\s*count[:\s]*(\d+(?:\.\d+)?)\s*million\/[μu]l/i,
-    /red\s*blood\s*cell[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+rbc\b[^\r\n]{0,100}mill\/cumm/i
-  ],
-
-  platelets: [
-    /platelet\s*count[:\s]*(\d+(?:,\d+)?)\s*\/[μu]l/i,
-    /platelets?[:\s]*(\d+(?:,\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+lakhs?\/cumm\s+platelet\s+count/i,
-    /(\d+(?:\.\d+)?)\s+platelet\s+count[^\r\n]{0,100}lakhs?\/cumm/i
-  ],
-
-  hematocrit: [
-    /hematocrit[:\s]*(\d+(?:\.\d+)?)\s*%?/i,
-    /hct[:\s]*(\d+(?:\.\d+)?)/i,
-    /pcv[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+packed\s+cell\s+volume[^\r\n]{0,100}%/i
-  ],
-
-  esr: [
-    /esr[:\s]*(\d+(?:\.\d+)?)\s*mm\/hr/i,
-    /erythrocyte\s*sedimentation\s*rate[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+erythrocyte\s+sedimentation\s+rate[^\r\n]{0,100}mm\/hr/i
-  ],
-
-  neutrophils: [
-    /neutrophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+neutrophils[^\r\n]{0,100}%/i
-  ],
-
-  lymphocytes: [
-    /lymphocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+lymphocytes[^\r\n]{0,100}%/i
-  ],
-
-  eosinophils: [
-    /eosinophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+eosinophils[^\r\n]{0,100}%/i
-  ],
-
-  monocytes: [
-    /monocytes?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+monocytes[^\r\n]{0,100}%/i
-  ],
-
-  basophils: [
-    /basophils?[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+basophils[^\r\n]{0,100}%/i
-  ],
-
-  mcv: [
-    /mcv[:\s]*(\d+(?:\.\d+)?)\s*fl/i,
-    /(\d+(?:\.\d+)?)\s+mcv\b[^\r\n]{0,100}cubic\/micro/i
-  ],
-
-  mch: [
-    /mch[:\s]*(\d+(?:\.\d+)?)\s*pg/i,
-    /(\d+(?:\.\d+)?)\s+mch\b[^\r\n]{0,100}pico\s+gram/i
-  ],
-
-  mchc: [
-    /mchc[:\s]*(\d+(?:\.\d+)?)\s*%/i,
-    /(\d+(?:\.\d+)?)\s+mchc\b[^\r\n]{0,100}%/i
-  ],
-
-  glucose: [
-    /glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /blood\s*glucose[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /fasting\s*glucose[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+glucose[^\r\n]{0,100}mg\/dl/i
-  ],
-
-  cholesterol: [
-    /total\s*cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /cholesterol[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /(\d+(?:\.\d+)?)\s+total\s+cholesterol[^\r\n]{0,100}mg\/dl/i
-  ],
-
-  creatinine: [
-    /creatinine[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /serum\s*creatinine[:\s]*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s+creatinine[^\r\n]{0,100}mg\/dl/i
-  ],
-
-  bun: [
-    /bun[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /blood\s*urea\s*nitrogen[:\s]*(\d+(?:\.\d+)?)/i,
-    /urea[:\s]*(\d+(?:\.\d+)?)\s*mg\/dl/i,
-    /(\d+(?:\.\d+)?)\s+bun[^\r\n]{0,100}mg\/dl/i
-  ]
-};
-
-const REFERENCE_RANGES = {
-  glucose: { min: 70, max: 100, unit: 'mg/dL' },
-  cholesterol: { max: 200, unit: 'mg/dL' },
-  creatinine: { min: 0.6, max: 1.2, unit: 'mg/dL' },
-  bun: { min: 7, max: 20, unit: 'mg/dL' },
-  
-  hemoglobin: { min: 13.0, max: 16.0, unit: 'g/dL' },
-  hematocrit: { min: 40, max: 50, unit: '%' },
-  wbc: { min: 4000, max: 10000, unit: '/cumm' },
-  rbc: { min: 4.5, max: 5.5, unit: 'mill/cumm' },
-  platelets: { min: 1.5, max: 4.1, unit: 'Lakhs/cumm' },
-  esr: { min: 0, max: 10, unit: 'mm/hr' },
-  
-  neutrophils: { min: 40, max: 80, unit: '%' },
-  lymphocytes: { min: 20, max: 40, unit: '%' },
-  eosinophils: { min: 0, max: 6, unit: '%' },
-  monocytes: { min: 0, max: 10, unit: '%' },
-  basophils: { min: 0, max: 2, unit: '%' },
-  
-  mcv: { min: 83, max: 101, unit: 'fL' },
-  mch: { min: 27, max: 32, unit: 'pg' },
-  mchc: { min: 31.5, max: 34.5, unit: '%' }
-};
-
-const GENERIC_EXTRACTION_PATTERNS = [
-  /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
-  
-  /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)[:\s]+(\d+(?:\.\d+)?(?:,\d{3})*)\s*([a-zA-Z\/\%μℓµ\-\+]+(?:\s*\/\s*[a-zA-Z]+)*)/g,
-  
-  /([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s+(\d+(?:\.\d+)?(?:,\d{3})*)\s*(?=\s|$)/g,
-  
-  /(\d+(?:\.\d+)?(?:,\d{3})*)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)\s*(\%|percent)/g,
-  
-  /(\d+(?:\.\d+)?)\s+(lakhs?\/\w+|million\/\w+)\s+([A-Za-z][A-Za-z\s\(\)\-\/]{2,50}?)/gi
-];
-
-const UNIT_STANDARDIZATION = {
-  'gm/dl': 'g/dL',
-  'gm/dL': 'g/dL', 
-  'GM/DL': 'g/dL',
-  '/ul': '/µL',
-  '/UL': '/µL',
-  'per ul': '/µL',
-  'per µl': '/µL',
-  'million/ul': 'million/µL',
-  'million/UL': 'million/µL',
-  'lakhs/cumm': 'Lakhs/µL',
-  'LAKHS/CUMM': 'Lakhs/µL'
-};
-
-const PARAMETER_STANDARDIZATION = {
-  'HAEMOGLOBIN': 'Hemoglobin',
-  'HAEMOGLOBIN (HB)': 'Hemoglobin',
-  'HB': 'Hemoglobin',
-  'HGB': 'Hemoglobin', 
-  'RBC COUNT': 'Red Blood Cell Count',
-  'WBC COUNT': 'White Blood Cell Count',
-  'PLATELET COUNT': 'Platelet Count',
-  'PLT COUNT': 'Platelet Count',
-  'HEMATOCRIT': 'Hematocrit',
-  'HCT': 'Hematocrit',
-  'PACKED CELL VOLUME': 'Hematocrit'
-};
-
-function calculatePatternConfidence(patternIndex, parameter, unit) {
-  let confidence = 0.5;
-  
-  if (patternIndex === 0) confidence = 0.9;
-  if (patternIndex === 1) confidence = 0.85;
-  if (patternIndex === 2) confidence = 0.8;
-  if (patternIndex === 3) confidence = 0.85;
-  if (patternIndex === 4) confidence = 0.9;
-  if (patternIndex === 5) confidence = 0.75;
-  if (patternIndex === 6) confidence = 0.7;
-  
-  const medicalUnits = ['g/dL', 'mg/dL', 'mEq/L', '/µL', 'million/µL', '%', 'U/L'];
-  if (medicalUnits.includes(unit)) confidence += 0.1;
-  
-  const commonLabParams = ['hemoglobin', 'hematocrit', 'platelet', 'glucose', 'creatinine'];
-  if (commonLabParams.some(param => parameter?.toLowerCase().includes(param))) confidence += 0.1;
-  
-  return Math.min(confidence, 1.0);
-}
-
-function extractLabValues(text) {
-  const allMatches = [];
-  const extractedValues = [];
-  
-  GENERIC_EXTRACTION_PATTERNS.forEach((pattern, patternIndex) => {
-    const matches = [...text.matchAll(pattern)];
-    matches.forEach(match => {
-      let value, parameter, unit;
-      
-      if (patternIndex === 0 || patternIndex === 3) {
-        value = match[1];
-        parameter = match[2];
-        unit = match[3] || '';
-      } else if (patternIndex === 1) {
-        parameter = match[1];
-        value = match[2];
-        unit = match[3] || '';
-      } else if (patternIndex === 2) {
-        parameter = match[1];
-        value = match[2];
-        unit = '';
-      } else if (patternIndex === 4) {
-        value = match[1];
-        unit = match[2];
-        parameter = match[3];
-      }
-      
-      let standardizedUnit = unit?.trim().toLowerCase();
-      if (UNIT_STANDARDIZATION[standardizedUnit]) {
-        unit = UNIT_STANDARDIZATION[standardizedUnit];
-      }
-      
-      allMatches.push({
-        value: value?.trim(),
-        parameter: parameter?.trim(),
-        unit: unit?.trim(),
-        fullMatch: match[0],
-        patternUsed: patternIndex
-      });
-    });
-  });
-  
-  
-  allMatches.forEach(match => {
-    const numericValue = parseFloat(match.value?.replace(/,/g, ''));
-    if (isNaN(numericValue) || !match.parameter || match.parameter.length < 2) {
-      return;
-    }
-    
-    const cleanParameter = match.parameter
-      .replace(/\s+/g, ' ')
-      .replace(/[()]/g, '')
-      .trim()
-      .toLowerCase();
-    
-    if (cleanParameter.includes('reference') || 
-        cleanParameter.includes('range') ||
-        cleanParameter.includes('sample') ||
-        cleanParameter.includes('years') ||
-        cleanParameter.includes('adult') ||
-        cleanParameter.includes('male') ||
-        cleanParameter.includes('female') ||
-        cleanParameter.length < 2) {
-      return;
-    }
-    
-    let cleanUnit = match.unit?.replace(/[()]/g, '').trim() || '';
-    
-    let status = 'normal';
-    const parameterKey = findParameterKey(cleanParameter);
-    if (parameterKey) {
-      const refRange = REFERENCE_RANGES[parameterKey];
-      if (refRange) {
-        if (refRange.min && numericValue < refRange.min) status = 'low';
-        else if (refRange.max && numericValue > refRange.max) status = 'high';
-        
-        if (!cleanUnit && refRange.unit) {
-          cleanUnit = refRange.unit;
-        }
-      }
-    }
-    
-    extractedValues.push({
-      parameter_name: formatParameterForDisplay(cleanParameter),
-      value: numericValue,
-      unit: cleanUnit || null,
-      reference_range: parameterKey ? formatReferenceRange(REFERENCE_RANGES[parameterKey]) : null,
-      status: status,
-      raw_match: match.fullMatch,
-      confidence: calculateConfidence(match)
-    });
-  });
-  
-  // Remove duplicates based on parameter name similarity
-  const uniqueValues = removeDuplicateParameters(extractedValues);
-  
-  return uniqueValues;
-}
-
-// Helper function to find parameter key from our existing knowledge
-function findParameterKey(parameterText) {
-  const text = parameterText.toLowerCase();
-  
-  // Check for known parameter variations
-  if (text.includes('hemoglobin') || text.includes('haemoglobin') || text === 'hb') return 'hemoglobin';
-  if (text.includes('wbc') || text.includes('white blood cell') || text.includes('total wbc')) return 'wbc';
-  if (text.includes('rbc') || text.includes('red blood cell')) return 'rbc';
-  if (text.includes('platelet')) return 'platelets';
-  if (text.includes('hematocrit') || text.includes('packed cell volume') || text.includes('pcv')) return 'hematocrit';
-  if (text.includes('esr') || text.includes('erythrocyte sedimentation')) return 'esr';
-  if (text.includes('neutrophil')) return 'neutrophils';
-  if (text.includes('lymphocyte')) return 'lymphocytes';
-  if (text.includes('eosinophil')) return 'eosinophils';
-  if (text.includes('monocyte')) return 'monocytes';
-  if (text.includes('basophil')) return 'basophils';
-  if (text === 'mcv') return 'mcv';
-  if (text === 'mch') return 'mch';
-  if (text === 'mchc') return 'mchc';
-  if (text.includes('glucose')) return 'glucose';
-  if (text.includes('creatinine')) return 'creatinine';
-  if (text.includes('cholesterol')) return 'cholesterol';
-  
-  return null;
-}
-
-// Format parameter name for display
-function formatParameterForDisplay(parameterText) {
-  const text = parameterText.toLowerCase();
-  
-  // Use known good names
-  const parameterKey = findParameterKey(text);
-  if (parameterKey) {
-    return formatParameterName(parameterKey);
-  }
-  
-  // Otherwise, clean up the raw text
-  return parameterText
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Calculate confidence score for extracted value
-function calculateConfidence(match) {
-  let confidence = 0.5; // Base confidence
-  
-  // Higher confidence for known parameters
-  if (findParameterKey(match.parameter)) confidence += 0.3;
-  
-  // Higher confidence if unit is present and looks medical
-  if (match.unit) {
-    const unit = match.unit.toLowerCase();
-    if (unit.includes('dl') || unit.includes('cumm') || unit.includes('%') || 
-        unit.includes('μl') || unit.includes('mg') || unit.includes('lakhs')) {
-      confidence += 0.2;
-    }
-  }
-  
-  return Math.min(confidence, 1.0);
-}
-
-// Remove duplicate parameters based on similarity
-function removeDuplicateParameters(extractedValues) {
-  const unique = [];
-  const seen = new Set();
-  
-  extractedValues
-    .sort((a, b) => b.confidence - a.confidence) // Higher confidence first
-    .forEach(value => {
-      const key = value.parameter_name.toLowerCase().replace(/[^a-z]/g, '');
-      if (!seen.has(key)) {
-        seen.add(key);
-        unique.push(value);
-      }
-    });
-  
-  return unique;
-}
-
-// Helper functions
-function formatParameterName(key) {
-  const names = {
-    // CBC parameters
-    hemoglobin: 'Hemoglobin',
-    hematocrit: 'Hematocrit (PCV)',
-    wbc: 'WBC Count',
-    rbc: 'RBC Count',
-    platelets: 'Platelet Count',
-    esr: 'ESR',
-    
-    // Differential count
-    neutrophils: 'Neutrophils',
-    lymphocytes: 'Lymphocytes',
-    eosinophils: 'Eosinophils',
-    monocytes: 'Monocytes',
-    basophils: 'Basophils',
-    
-      mcv: 'MCV',
-    mch: 'MCH',
-    mchc: 'MCHC',
-    
-    // Chemistry
-    glucose: 'Glucose',
-    cholesterol: 'Total Cholesterol',
-    creatinine: 'Creatinine',
-    bun: 'BUN'
-  };
-  return names[key] || key.toUpperCase();
-}
-
-function formatReferenceRange(refRange) {
-  if (!refRange) return null;
-  if (refRange.min && refRange.max) return `${refRange.min}-${refRange.max}`;
-  if (refRange.max) return `<${refRange.max}`;
-  if (refRange.min) return `>${refRange.min}`;
-  return null;
-}
-
-function getUnitFromText(text) {
-  const unitPatterns = [
-    /mg\/dl/i,
-    /g\/dl/i,
-    /μg\/dl/i,
-    /ng\/dl/i,
-    /u\/l/i,
-    /iu\/l/i,
-    /miu\/l/i,
-    /meq\/l/i,
-    /\/μl/i,
-    /%/
-  ];
-  
-  for (const pattern of unitPatterns) {
-    const match = text.match(pattern);
-    if (match) return match[0];
-  }
-  return null;
-}
-
 // Get all test results (with RBAC filtering)
 router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
   try {
@@ -1149,7 +715,7 @@ router.get('/:id', authenticateToken, addPatientFilter, async (req, res) => {
   }
 });
 
-// Upload PDF report with optional parsing and value suggestions
+// Upload PDF report (stored as-is, no automatic parsing/value extraction)
 router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const {
@@ -1159,12 +725,11 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
       testType,
       testDate,
       institutionId,
-      performedById,
-      enableParsing = 'true' // Optional parsing flag
+      performedById
     } = req.body;
-    
+
     const pdfFile = req.file;
-    
+
     // Basic validation
     if (!patientId || !testName || !testType || !testDate || !pdfFile) {
       return res.status(400).json({
@@ -1172,7 +737,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
         error: 'Patient, test name, test type, test date, and PDF file are required'
       });
     }
-    
+
     // Verify patient exists
     const patientCheck = await db.query('SELECT id FROM patients WHERE id = $1', [patientId]);
     if (patientCheck.rows.length === 0) {
@@ -1181,41 +746,17 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
         error: 'Patient not found'
       });
     }
-    
-    
-    let extractedText = null;
-    let suggestedValues = [];
-    let parsingError = null;
-    
-    // Attempt PDF parsing if enabled (optional enhancement)
-    if (enableParsing === 'true') {
-      try {
-        const parser = new PDFParse({ url: pdfFile.path });
-        const pdfData = await parser.getText();
-        extractedText = pdfData.text;
-        
-        if (extractedText && extractedText.length > 50) {
-          suggestedValues = extractLabValues(extractedText);
-          console.log(`Extracted ${suggestedValues.length} potential lab values`);
-        }
-      } catch (error) {
-        console.error('PDF parsing failed (non-critical):', error);
-        parsingError = error.message;
-        // Continue with upload even if parsing fails
-      }
-    }
-    
+
     const client = await db.getClient();
-    
+
     try {
       await client.query('BEGIN');
-      
-      // Create test result record with PDF file (always save PDF regardless of parsing)
+
       const testResultQuery = `
         INSERT INTO test_results (
           patient_id, appointment_id, test_name, test_type, test_date,
-          institution_id, performed_by_id, pdf_file_path, extracted_text, structured_data
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          institution_id, performed_by_id, pdf_file_path
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
       `;
 
@@ -1227,34 +768,28 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
         testDate,
         institutionId || null,
         performedById || null,
-        pdfFile.path,
-        extractedText,
-        JSON.stringify({ suggested_values: suggestedValues, parsing_error: parsingError })
+        pdfFile.path
       ]);
-      
+
       await client.query('COMMIT');
-      
+
       res.status(200).json({
         success: true,
         message: 'PDF lab report uploaded successfully',
         data: {
           id: testResult.rows[0].id,
           testName,
-          fileName: pdfFile.originalname,
-          parsingEnabled: enableParsing === 'true',
-          parsingSuccess: !parsingError && suggestedValues.length > 0,
-          suggestedValues: suggestedValues, // Send suggested values to frontend
-          parsingError: parsingError
+          fileName: pdfFile.originalname
         }
       });
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
-    
+
   } catch (error) {
     console.error('Error uploading lab report:', error);
     
@@ -1782,13 +1317,3 @@ module.exports = router;
 
 // Export pure utility functions for unit testing
 module.exports.generatePdfFilename = generatePdfFilename;
-module.exports.extractLabValues = extractLabValues;
-module.exports.findParameterKey = findParameterKey;
-module.exports.formatParameterForDisplay = formatParameterForDisplay;
-module.exports.calculateConfidence = calculateConfidence;
-module.exports.calculatePatternConfidence = calculatePatternConfidence;
-module.exports.removeDuplicateParameters = removeDuplicateParameters;
-module.exports.formatParameterName = formatParameterName;
-module.exports.formatReferenceRange = formatReferenceRange;
-module.exports.getUnitFromText = getUnitFromText;
-module.exports.REFERENCE_RANGES = REFERENCE_RANGES;

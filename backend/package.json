@@ -20,7 +20,6 @@
     "pg": "^8.22.0",
     "cors": "^2.8.6",
     "multer": "^2.2.0",
-    "pdf-parse": "^2.4.5",
     "dotenv": "^17.4.2",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
