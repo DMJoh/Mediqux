@@ -257,7 +257,7 @@ router.get('/types/available', async (req, res) => {
     // Add common institution types
     const commonTypes = ['Hospital', 'Clinic', 'Laboratory', 'Pharmacy', 'Diagnostic Center', 'Nursing Home'];
     const existingTypes = result.rows.map(row => row.type);
-    const allTypes = [...new Set([...commonTypes, ...existingTypes])].sort();
+    const allTypes = [...new Set([...commonTypes, ...existingTypes])].sort((a, b) => a.localeCompare(b));
     
     res.json({
       success: true,
