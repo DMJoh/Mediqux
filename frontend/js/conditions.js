@@ -427,11 +427,11 @@ function displayConditionDetails(condition) {
                         </h4>
                         ${condition.category ? `<p class="mb-2"><span class="badge bg-info fs-6">${condition.category}</span></p>` : ''}
                         
-                        ${condition.icd_10_code ? `
+                        ${condition.icd_code ? `
                         <div class="row mt-3">
                             <div class="col-sm-4 fw-semibold">ICD-10 Code:</div>
                             <div class="col-sm-8">
-                                <span class="font-monospace badge bg-secondary">${condition.icd_10_code}</span>
+                                <span class="font-monospace badge bg-secondary">${escapeHtml(condition.icd_code)}</span>
                             </div>
                         </div>
                         ` : ''}

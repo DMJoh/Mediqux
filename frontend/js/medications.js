@@ -703,8 +703,8 @@ function displayMedicationDetails(medication) {
                         <div class="row mt-2">
                             <div class="col-sm-4 fw-semibold">Active Ingredients:</div>
                             <div class="col-sm-8">
-                                ${activeIngredients.map(ingredient => 
-                                    `<span class="badge bg-secondary me-2 mb-1">${ingredient}</span>`
+                                ${activeIngredients.map(ingredient =>
+                                    `<span class="badge bg-secondary me-2 mb-1">${escapeHtml(ingredient.name)}${ingredient.dosage ? `: ${escapeHtml(ingredient.dosage)}` : ''}</span>`
                                 ).join('')}
                             </div>
                         </div>
@@ -758,19 +758,19 @@ function displayMedicationDetails(medication) {
                         <h6 class="mb-0"><i class="bi bi-info-circle"></i> Medication Information</h6>
                     </div>
                     <div class="card-body">
-                        ${medication.strength ? `
+                        ${medication.strengths && medication.strengths.length > 0 ? `
                         <div class="mb-3">
                             <i class="bi bi-speedometer text-primary"></i>
-                            <strong class="ms-2">Strength:</strong>
-                            <div class="mt-1">${medication.strength}</div>
+                            <strong class="ms-2">Strengths:</strong>
+                            <div class="mt-1">${medication.strengths.map(s => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(s)}</span>`).join('')}</div>
                         </div>
                         ` : ''}
-                        
-                        ${medication.dosage_form ? `
+
+                        ${medication.dosage_forms && medication.dosage_forms.length > 0 ? `
                         <div class="mb-3">
                             <i class="bi bi-capsule text-primary"></i>
-                            <strong class="ms-2">Dosage Form:</strong>
-                            <div class="mt-1">${medication.dosage_form}</div>
+                            <strong class="ms-2">Dosage Forms:</strong>
+                            <div class="mt-1">${medication.dosage_forms.map(f => `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(f)}</span>`).join('')}</div>
                         </div>
                         ` : ''}
                         
