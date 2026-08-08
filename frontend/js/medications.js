@@ -780,7 +780,7 @@ function displayMedicationDetails(medication) {
                         </div>
                         ` : ''}
                         
-                        ${!medication.strength && !medication.dosage_form && !medication.route ? `
+                        ${(!medication.strengths || medication.strengths.length === 0) && (!medication.dosage_forms || medication.dosage_forms.length === 0) && !medication.route ? `
                         <div class="text-center text-muted">
                             <i class="bi bi-info-circle"></i>
                             <p class="mb-0 mt-2">Additional information not available</p>
