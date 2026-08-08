@@ -36,7 +36,7 @@ router.get('/categories/list', async (req, res) => {
     ];
     
     const existingCategories = result.rows.map(row => row.category);
-    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort();
+    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort((a, b) => a.localeCompare(b));
     
     res.json({
       success: true,
