@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Quick-add from Lab Panels in Manual Entry** — The Manual Entry form's quick-add buttons are now generated from your actual Lab Panels (Manage Panels) instead of a fixed hardcoded list. Selecting a panel pre-fills parameter name, unit, and reference range (derived from the panel's min/max) for each of its parameters, leaving the value blank for you to fill in. Closes the previous gap where Lab Panels and manual entry were disconnected features.
+
 ### 🔥 Removed
 
 - **Automatic lab value extraction removed** — Uploading a lab report PDF no longer attempts to parse or pattern-match values out of the document. PDFs are stored as-is; use **Manual Entry** to record lab values, or the **Lab Panels** reference-range feature to define reusable panels. This removes the `pdf-parse` dependency, the pattern-matching/confidence-scoring logic in `test-results.js`, and the "review extracted values" UI (part of which was already unreachable dead code). The `extracted_text`/`structured_data` columns on `test_results` are left in place (unused) — no migration needed.

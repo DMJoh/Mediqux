@@ -29,41 +29,8 @@ function capitalizeStatus(status) {
     return statusMap[status.toLowerCase()] || 'Normal';
 }
 
-// Common lab test templates
-const COMMON_TESTS = {
-    CBC: [
-        { name: 'Hemoglobin', unit: 'g/dL', referenceRange: '12.0-15.0' },
-        { name: 'Hematocrit', unit: '%', referenceRange: '36-45' },
-        { name: 'WBC Count', unit: '/μL', referenceRange: '4000-10000' },
-        { name: 'Platelet Count', unit: '/μL', referenceRange: '150000-450000' },
-        { name: 'RBC Count', unit: 'million/μL', referenceRange: '4.0-5.2' }
-    ],
-    CMP: [
-        { name: 'Glucose', unit: 'mg/dL', referenceRange: '70-100' },
-        { name: 'BUN', unit: 'mg/dL', referenceRange: '7-20' },
-        { name: 'Creatinine', unit: 'mg/dL', referenceRange: '0.6-1.2' },
-        { name: 'Sodium', unit: 'mEq/L', referenceRange: '136-145' },
-        { name: 'Potassium', unit: 'mEq/L', referenceRange: '3.5-5.0' },
-        { name: 'Chloride', unit: 'mEq/L', referenceRange: '98-107' }
-    ],
-    Lipid: [
-        { name: 'Total Cholesterol', unit: 'mg/dL', referenceRange: '<200' },
-        { name: 'HDL Cholesterol', unit: 'mg/dL', referenceRange: '>40' },
-        { name: 'LDL Cholesterol', unit: 'mg/dL', referenceRange: '<100' },
-        { name: 'Triglycerides', unit: 'mg/dL', referenceRange: '<150' }
-    ],
-    Thyroid: [
-        { name: 'TSH', unit: 'mIU/L', referenceRange: '0.4-4.0' },
-        { name: 'T3', unit: 'ng/dL', referenceRange: '80-200' },
-        { name: 'T4', unit: 'μg/dL', referenceRange: '4.5-12.0' }
-    ],
-    Liver: [
-        { name: 'ALT', unit: 'U/L', referenceRange: '7-56' },
-        { name: 'AST', unit: 'U/L', referenceRange: '10-40' },
-        { name: 'Bilirubin Total', unit: 'mg/dL', referenceRange: '0.1-1.2' },
-        { name: 'Alkaline Phosphatase', unit: 'U/L', referenceRange: '44-147' }
-    ]
-};
+// Lab panels available for quick-add templates in manual entry
+let manualEntryPanels = [];
 
 // Make functions globally available
 window.uploadReport = uploadReport;
@@ -77,7 +44,7 @@ window.openManualEntryModal = openManualEntryModal;
 window.clearFilters = clearFilters;
 window.addLabValue = addLabValue;
 window.removeLabValue = removeLabValue;
-window.addCommonTest = addCommonTest;
+window.addPanelToManualEntry = addPanelToManualEntry;
 window.viewPDF = viewPDF;
 window.downloadPDF = downloadPDF;
 
@@ -87,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadReports();
         loadReportStats();
         loadFilterOptions();
+        loadManualEntryPanels();
         setupEventListeners();
         
         // Set today's date as default for test dates
@@ -483,6 +451,8 @@ function openManualEntryModal() {
     // Set today's date
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('manualTestDate').value = today;
+
+    loadManualEntryPanels();
 }
 
 // Add lab value input row
@@ -537,21 +507,74 @@ function removeLabValue(valueId) {
     }
 }
 
-// Add common test template
-function addCommonTest(testType) {
-    if (!COMMON_TESTS[testType]) return;
-    
+// Load lab panels (defined under "Manage Panels") for quick-add templates
+async function loadManualEntryPanels() {
+    try {
+        const panels = await apiCall('/test-results/panels');
+        manualEntryPanels = Array.isArray(panels) ? panels : [];
+    } catch (error) {
+        console.error('Error loading lab panels for quick add:', error);
+        manualEntryPanels = [];
+    }
+    renderQuickAddPanels();
+}
+
+// Render the quick-add panel buttons inside the manual entry modal
+function renderQuickAddPanels() {
+    const container = document.getElementById('quickAddPanelsContainer');
+    if (!container) return;
+
+    if (manualEntryPanels.length === 0) {
+        container.innerHTML = '<small class="text-muted">No lab panels defined yet. Use "Manage Panels" to create one.</small>';
+        return;
+    }
+
+    container.innerHTML = manualEntryPanels.map(panel => `
+        <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addPanelToManualEntry('${panel.id}')">
+            ${escapeHtml(panel.name)}
+        </button>
+    `).join('');
+}
+
+// Format a reference range string from a panel parameter's min/max
+function formatPanelReferenceRange(param) {
+    const hasMin = param.reference_min !== null && param.reference_min !== undefined;
+    const hasMax = param.reference_max !== null && param.reference_max !== undefined;
+    if (hasMin && hasMax) return `${param.reference_min}-${param.reference_max}`;
+    if (hasMax) return `<${param.reference_max}`;
+    if (hasMin) return `>${param.reference_min}`;
+    return '';
+}
+
+// Fill the manual entry form with a lab panel's defined parameters
+function addPanelToManualEntry(panelId) {
+    const panel = manualEntryPanels.find(p => String(p.id) === String(panelId));
+    if (!panel) return;
+
     // Clear existing values
     const container = document.getElementById('labValuesContainer');
     container.innerHTML = '';
     labValueCounter = 0;
-    
+
     // Set test name
-    document.getElementById('manualTestName').value = `${testType} Panel`;
-    
-    // Add all values for this test type
-    COMMON_TESTS[testType].forEach(testData => {
-        addLabValue(testData);
+    document.getElementById('manualTestName').value = panel.name;
+
+    const parameters = panel.parameters || [];
+    if (parameters.length === 0) {
+        showAlert(`"${panel.name}" has no parameters defined yet. Add them under "Manage Panels".`, 'warning');
+        addLabValue();
+        return;
+    }
+
+    parameters.forEach(param => {
+        const genderSuffix = param.gender_specific ? ` (${param.gender_specific === 'M' ? 'Male' : 'Female'})` : '';
+        addLabValue({
+            name: `${param.parameter_name}${genderSuffix}`,
+            value: '',
+            unit: param.unit || '',
+            referenceRange: formatPanelReferenceRange(param),
+            status: 'normal'
+        });
     });
 }
 
