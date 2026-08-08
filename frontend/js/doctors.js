@@ -138,7 +138,7 @@ function populateSpecialtyFilter() {
     const specialties = [...new Set(allDoctors
         .map(doctor => doctor.specialty)
         .filter(specialty => specialty && specialty.trim())
-    )].sort();
+    )].sort((a, b) => a.localeCompare(b));
     
     const select = document.getElementById('specialtyFilter');
     select.innerHTML = '<option value="">All Specialties</option>' + 

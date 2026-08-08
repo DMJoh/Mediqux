@@ -3,11 +3,13 @@ class AuthManager {
         this.baseURL = window.getApiBaseUrl();
         this.token = localStorage.getItem('authToken');
         this.user = JSON.parse(localStorage.getItem('user') || 'null');
-        
+
         this.validateAndClearTokens();
-        
+    }
+
+    async init() {
         if (window.location.pathname.includes('login.html')) {
-            this.initLoginPage();
+            await this.initLoginPage();
         } else {
             this.checkAuth();
         }
@@ -388,6 +390,7 @@ class AuthManager {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.authManager = new AuthManager();
+    window.authManager.init();
 });
 
 document.addEventListener('DOMContentLoaded', () => {
