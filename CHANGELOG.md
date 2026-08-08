@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ✨ Added
 
 - **Quick-add from Lab Panels in Manual Entry** — The Manual Entry form's quick-add buttons are now generated from your actual Lab Panels (Manage Panels) instead of a fixed hardcoded list. Selecting a panel pre-fills parameter name, unit, and reference range (derived from the panel's min/max) for each of its parameters, leaving the value blank for you to fill in. Closes the previous gap where Lab Panels and manual entry were disconnected features.
+- **Optional Lab Panel + values on PDF upload** — The Upload PDF modal now has an optional "Lab Panel" dropdown; selecting one pre-fills the test name (if blank) and the panel's parameters below, which you can fill in immediately or leave for later (via Edit). Values are only saved if at least one row is filled in — the PDF upload itself is unaffected either way.
 
 ### 🔥 Removed
 

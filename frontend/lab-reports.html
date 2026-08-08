@@ -310,11 +310,11 @@
                         <div class="mb-3">
                             <label for="pdfFile" class="form-label">Lab Report PDF *</label>
                             <div class="input-group">
-                                <input type="file" class="form-control" id="pdfFile" name="pdfFile" 
+                                <input type="file" class="form-control" id="pdfFile" name="pdfFile"
                                        accept=".pdf" required>
                                 <span class="input-group-text"><i class="bi bi-filetype-pdf"></i></span>
                             </div>
-                            <div class="form-text">Upload PDF file (max 10MB). Use "Manual Entry" to record lab values yourself after uploading.</div>
+                            <div class="form-text">Upload PDF file (max 10MB).</div>
                         </div>
 
                         <!-- PDF Upload Status -->
@@ -325,6 +325,32 @@
                             </div>
                         </div>
                     </form>
+
+                    <!-- Optional: pre-fill values from a Lab Panel. Kept outside
+                         #uploadForm so these inputs aren't swept into the PDF
+                         upload's FormData/multer field-count limit; they're
+                         collected and saved separately after a successful upload. -->
+                    <hr>
+                    <div class="mb-3">
+                        <label for="uploadPanelId" class="form-label">Lab Panel (optional)</label>
+                        <select class="form-select" id="uploadPanelId" onchange="handleUploadPanelChange(this.value)">
+                            <option value="">None — fill in values manually or later</option>
+                            <!-- Will be populated dynamically -->
+                        </select>
+                        <div class="form-text">Selecting a panel pre-fills the parameters below. You can fill in values now, or skip and add them later by editing the report.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Lab Values (optional)</label>
+                        <div id="uploadLabValuesContainer">
+                            <!-- Populated by panel selection, or manually via "Add Value" -->
+                        </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLabValue(null, 'uploadLabValuesContainer')">
+                                <i class="bi bi-plus"></i> Add Value
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
