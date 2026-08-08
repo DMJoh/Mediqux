@@ -761,6 +761,7 @@ async function saveManualEntry() {
     
     const testResultData = {
         patient_id: document.getElementById('manualPatientId').value,
+        appointment_id: document.getElementById('manualAppointmentId')?.value || null,
         test_name: document.getElementById('manualTestName').value,
         test_type: document.getElementById('manualTestType')?.value || 'Blood',
         test_date: document.getElementById('manualTestDate').value,
@@ -828,6 +829,13 @@ function displayLabValuesDetails(report) {
     document.getElementById('labValuesModalTitle').innerHTML = 
         `<i class="bi bi-clipboard-data"></i> ${report.test_name} - ${report.patient_first_name} ${report.patient_last_name}`;
     
+    const performedByName = report.performed_by
+        ? `Dr. ${report.performed_by.first_name} ${report.performed_by.last_name}${report.performed_by.specialty ? ` (${report.performed_by.specialty})` : ''}`
+        : null;
+    const appointmentLabel = report.appointment_date
+        ? `${new Date(report.appointment_date).toLocaleDateString()}${report.appointment_type ? ` - ${report.appointment_type}` : ''}`
+        : null;
+
     let detailsHTML = `
         <div class="mb-3">
             <h6>Test Information</h6>
@@ -840,10 +848,31 @@ function displayLabValuesDetails(report) {
                     <small class="text-muted">Test Type:</small>
                     <div><strong>${report.test_type || 'General'}</strong></div>
                 </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Lab/Institution:</small>
+                    <div><strong>${report.institution_name ? escapeHtml(report.institution_name) : 'Not specified'}</strong></div>
+                </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Performed By:</small>
+                    <div><strong>${performedByName ? escapeHtml(performedByName) : 'Not specified'}</strong></div>
+                </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Related Appointment:</small>
+                    <div><strong>${appointmentLabel ? escapeHtml(appointmentLabel) : 'None'}</strong></div>
+                </div>
+                ${report.pdf_file_path ? `
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">PDF Report:</small>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewPDF('${report.id}')"><i class="bi bi-eye"></i> View</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="downloadPDF('${report.id}')"><i class="bi bi-download"></i> Download</button>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
-    
+
     if (report.lab_values && report.lab_values.length > 0) {
         detailsHTML += `
             <div class="mb-3">
@@ -913,6 +942,10 @@ async function editReport(reportId) {
             currentEditingId = reportId;
             document.getElementById('manualTestResultId').value = reportId;
             document.getElementById('manualPatientId').value = report.patient_id;
+            // Setting .value directly doesn't fire the 'change' listener that
+            // populates the appointment dropdown's options, so do it explicitly
+            loadAppointmentsForPatient(report.patient_id, 'manualAppointmentId');
+            document.getElementById('manualAppointmentId').value = report.appointment_id || '';
             document.getElementById('manualTestName').value = report.test_name;
             // Format date for HTML date input (YYYY-MM-DD)
             const testDate = new Date(report.test_date).toISOString().split('T')[0];

@@ -996,14 +996,15 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
       test_date,
       institution_id,
       performed_by_id,
+      appointment_id,
       lab_values
     } = req.body;
-    
+
     const client = await db.getClient();
-    
+
     try {
       await client.query('BEGIN');
-      
+
       // Update test result record
       const updateQuery = `
         UPDATE test_results SET
@@ -1012,8 +1013,9 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
           test_date = $3,
           institution_id = $4,
           performed_by_id = $5,
+          appointment_id = $6,
           updated_at = CURRENT_TIMESTAMP
-        WHERE id = $6
+        WHERE id = $7
         RETURNING *
       `;
 
@@ -1023,9 +1025,10 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
         test_date,
         institution_id || null,
         performed_by_id || null,
+        appointment_id || null,
         id
       ]);
-      
+
       if (result.rows.length === 0) {
         await client.query('ROLLBACK');
         return res.status(404).json({

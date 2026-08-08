@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- **Lab report Appointment link was silently dropped** — Manual Entry's save payload never included `appointment_id`, so linking a lab report to an appointment via the "Related Appointment" dropdown had no effect on create *or* edit; the backend `PUT /:id` route didn't even accept the field. Fixed on both ends.
+- **Edit didn't restore the selected Appointment** — Editing a report set the Patient dropdown's value directly (not via a real selection), which never triggered the listener that populates the Appointment dropdown's options, so it was always empty and unselected regardless of what was actually saved. Fixed by explicitly reloading appointment options for the report's patient before selecting the saved one.
+- **View modal was missing Institution, Performed By, Appointment, and the PDF link** — these were saved and available from the API but never rendered in the "View Details" modal, making it look like they hadn't been saved at all. Now displayed alongside test date/type and lab values.
+
 ### ✨ Added
 
 - **Quick-add from Lab Panels in Manual Entry** — The Manual Entry form's quick-add buttons are now generated from your actual Lab Panels (Manage Panels) instead of a fixed hardcoded list. Selecting a panel pre-fills parameter name, unit, and reference range (derived from the panel's min/max) for each of its parameters, leaving the value blank for you to fill in. Closes the previous gap where Lab Panels and manual entry were disconnected features.
