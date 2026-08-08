@@ -151,7 +151,7 @@ router.get('/:id', async (req, res) => {
         i.name as institution_name,
         
         -- Patient medication status
-        pm.status as medication_status,
+        COALESCE(pm.status, 'active') as status,
         pm.start_date,
         pm.end_date,
         pm.notes as medication_notes
@@ -340,17 +340,34 @@ router.put('/:id', async (req, res) => {
       });
     }
     
-    // Also update patient_medications status if provided and different
-    if (status !== 'active') {
-      const appointmentResult = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointment_id]);
-      if (appointmentResult.rows.length > 0) {
-        const patientId = appointmentResult.rows[0].patient_id;
+    // Also update patient_medications status to match. Previously this only
+    // ran when status !== 'active', so reverting a prescription back to
+    // Active from Discontinued/Completed silently left the old status in
+    // place (GET only defaults to 'active' via COALESCE when the column is
+    // NULL, not when it holds an explicit non-active value).
+    //
+    // Also upsert rather than assume the row exists: a plain UPDATE affects
+    // zero rows for prescriptions that predate patient_medications tracking
+    // (e.g. seed data), silently doing nothing.
+    const appointmentResult = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointment_id]);
+    if (appointmentResult.rows.length > 0) {
+      const patientId = appointmentResult.rows[0].patient_id;
+      const existingPatientMed = await db.query(
+        'SELECT id FROM patient_medications WHERE patient_id = $1 AND medication_id = $2',
+        [patientId, medication_id]
+      );
+      if (existingPatientMed.rows.length > 0) {
         await db.query(`
           UPDATE patient_medications SET
             status = $1,
             updated_at = CURRENT_TIMESTAMP
           WHERE patient_id = $2 AND medication_id = $3
         `, [status, patientId, medication_id]);
+      } else {
+        await db.query(`
+          INSERT INTO patient_medications (patient_id, medication_id, status, start_date)
+          VALUES ($1, $2, $3, CURRENT_DATE)
+        `, [patientId, medication_id, status]);
       }
     }
     

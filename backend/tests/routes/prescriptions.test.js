@@ -232,20 +232,53 @@ describe('PUT /prescriptions/:id', () => {
   });
 
   it('returns 200 on successful update', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] }); // UPDATE
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
+      .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
     const res = await request(adminApp).put('/1').send(validUpdate);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('reverting status to active still updates patient_medications (not skipped)', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
+      .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
+    const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'active' });
+    expect(res.status).toBe(200);
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE patient_medications'),
+      expect.arrayContaining(['active', 5, validUpdate.medication_id])
+    );
   });
 
   it('returns 200 and updates patient medication status when status != active', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
       .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
     const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'completed' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it('inserts a patient_medications row when none exists yet (e.g. seeded prescriptions)', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
+      .mockResolvedValueOnce({ rows: [] })                                   // no existing patient_medications row
+      .mockResolvedValueOnce({ rows: [] });                                   // INSERT patient_medications
+    const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'discontinued' });
+    expect(res.status).toBe(200);
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO patient_medications'),
+      expect.arrayContaining([5, validUpdate.medication_id, 'discontinued'])
+    );
   });
 
   it('returns 500 when DB throws', async () => {

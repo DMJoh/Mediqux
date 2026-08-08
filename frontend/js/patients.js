@@ -449,10 +449,10 @@ function populatePatientView(patient) {
                         </div>
                         ` : ''}
                         
-                        ${patient.emergency_contact ? `
+                        ${(patient.emergency_contact_name || patient.emergency_contact_phone) ? `
                         <div class="row mt-2">
                             <div class="col-sm-4 fw-semibold">Emergency Contact:</div>
-                            <div class="col-sm-8">${patient.emergency_contact}</div>
+                            <div class="col-sm-8">${patient.emergency_contact_name || ''}${patient.emergency_contact_name && patient.emergency_contact_phone ? ' - ' : ''}${patient.emergency_contact_phone || ''}</div>
                         </div>
                         ` : ''}
                         

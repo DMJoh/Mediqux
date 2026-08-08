@@ -158,7 +158,7 @@ function displayInstitutions() {
     noInstitutions.style.display = 'none';
     
     tbody.innerHTML = filteredInstitutions.map(institution => {
-        const doctorCount = parseInt(institution.doctor_count) || 0;
+        const doctorCount = Number.parseInt(institution.doctor_count) || 0;
         
         return `
             <tr>

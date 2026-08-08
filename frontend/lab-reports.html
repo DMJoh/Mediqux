@@ -310,37 +310,52 @@
                         <div class="mb-3">
                             <label for="pdfFile" class="form-label">Lab Report PDF *</label>
                             <div class="input-group">
-                                <input type="file" class="form-control" id="pdfFile" name="pdfFile" 
+                                <input type="file" class="form-control" id="pdfFile" name="pdfFile"
                                        accept=".pdf" required>
                                 <span class="input-group-text"><i class="bi bi-filetype-pdf"></i></span>
                             </div>
-                            <div class="form-text">Upload PDF file (max 10MB). We'll automatically extract lab values.</div>
+                            <div class="form-text">Upload PDF file (max 10MB).</div>
                         </div>
 
-                        <!-- PDF Processing Status -->
+                        <!-- PDF Upload Status -->
                         <div id="processingStatus" style="display: none;" class="alert alert-info">
                             <div class="d-flex align-items-center">
                                 <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                <span>Processing PDF and extracting lab values...</span>
-                            </div>
-                        </div>
-
-                        <!-- Extracted Values Preview -->
-                        <div id="extractedValues" style="display: none;" class="mb-3">
-                            <label class="form-label">Extracted Lab Values</label>
-                            <div class="border rounded p-3">
-                                <div id="extractedValuesContent">
-                                    <!-- Will show extracted values here -->
-                                </div>
-                                <small class="text-muted">Review and edit these values before saving. You can modify them in the next step.</small>
+                                <span>Uploading PDF...</span>
                             </div>
                         </div>
                     </form>
+
+                    <!-- Optional: pre-fill values from a Lab Panel. Kept outside
+                         #uploadForm so these inputs aren't swept into the PDF
+                         upload's FormData/multer field-count limit; they're
+                         collected and saved separately after a successful upload. -->
+                    <hr>
+                    <div class="mb-3">
+                        <label for="uploadPanelId" class="form-label">Lab Panel (optional)</label>
+                        <select class="form-select" id="uploadPanelId" onchange="handleUploadPanelChange(this.value)">
+                            <option value="">None — fill in values manually or later</option>
+                            <!-- Will be populated dynamically -->
+                        </select>
+                        <div class="form-text">Selecting a panel pre-fills the parameters below. You can fill in values now, or skip and add them later by editing the report.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Lab Values (optional)</label>
+                        <div id="uploadLabValuesContainer">
+                            <!-- Populated by panel selection, or manually via "Add Value" -->
+                        </div>
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLabValue(null, 'uploadLabValuesContainer')">
+                                <i class="bi bi-plus"></i> Add Value
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadReport()">
-                        <i class="bi bi-cloud-upload"></i> Upload & Process
+                        <i class="bi bi-cloud-upload"></i> Upload PDF
                     </button>
                 </div>
             </div>
@@ -447,15 +462,11 @@
                             </div>
                         </div>
 
-                        <!-- Quick Add Common Tests -->
+                        <!-- Quick Add from Lab Panels -->
                         <div class="mb-3">
-                            <label class="form-label">Quick Add Common Tests</label>
-                            <div class="btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('CBC')">CBC</button>
-                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('CMP')">CMP</button>
-                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Lipid')">Lipid Panel</button>
-                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Thyroid')">Thyroid</button>
-                                <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addCommonTest('Liver')">Liver Function</button>
+                            <label class="form-label">Quick Add from Lab Panels</label>
+                            <div id="quickAddPanelsContainer" class="btn-group-sm" role="group">
+                                <small class="text-muted">Loading panels...</small>
                             </div>
                         </div>
                     </form>
@@ -666,93 +677,6 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PDF Review Modal -->
-    <div class="modal fade" id="pdfReviewModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-eye"></i> Review Extracted Values
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i>
-                        Review the extracted values below. You can edit any values that were incorrectly extracted or add missing ones manually.
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h6>Extracted Lab Values</h6>
-                            <div id="reviewValuesContainer" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
-                                <!-- Extracted values will be displayed here for review -->
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <h6>Test Information</h6>
-                            <div class="card">
-                                <div class="card-body">
-                                    <div class="mb-2">
-                                        <strong>Patient:</strong> <span id="reviewPatientName">-</span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Test Name:</strong> <span id="reviewTestName">-</span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Test Date:</strong> <span id="reviewTestDate">-</span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <strong>Values Found:</strong> <span id="reviewValueCount">0</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="mt-3">
-                                <button class="btn btn-outline-primary w-100" onclick="addManualValueToReview()">
-                                    <i class="bi bi-plus"></i> Add Manual Value
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveReviewedValuesBtn" onclick="saveReviewedValues()">
-                        <i class="bi bi-save"></i> Save Lab Report
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Suggested Values Review Modal -->
-    <div class="modal fade" id="suggestedValuesModal" tabindex="-1">
-        <div class="modal-dialog modal-fullscreen">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="suggestedValuesModalLabel">
-                        <i class="bi bi-file-earmark-text"></i> Review Extracted Lab Values
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="suggestedValuesContainer">
-                        <!-- Suggested values will be populated here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x-circle"></i> Cancel
-                    </button>
-                    <button type="button" class="btn btn-primary" id="saveSuggestedValuesBtn" onclick="saveSuggestedValues()">
-                        <i class="bi bi-check"></i> Save Lab Values
-                    </button>
                 </div>
             </div>
         </div>

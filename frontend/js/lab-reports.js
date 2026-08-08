@@ -6,7 +6,6 @@ let currentEditingId = null;
 let patients = [];
 let appointments = [];
 let institutions = [];
-let labValueCounter = 0;
 
 // Utility function to escape HTML
 function escapeHtml(text) {
@@ -29,41 +28,8 @@ function capitalizeStatus(status) {
     return statusMap[status.toLowerCase()] || 'Normal';
 }
 
-// Common lab test templates
-const COMMON_TESTS = {
-    CBC: [
-        { name: 'Hemoglobin', unit: 'g/dL', referenceRange: '12.0-15.0' },
-        { name: 'Hematocrit', unit: '%', referenceRange: '36-45' },
-        { name: 'WBC Count', unit: '/μL', referenceRange: '4000-10000' },
-        { name: 'Platelet Count', unit: '/μL', referenceRange: '150000-450000' },
-        { name: 'RBC Count', unit: 'million/μL', referenceRange: '4.0-5.2' }
-    ],
-    CMP: [
-        { name: 'Glucose', unit: 'mg/dL', referenceRange: '70-100' },
-        { name: 'BUN', unit: 'mg/dL', referenceRange: '7-20' },
-        { name: 'Creatinine', unit: 'mg/dL', referenceRange: '0.6-1.2' },
-        { name: 'Sodium', unit: 'mEq/L', referenceRange: '136-145' },
-        { name: 'Potassium', unit: 'mEq/L', referenceRange: '3.5-5.0' },
-        { name: 'Chloride', unit: 'mEq/L', referenceRange: '98-107' }
-    ],
-    Lipid: [
-        { name: 'Total Cholesterol', unit: 'mg/dL', referenceRange: '<200' },
-        { name: 'HDL Cholesterol', unit: 'mg/dL', referenceRange: '>40' },
-        { name: 'LDL Cholesterol', unit: 'mg/dL', referenceRange: '<100' },
-        { name: 'Triglycerides', unit: 'mg/dL', referenceRange: '<150' }
-    ],
-    Thyroid: [
-        { name: 'TSH', unit: 'mIU/L', referenceRange: '0.4-4.0' },
-        { name: 'T3', unit: 'ng/dL', referenceRange: '80-200' },
-        { name: 'T4', unit: 'μg/dL', referenceRange: '4.5-12.0' }
-    ],
-    Liver: [
-        { name: 'ALT', unit: 'U/L', referenceRange: '7-56' },
-        { name: 'AST', unit: 'U/L', referenceRange: '10-40' },
-        { name: 'Bilirubin Total', unit: 'mg/dL', referenceRange: '0.1-1.2' },
-        { name: 'Alkaline Phosphatase', unit: 'U/L', referenceRange: '44-147' }
-    ]
-};
+// Lab panels available for quick-add templates in manual entry
+let manualEntryPanels = [];
 
 // Make functions globally available
 window.uploadReport = uploadReport;
@@ -77,7 +43,8 @@ window.openManualEntryModal = openManualEntryModal;
 window.clearFilters = clearFilters;
 window.addLabValue = addLabValue;
 window.removeLabValue = removeLabValue;
-window.addCommonTest = addCommonTest;
+window.addPanelToManualEntry = addPanelToManualEntry;
+window.handleUploadPanelChange = handleUploadPanelChange;
 window.viewPDF = viewPDF;
 window.downloadPDF = downloadPDF;
 
@@ -87,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadReports();
         loadReportStats();
         loadFilterOptions();
+        loadManualEntryPanels();
         setupEventListeners();
         
         // Set today's date as default for test dates
@@ -461,11 +429,14 @@ function showLoading(show) {
 function openUploadModal() {
     document.getElementById('uploadForm').reset();
     document.getElementById('processingStatus').style.display = 'none';
-    document.getElementById('extractedValues').style.display = 'none';
-    
+    document.getElementById('uploadLabValuesContainer').innerHTML = '';
+    labValueCounters.uploadLabValuesContainer = 0;
+
     // Set today's date
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('uploadTestDate').value = today;
+
+    loadManualEntryPanels();
 }
 
 // Open manual entry modal
@@ -478,38 +449,47 @@ function openManualEntryModal() {
     // Clear lab values container and add one empty row
     const container = document.getElementById('labValuesContainer');
     container.innerHTML = '';
-    labValueCounter = 0;
+    labValueCounters.labValuesContainer = 0;
     addLabValue();
     
     // Set today's date
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('manualTestDate').value = today;
+
+    loadManualEntryPanels();
 }
 
-// Add lab value input row
-function addLabValue(data = null) {
-    const container = document.getElementById('labValuesContainer');
-    const valueId = ++labValueCounter;
-    
+// Per-container row counters, so the upload modal and manual entry modal
+// can each have their own lab-value rows without id collisions
+const labValueCounters = { labValuesContainer: 0, uploadLabValuesContainer: 0 };
+
+// Add lab value input row. containerId lets the same row UI be reused by
+// both the Manual Entry modal (labValuesContainer) and the Upload modal
+// (uploadLabValuesContainer).
+function addLabValue(data = null, containerId = 'labValuesContainer') {
+    const container = document.getElementById(containerId);
+    const valueId = ++labValueCounters[containerId];
+    const rowId = `${containerId}Row${valueId}`;
+
     const valueRow = document.createElement('div');
     valueRow.className = 'row mb-3 lab-value-row';
-    valueRow.id = `labValue${valueId}`;
-    
+    valueRow.id = rowId;
+
     valueRow.innerHTML = `
         <div class="col-md-3">
-            <input type="text" class="form-control" name="parameterName[]" 
+            <input type="text" class="form-control" name="parameterName[]"
                    placeholder="Parameter (e.g., Glucose)" value="${data?.name || ''}" required>
         </div>
         <div class="col-md-2">
-            <input type="number" step="0.001" class="form-control" name="parameterValue[]" 
-                   placeholder="Value" value="${data?.value || ''}" required>
+            <input type="number" step="0.001" class="form-control" name="parameterValue[]"
+                   placeholder="Value" value="${data?.value || ''}">
         </div>
         <div class="col-md-2">
-            <input type="text" class="form-control" name="parameterUnit[]" 
+            <input type="text" class="form-control" name="parameterUnit[]"
                    placeholder="Unit" value="${data?.unit || ''}">
         </div>
         <div class="col-md-3">
-            <input type="text" class="form-control" name="referenceRange[]" 
+            <input type="text" class="form-control" name="referenceRange[]"
                    placeholder="Reference Range" value="${data?.referenceRange || ''}">
         </div>
         <div class="col-md-2">
@@ -520,40 +500,125 @@ function addLabValue(data = null) {
                     <option value="low" ${data?.status === 'low' ? 'selected' : ''}>Low</option>
                     <option value="critical" ${data?.status === 'critical' ? 'selected' : ''}>Critical</option>
                 </select>
-                <button type="button" class="btn btn-outline-danger" onclick="removeLabValue(${valueId})">
+                <button type="button" class="btn btn-outline-danger" onclick="removeLabValue('${rowId}')">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
         </div>
     `;
-    
+
     container.appendChild(valueRow);
 }
 
 // Remove lab value row
-function removeLabValue(valueId) {
-    const element = document.getElementById(`labValue${valueId}`);
+function removeLabValue(rowId) {
+    const element = document.getElementById(rowId);
     if (element) {
         element.remove();
     }
 }
 
-// Add common test template
-function addCommonTest(testType) {
-    if (!COMMON_TESTS[testType]) return;
-    
-    // Clear existing values
-    const container = document.getElementById('labValuesContainer');
+// Load lab panels (defined under "Manage Panels") for quick-add templates,
+// used by both the Manual Entry modal (buttons) and Upload modal (dropdown)
+async function loadManualEntryPanels() {
+    try {
+        const panels = await apiCall('/test-results/panels');
+        manualEntryPanels = Array.isArray(panels) ? panels : [];
+    } catch (error) {
+        console.error('Error loading lab panels for quick add:', error);
+        manualEntryPanels = [];
+    }
+    renderQuickAddPanels();
+    renderUploadPanelOptions();
+}
+
+// Render the quick-add panel buttons inside the manual entry modal
+function renderQuickAddPanels() {
+    const container = document.getElementById('quickAddPanelsContainer');
+    if (!container) return;
+
+    if (manualEntryPanels.length === 0) {
+        container.innerHTML = '<small class="text-muted">No lab panels defined yet. Use "Manage Panels" to create one.</small>';
+        return;
+    }
+
+    container.innerHTML = manualEntryPanels.map(panel => `
+        <button type="button" class="btn btn-outline-secondary me-1 mb-1" onclick="addPanelToManualEntry('${panel.id}')">
+            ${escapeHtml(panel.name)}
+        </button>
+    `).join('');
+}
+
+// Render the Lab Panel <select> options inside the upload modal
+function renderUploadPanelOptions() {
+    const select = document.getElementById('uploadPanelId');
+    if (!select) return;
+
+    const noneLabel = manualEntryPanels.length === 0
+        ? 'None (no lab panels defined yet)'
+        : 'None — fill in values manually or later';
+
+    select.innerHTML = `<option value="">${noneLabel}</option>` +
+        manualEntryPanels.map(panel => `<option value="${panel.id}">${escapeHtml(panel.name)}</option>`).join('');
+}
+
+// Format a reference range string from a panel parameter's min/max
+function formatPanelReferenceRange(param) {
+    const hasMin = param.reference_min !== null && param.reference_min !== undefined;
+    const hasMax = param.reference_max !== null && param.reference_max !== undefined;
+    if (hasMin && hasMax) return `${param.reference_min}-${param.reference_max}`;
+    if (hasMax) return `<${param.reference_max}`;
+    if (hasMin) return `>${param.reference_min}`;
+    return '';
+}
+
+// Fill a lab-values container with a panel's defined parameters, and set
+// the associated test-name field. overwriteTestName=false only fills the
+// test name if it's currently blank, rather than clobbering what's typed.
+function applyPanelTemplate(panelId, containerId, testNameFieldId, overwriteTestName = true) {
+    const panel = manualEntryPanels.find(p => String(p.id) === String(panelId));
+    if (!panel) return;
+
+    const container = document.getElementById(containerId);
     container.innerHTML = '';
-    labValueCounter = 0;
-    
-    // Set test name
-    document.getElementById('manualTestName').value = `${testType} Panel`;
-    
-    // Add all values for this test type
-    COMMON_TESTS[testType].forEach(testData => {
-        addLabValue(testData);
+    labValueCounters[containerId] = 0;
+
+    const testNameField = document.getElementById(testNameFieldId);
+    if (testNameField && (overwriteTestName || !testNameField.value.trim())) {
+        testNameField.value = panel.name;
+    }
+
+    const parameters = panel.parameters || [];
+    if (parameters.length === 0) {
+        showAlert(`"${panel.name}" has no parameters defined yet. Add them under "Manage Panels".`, 'warning');
+        addLabValue(null, containerId);
+        return;
+    }
+
+    parameters.forEach(param => {
+        const genderSuffix = param.gender_specific ? ` (${param.gender_specific === 'M' ? 'Male' : 'Female'})` : '';
+        addLabValue({
+            name: `${param.parameter_name}${genderSuffix}`,
+            value: '',
+            unit: param.unit || '',
+            referenceRange: formatPanelReferenceRange(param),
+            status: 'normal'
+        }, containerId);
     });
+}
+
+// Fill the manual entry form with a lab panel's defined parameters
+function addPanelToManualEntry(panelId) {
+    applyPanelTemplate(panelId, 'labValuesContainer', 'manualTestName', true);
+}
+
+// Called when the Upload modal's Lab Panel dropdown changes
+function handleUploadPanelChange(panelId) {
+    const container = document.getElementById('uploadLabValuesContainer');
+    container.innerHTML = '';
+    labValueCounters.uploadLabValuesContainer = 0;
+    if (!panelId) return;
+    applyPanelTemplate(panelId, 'uploadLabValuesContainer', 'uploadTestName', false);
 }
 
 // Validate file upload
@@ -595,7 +660,7 @@ async function uploadReport() {
     try {
         const uploadBtn = document.getElementById('uploadBtn');
         uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+        uploadBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Uploading...';
         
         document.getElementById('processingStatus').style.display = 'block';
         
@@ -606,21 +671,34 @@ async function uploadReport() {
         });
         
         const result = await response.json();
-        
+
         if (result.success) {
-            // Check if we have suggested values from PDF parsing
-            if (result.data.suggestedValues && result.data.suggestedValues.length > 0) {
-                showSuggestedValuesModal(result.data);
+            // Lab values are optional at upload time; save them if the user
+            // filled any in (via a panel or manually), otherwise skip.
+            const labValues = collectLabValuesFromContainer('uploadLabValuesContainer');
+            if (labValues.length > 0) {
+                try {
+                    const valuesResponse = await window.authManager.apiRequest(`/test-results/${result.data.id}/lab-values`, {
+                        method: 'POST',
+                        body: JSON.stringify({ lab_values: labValues })
+                    });
+                    const valuesResult = await valuesResponse.json();
+                    if (!valuesResult.success) {
+                        showAlert('PDF uploaded, but saving lab values failed: ' + (valuesResult.error || 'unknown error') + '. You can add them later by editing the report.', 'warning');
+                    } else {
+                        showAlert('PDF uploaded and lab values saved successfully.', 'success');
+                    }
+                } catch (valuesError) {
+                    console.error('Error saving lab values after upload:', valuesError);
+                    showAlert('PDF uploaded, but saving lab values failed. You can add them later by editing the report.', 'warning');
+                }
             } else {
-                // No suggestions - PDF saved successfully
-                const message = result.data.parsingEnabled ? 
-                    'PDF uploaded successfully. No lab values could be extracted automatically.' : 
-                    'PDF uploaded successfully.';
-                showAlert(message, 'success');
-                bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-                loadReports();
-                loadReportStats();
+                showAlert('PDF uploaded successfully.', 'success');
             }
+
+            bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
+            loadReports();
+            loadReportStats();
         } else {
             showAlert(result.error || 'Failed to upload report', 'danger');
         }
@@ -630,267 +708,52 @@ async function uploadReport() {
     } finally {
         const uploadBtn = document.getElementById('uploadBtn');
         uploadBtn.disabled = false;
-        uploadBtn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload & Process';
+        uploadBtn.innerHTML = '<i class="bi bi-cloud-upload"></i> Upload PDF';
         document.getElementById('processingStatus').style.display = 'none';
     }
 }
 
-// Display extracted values preview
-function displayExtractedValues(extractedValues) {
-    const container = document.getElementById('extractedValuesContent');
-    container.innerHTML = extractedValues.map(val => 
-        `<div class="d-flex justify-content-between align-items-center border-bottom py-1">
-            <span><strong>${val.parameter}</strong>: ${val.value} ${val.unit || ''}</span>
-            <span class="badge bg-${getStatusColor(val.status)}">${val.status || 'Normal'}</span>
-        </div>`
-    ).join('');
-}
+// Collect entered lab values from a specific lab-value-row container
+// (scoped, rather than document-wide, since the upload and manual-entry
+// modals both have their own container using the same field names).
+function collectLabValuesFromContainer(containerId) {
+    const container = document.getElementById(containerId);
+    const rows = container.querySelectorAll('.lab-value-row');
 
-// Show suggested values modal after PDF upload
-function showSuggestedValuesModal(uploadData) {
-    
-    // Hide upload modal
-    bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-    
-    // Store the upload data for later use
-    window.currentUploadData = uploadData;
-    
-    // Populate suggested values in the review modal
-    const container = document.getElementById('suggestedValuesContainer');
-    const suggestedValues = uploadData.suggestedValues || [];
-    
-    if (suggestedValues.length === 0) {
-        container.innerHTML = '<p class="text-muted">No lab values could be extracted from the PDF.</p>';
-    } else {
-        container.innerHTML = `
-            <div class="alert alert-info mb-3">
-                <i class="bi bi-info-circle"></i> 
-                <strong>Extracted ${suggestedValues.length} potential lab values</strong><br>
-                <small>Please review and edit these values before saving. You can accept, modify, or remove any suggestions.</small>
-            </div>
-            <div id="editableValuesContainer">
-                ${suggestedValues.map((value, index) => createEditableValueRow(value, index)).join('')}
-            </div>
-            <div class="mt-3">
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addEmptyValueRow()">
-                    <i class="bi bi-plus"></i> Add Another Value
-                </button>
-            </div>
-        `;
-    }
-    
-    // Update modal title
-    document.getElementById('suggestedValuesModalLabel').textContent = 
-        `Review Extracted Values - ${uploadData.testName}`;
-    
-    // Show the suggested values modal
-    const suggestedModal = new bootstrap.Modal(document.getElementById('suggestedValuesModal'));
-    suggestedModal.show();
-}
+    const labValues = [];
+    rows.forEach(row => {
+        const name = row.querySelector('[name="parameterName[]"]')?.value?.trim();
+        const value = row.querySelector('[name="parameterValue[]"]')?.value?.trim();
+        const unit = row.querySelector('[name="parameterUnit[]"]')?.value?.trim();
+        const referenceRange = row.querySelector('[name="referenceRange[]"]')?.value?.trim();
+        const status = row.querySelector('[name="parameterStatus[]"]')?.value;
 
-// Create an editable row for a suggested value
-function createEditableValueRow(value, index) {
-    const confidenceBadge = value.confidence ? 
-        `<span class="badge bg-${getConfidenceColor(value.confidence)} ms-2" title="Extraction confidence">
-            ${Math.round(value.confidence * 100)}%
-        </span>` : '';
-    
-    const statusColor = getStatusColor(value.status || 'normal');
-    
-    return `
-        <div class="card mb-2 suggested-value-row" data-index="${index}">
-            <div class="card-body p-3">
-                <div class="row align-items-center">
-                    <div class="col-md-3">
-                        <label class="form-label small">Parameter</label>
-                        <input type="text" class="form-control form-control-sm" 
-                               name="parameter_name_${index}" 
-                               value="${escapeHtml(value.parameter_name || '')}" 
-                               placeholder="Parameter name">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Value</label>
-                        <input type="number" class="form-control form-control-sm" 
-                               name="parameter_value_${index}" 
-                               value="${value.value || ''}" 
-                               step="0.01" 
-                               placeholder="Value">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Unit</label>
-                        <input type="text" class="form-control form-control-sm" 
-                               name="parameter_unit_${index}" 
-                               value="${escapeHtml(value.unit || '')}" 
-                               placeholder="Unit">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Reference</label>
-                        <input type="text" class="form-control form-control-sm" 
-                               name="reference_range_${index}" 
-                               value="${escapeHtml(value.reference_range || '')}" 
-                               placeholder="Normal range">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Status</label>
-                        <select class="form-control form-control-sm" name="parameter_status_${index}">
-                            <option value="normal" ${value.status === 'normal' ? 'selected' : ''}>Normal</option>
-                            <option value="low" ${value.status === 'low' ? 'selected' : ''}>Low</option>
-                            <option value="high" ${value.status === 'high' ? 'selected' : ''}>High</option>
-                            <option value="critical" ${value.status === 'critical' ? 'selected' : ''}>Critical</option>
-                        </select>
-                    </div>
-                    <div class="col-md-1">
-                        <label class="form-label small">&nbsp;</label>
-                        <button type="button" class="btn btn-outline-danger btn-sm d-block" 
-                                onclick="removeSuggestedValueRow(${index})" title="Remove this value">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <small class="text-muted">
-                            Extracted: "${escapeHtml(value.raw_match || '')}"
-                            ${confidenceBadge}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Add an empty value row
-function addEmptyValueRow() {
-    const container = document.getElementById('editableValuesContainer');
-    const index = container.children.length;
-    const emptyValue = {
-        parameter_name: '',
-        value: '',
-        unit: '',
-        reference_range: '',
-        status: 'Normal',
-        raw_match: 'Manually added'
-    };
-    
-    container.insertAdjacentHTML('beforeend', createEditableValueRow(emptyValue, index));
-}
-
-// Remove a suggested value row
-function removeSuggestedValueRow(index) {
-    const row = document.querySelector(`[data-index="${index}"]`);
-    if (row) {
-        row.remove();
-    }
-}
-
-// Get confidence color for badges
-function getConfidenceColor(confidence) {
-    if (confidence >= 0.8) return 'success';
-    if (confidence >= 0.6) return 'warning';
-    return 'secondary';
-}
-
-// Save suggested lab values after review
-async function saveSuggestedValues() {
-    if (!window.currentUploadData) {
-        showAlert('No upload data found', 'danger');
-        return;
-    }
-    
-    try {
-        const saveBtn = document.getElementById('saveSuggestedValuesBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
-        
-        // Collect all edited values
-        const labValues = [];
-        const valueRows = document.querySelectorAll('.suggested-value-row');
-        
-        valueRows.forEach((row, index) => {
-            const parameterName = row.querySelector(`[name="parameter_name_${index}"]`)?.value?.trim();
-            const parameterValue = row.querySelector(`[name="parameter_value_${index}"]`)?.value?.trim();
-            const unit = row.querySelector(`[name="parameter_unit_${index}"]`)?.value?.trim();
-            const referenceRange = row.querySelector(`[name="reference_range_${index}"]`)?.value?.trim();
-            const status = row.querySelector(`[name="parameter_status_${index}"]`)?.value;
-            
-            // Only include values with both name and value
-            if (parameterName && parameterValue) {
-                labValues.push({
-                    parameter_name: parameterName,
-                    value: parseFloat(parameterValue) || parameterValue,
-                    unit: unit || null,
-                    reference_range: referenceRange || null,
-                    status: capitalizeStatus(status)
-                });
-            }
-        });
-        
-        if (labValues.length === 0) {
-            showAlert('Please add at least one lab value', 'warning');
-            return;
+        const numValue = Number.parseFloat(value);
+        if (name && value && !Number.isNaN(numValue)) {
+            labValues.push({
+                parameter_name: name,
+                value: numValue,
+                unit: unit || null,
+                reference_range: referenceRange || null,
+                status: capitalizeStatus(status)
+            });
         }
-        
-        // Save values to the test result
-        const response = await window.authManager.apiRequest(`/test-results/${window.currentUploadData.id}/lab-values`, {
-            method: 'POST',
-            body: JSON.stringify({
-                lab_values: labValues
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            showAlert(`Successfully saved ${labValues.length} lab values`, 'success');
-            bootstrap.Modal.getInstance(document.getElementById('suggestedValuesModal')).hide();
-            loadReports();
-            loadReportStats();
-        } else {
-            showAlert(result.error || 'Failed to save lab values', 'danger');
-        }
-        
-    } catch (error) {
-        console.error('Error saving suggested values:', error);
-        showAlert('Error saving lab values: ' + error.message, 'danger');
-    } finally {
-        const saveBtn = document.getElementById('saveSuggestedValuesBtn');
-        saveBtn.disabled = false;
-        saveBtn.innerHTML = '<i class="bi bi-check"></i> Save Lab Values';
-    }
+    });
+    return labValues;
 }
 
-// Make functions globally available
-window.showSuggestedValuesModal = showSuggestedValuesModal;
-window.saveSuggestedValues = saveSuggestedValues;
-window.addEmptyValueRow = addEmptyValueRow;
-window.removeSuggestedValueRow = removeSuggestedValueRow;
-
-// Save manual entry
 async function saveManualEntry() {
     const form = document.getElementById('manualEntryForm');
-    
+
     // Validate form
     if (!form.checkValidity()) {
         form.reportValidity();
         return;
     }
-    
+
     // Collect lab values
-    const parameterNames = Array.from(document.getElementsByName('parameterName[]')).map(el => el.value);
-    const parameterValues = Array.from(document.getElementsByName('parameterValue[]')).map(el => el.value);
-    const parameterUnits = Array.from(document.getElementsByName('parameterUnit[]')).map(el => el.value);
-    const referenceRanges = Array.from(document.getElementsByName('referenceRange[]')).map(el => el.value);
-    const parameterStatuses = Array.from(document.getElementsByName('parameterStatus[]')).map(el => el.value);
-    
-    const labValues = parameterNames.map((name, index) => ({
-        parameter_name: name,
-        value: parseFloat(parameterValues[index]),
-        unit: parameterUnits[index] || null,
-        reference_range: referenceRanges[index] || null,
-        status: capitalizeStatus(parameterStatuses[index])
-    })).filter(val => val.parameter_name && !isNaN(val.value));
-    
+    const labValues = collectLabValuesFromContainer('labValuesContainer');
+
     if (labValues.length === 0) {
         showAlert('Please add at least one lab value.', 'warning');
         return;
@@ -898,6 +761,7 @@ async function saveManualEntry() {
     
     const testResultData = {
         patient_id: document.getElementById('manualPatientId').value,
+        appointment_id: document.getElementById('manualAppointmentId')?.value || null,
         test_name: document.getElementById('manualTestName').value,
         test_type: document.getElementById('manualTestType')?.value || 'Blood',
         test_date: document.getElementById('manualTestDate').value,
@@ -965,6 +829,13 @@ function displayLabValuesDetails(report) {
     document.getElementById('labValuesModalTitle').innerHTML = 
         `<i class="bi bi-clipboard-data"></i> ${report.test_name} - ${report.patient_first_name} ${report.patient_last_name}`;
     
+    const performedByName = report.performed_by
+        ? `Dr. ${report.performed_by.first_name} ${report.performed_by.last_name}${report.performed_by.specialty ? ` (${report.performed_by.specialty})` : ''}`
+        : null;
+    const appointmentLabel = report.appointment_date
+        ? `${new Date(report.appointment_date).toLocaleDateString()}${report.appointment_type ? ` - ${report.appointment_type}` : ''}`
+        : null;
+
     let detailsHTML = `
         <div class="mb-3">
             <h6>Test Information</h6>
@@ -977,10 +848,31 @@ function displayLabValuesDetails(report) {
                     <small class="text-muted">Test Type:</small>
                     <div><strong>${report.test_type || 'General'}</strong></div>
                 </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Lab/Institution:</small>
+                    <div><strong>${report.institution_name ? escapeHtml(report.institution_name) : 'Not specified'}</strong></div>
+                </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Performed By:</small>
+                    <div><strong>${performedByName ? escapeHtml(performedByName) : 'Not specified'}</strong></div>
+                </div>
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">Related Appointment:</small>
+                    <div><strong>${appointmentLabel ? escapeHtml(appointmentLabel) : 'None'}</strong></div>
+                </div>
+                ${report.pdf_file_path ? `
+                <div class="col-md-6 mt-2">
+                    <small class="text-muted">PDF Report:</small>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewPDF('${report.id}')"><i class="bi bi-eye"></i> View</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="downloadPDF('${report.id}')"><i class="bi bi-download"></i> Download</button>
+                    </div>
+                </div>
+                ` : ''}
             </div>
         </div>
     `;
-    
+
     if (report.lab_values && report.lab_values.length > 0) {
         detailsHTML += `
             <div class="mb-3">
@@ -1050,6 +942,10 @@ async function editReport(reportId) {
             currentEditingId = reportId;
             document.getElementById('manualTestResultId').value = reportId;
             document.getElementById('manualPatientId').value = report.patient_id;
+            // Setting .value directly doesn't fire the 'change' listener that
+            // populates the appointment dropdown's options, so do it explicitly
+            loadAppointmentsForPatient(report.patient_id, 'manualAppointmentId');
+            document.getElementById('manualAppointmentId').value = report.appointment_id || '';
             document.getElementById('manualTestName').value = report.test_name;
             // Format date for HTML date input (YYYY-MM-DD)
             const testDate = new Date(report.test_date).toISOString().split('T')[0];
@@ -1065,7 +961,7 @@ async function editReport(reportId) {
             // Clear and populate lab values
             const container = document.getElementById('labValuesContainer');
             container.innerHTML = '';
-            labValueCounter = 0;
+            labValueCounters.labValuesContainer = 0;
             
             if (report.lab_values && report.lab_values.length > 0) {
                 report.lab_values.forEach(val => {
@@ -1080,7 +976,8 @@ async function editReport(reportId) {
             } else {
                 addLabValue(); // Add one empty row
             }
-            
+
+            loadManualEntryPanels();
             new bootstrap.Modal(document.getElementById('manualEntryModal')).show();
         }
     } catch (error) {
@@ -1193,7 +1090,6 @@ async function downloadPDF(reportId) {
 // Panel Management Variables
 let allPanels = [];
 let currentEditingPanel = null;
-let extractedPDFData = null;
 
 // Panel Management Functions
 window.openPanelManagementModal = openPanelManagementModal;
@@ -1209,12 +1105,6 @@ window.deletePanelParameter = deletePanelParameter;
 window.savePanelChanges = savePanelChanges;
 window.cancelPanelEdit = cancelPanelEdit;
 window.deletePanel = deletePanel;
-
-// PDF Review Functions
-window.saveReviewedValues = saveReviewedValues;
-window.addManualValueToReview = addManualValueToReview;
-window.deleteReviewValue = deleteReviewValue;
-window.updateReviewValue = updateReviewValue;
 
 async function openPanelManagementModal() {
     try {
@@ -1454,8 +1344,8 @@ async function saveNewParameter() {
                 body: JSON.stringify({
                     parameter_name: parameterName,
                     unit: unit || null,
-                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
-                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    reference_min: referenceMin ? Number.parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? Number.parseFloat(referenceMax) : null,
                     gender_specific: genderSpecific || null,
                     aliases: aliases || null
                 })
@@ -1467,8 +1357,8 @@ async function saveNewParameter() {
                 body: JSON.stringify({
                     parameter_name: parameterName,
                     unit: unit || null,
-                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
-                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    reference_min: referenceMin ? Number.parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? Number.parseFloat(referenceMax) : null,
                     gender_specific: genderSpecific || null,
                     aliases: aliases || null
                 })
@@ -1596,204 +1486,6 @@ async function deletePanel() {
     } catch (error) {
         console.error('Error deleting panel:', error);
         showAlert(error.message || 'Error deleting panel', 'danger');
-    }
-}
-
-// PDF Review Functions
-function showPDFReviewModal(extractedData) {
-    extractedPDFData = extractedData;
-    
-    // Check if modal element exists
-    const modalElement = document.getElementById('pdfReviewModal');
-    if (!modalElement) {
-        console.error('PDF Review modal not found in DOM');
-        showAlert('PDF Review modal not found. Please refresh the page.', 'danger');
-        return;
-    }
-    
-    // Populate test information
-    document.getElementById('reviewPatientName').textContent = extractedData.patientName || '-';
-    document.getElementById('reviewTestName').textContent = extractedData.testName || '-';
-    document.getElementById('reviewTestDate').textContent = extractedData.testDate || '-';
-    document.getElementById('reviewValueCount').textContent = extractedData.labValues?.length || 0;
-    
-    // Display extracted values for review
-    displayReviewValues(extractedData.labValues || []);
-    
-    // Show modal
-    try {
-        const modal = new bootstrap.Modal(modalElement);
-        modal.show();
-    } catch (error) {
-        console.error('Error showing PDF Review modal:', error);
-        showAlert('Error showing PDF Review modal: ' + error.message, 'danger');
-    }
-}
-
-function displayReviewValues(labValues) {
-    const container = document.getElementById('reviewValuesContainer');
-    
-    if (!container) {
-        console.error('reviewValuesContainer not found in DOM');
-        return;
-    }
-    
-    if (!labValues || labValues.length === 0) {
-        container.innerHTML = `
-            <div class="text-center text-muted py-5">
-                <i class="bi bi-exclamation-triangle"></i>
-                <p class="mt-2">No lab values were extracted from the PDF</p>
-                <small>You can add values manually using the button on the right</small>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = labValues.map((value, index) => `
-        <div class="card mb-2" id="reviewValue-${index}">
-            <div class="card-body p-3">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <label class="form-label small">Parameter</label>
-                        <input type="text" class="form-control form-control-sm" 
-                               value="${escapeHtml(value.parameter_name)}" 
-                               onchange="updateReviewValue(${index}, 'parameter_name', this.value)">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Value</label>
-                        <input type="number" step="0.01" class="form-control form-control-sm" 
-                               value="${value.value}" 
-                               onchange="updateReviewValue(${index}, 'value', this.value)">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small">Unit</label>
-                        <input type="text" class="form-control form-control-sm" 
-                               value="${escapeHtml(value.unit || '')}" 
-                               onchange="updateReviewValue(${index}, 'unit', this.value)">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small">Status</label>
-                        <select class="form-select form-select-sm" 
-                                onchange="updateReviewValue(${index}, 'status', this.value)">
-                            <option value="normal" ${value.status === 'normal' ? 'selected' : ''}>Normal</option>
-                            <option value="high" ${value.status === 'high' ? 'selected' : ''}>High</option>
-                            <option value="low" ${value.status === 'low' ? 'selected' : ''}>Low</option>
-                            <option value="critical" ${value.status === 'critical' ? 'selected' : ''}>Critical</option>
-                        </select>
-                    </div>
-                    <div class="col-md-1 text-end">
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteReviewValue(${index})" title="Delete">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                ${value.reference_range ? `
-                    <div class="row mt-2">
-                        <div class="col-12">
-                            <small class="text-muted">Reference Range: ${escapeHtml(value.reference_range)}</small>
-                        </div>
-                    </div>
-                ` : ''}
-                ${value.confidence ? `
-                    <div class="row mt-1">
-                        <div class="col-12">
-                            <small class="text-muted">Confidence: ${Math.round(value.confidence * 100)}%</small>
-                        </div>
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `).join('');
-}
-
-function updateReviewValue(index, field, value) {
-    if (extractedPDFData.labValues[index]) {
-        extractedPDFData.labValues[index][field] = value;
-    }
-}
-
-function deleteReviewValue(index) {
-    if (confirm('Remove this lab value?')) {
-        extractedPDFData.labValues.splice(index, 1);
-        displayReviewValues(extractedPDFData.labValues);
-        document.getElementById('reviewValueCount').textContent = extractedPDFData.labValues.length;
-    }
-}
-
-function addManualValueToReview() {
-    const newValue = {
-        parameter_name: '',
-        value: '',
-        unit: '',
-        status: 'Normal',
-        reference_range: null,
-        confidence: null
-    };
-    
-    extractedPDFData.labValues.push(newValue);
-    displayReviewValues(extractedPDFData.labValues);
-    document.getElementById('reviewValueCount').textContent = extractedPDFData.labValues.length;
-}
-
-async function saveReviewedValues() {
-    try {
-        if (!extractedPDFData || !extractedPDFData.labValues || extractedPDFData.labValues.length === 0) {
-            showAlert('No lab values to save', 'warning');
-            return;
-        }
-        
-        // Validate required fields
-        const validValues = extractedPDFData.labValues.filter(value => 
-            value.parameter_name && value.parameter_name.trim() && 
-            value.value !== null && value.value !== ''
-        );
-        
-        if (validValues.length === 0) {
-            showAlert('Please provide valid parameter names and values', 'warning');
-            return;
-        }
-        
-        document.getElementById('saveReviewedValuesBtn').disabled = true;
-        document.getElementById('saveReviewedValuesBtn').innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Saving...';
-        
-        const requestData = {
-            patient_id: extractedPDFData.patientId,
-            appointment_id: extractedPDFData.appointmentId,
-            institution_id: extractedPDFData.institutionId,
-            test_name: extractedPDFData.testName,
-            test_type: extractedPDFData.testType,
-            test_date: extractedPDFData.testDate,
-            lab_values: validValues,
-            pdf_file_path: extractedPDFData.pdfFilePath
-        };
-        
-        
-        const response = await window.authManager.apiRequest('/test-results', {
-            method: 'POST',
-            body: JSON.stringify(requestData)
-        });
-        
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(result.message || result.error || `HTTP ${response.status}: Request failed`);
-        }
-        
-        showAlert('Lab report saved successfully', 'success');
-        
-        // Close modals and refresh
-        bootstrap.Modal.getInstance(document.getElementById('pdfReviewModal')).hide();
-        bootstrap.Modal.getInstance(document.getElementById('uploadReportModal')).hide();
-        
-        await loadReports();
-        await loadReportStats();
-    } catch (error) {
-        console.error('Error saving reviewed values:', error);
-        showAlert(error.message || 'Error saving lab report', 'danger');
-    } finally {
-        document.getElementById('saveReviewedValuesBtn').disabled = false;
-        document.getElementById('saveReviewedValuesBtn').innerHTML = '<i class="bi bi-save"></i> Save Lab Report';
     }
 }
 

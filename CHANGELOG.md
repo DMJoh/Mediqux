@@ -5,6 +5,29 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] - 2026-08-09
+
+### 🐛 Bug Fixes
+
+- **Lab report Appointment link was silently dropped** — Manual Entry's save payload never included `appointment_id`, so linking a lab report to an appointment via the "Related Appointment" dropdown had no effect on create *or* edit; the backend `PUT /:id` route didn't even accept the field. Fixed on both ends.
+- **Edit didn't restore the selected Appointment** — Editing a report set the Patient dropdown's value directly (not via a real selection), which never triggered the listener that populates the Appointment dropdown's options, so it was always empty and unselected regardless of what was actually saved. Fixed by explicitly reloading appointment options for the report's patient before selecting the saved one.
+- **View modal was missing Institution, Performed By, Appointment, and the PDF link** — these were saved and available from the API but never rendered in the "View Details" modal, making it look like they hadn't been saved at all. Now displayed alongside test date/type and lab values.
+- **Patient view showed the wrong emergency contact field** — the View Details modal checked a `patient.emergency_contact` field that doesn't exist (the real columns are `emergency_contact_name`/`emergency_contact_phone`), so a correctly-saved emergency contact never appeared in View, only in Edit.
+- **Condition view never showed the ICD code** — same class of bug: the View modal checked `condition.icd_10_code`, but the actual field (used everywhere else — list, edit, save) is `icd_code`.
+- **Medication view never showed Dosage Forms or Strengths, and Active Ingredients rendered as `[object Object]`** — the View modal checked singular `medication.dosage_form`/`medication.strength` instead of the real plural array fields `dosage_forms`/`strengths`, and rendered each active-ingredient object directly instead of its `name`/`dosage` properties.
+- **Active ingredients still showed `[object Object]`/`undefined` for demo data after the above fix** — the demo seed data stored each ingredient's strength under a `concentration` key, but the app's own add-ingredient form (and every render path) only ever reads/writes `dosage`; `concentration` was never a real second shape, just inconsistent seed data. Consolidated the three duplicated ingredient-parsing blocks (table row, View modal, Edit form) into one helper that tolerates the legacy key on read, fixed the seed data itself, and corrected the four already-seeded demo medications directly (the seeder-file fix alone wouldn't touch databases that already ran it).
+- **Medication view always showed "Additional information not available"** — a leftover instance of the same singular/plural field-name bug: the empty-state check tested `medication.strength`/`medication.dosage_form` (don't exist) instead of `strengths`/`dosage_forms`, so it evaluated true unconditionally and showed even when Strengths/Dosage Forms were already correctly displayed above it.
+- **Prescription status could get silently stuck** — three compounding bugs in the same area: (1) `PUT /prescriptions/:id` only pushed a status change into `patient_medications` when the new status wasn't "Active", so reverting a prescription back to Active from Discontinued/Completed silently did nothing; (2) that update also assumed a `patient_medications` row already existed and did nothing if it didn't (true for prescriptions that predate that tracking, e.g. seed data) — now upserts; (3) `GET /prescriptions/:id` returned the status under the wrong field name (`medication_status` instead of `status`), so the Edit form and View modal always showed "Active" regardless of the real saved status. All three fixed together since they masked each other.
+
+### ✨ Added
+
+- **Quick-add from Lab Panels in Manual Entry** — The Manual Entry form's quick-add buttons are now generated from your actual Lab Panels (Manage Panels) instead of a fixed hardcoded list. Selecting a panel pre-fills parameter name, unit, and reference range (derived from the panel's min/max) for each of its parameters, leaving the value blank for you to fill in. Closes the previous gap where Lab Panels and manual entry were disconnected features.
+- **Optional Lab Panel + values on PDF upload** — The Upload PDF modal now has an optional "Lab Panel" dropdown; selecting one pre-fills the test name (if blank) and the panel's parameters below, which you can fill in immediately or leave for later (via Edit). Values are only saved if at least one row is filled in — the PDF upload itself is unaffected either way.
+
+### 🔥 Removed
+
+- **Automatic lab value extraction removed** — Uploading a lab report PDF no longer attempts to parse or pattern-match values out of the document. Lab report formats vary too much across labs and countries to generalize reliably with pattern matching, and in practice the extracted values still needed manual review and correction most of the time — so the automation added more overhead than it saved. PDFs are stored as-is; use **Manual Entry** to record lab values, or the **Lab Panels** reference-range feature to define reusable panels. This removes the `pdf-parse` dependency, the pattern-matching/confidence-scoring logic in `test-results.js`, and the "review extracted values" UI (part of which was already unreachable dead code). The `extracted_text`/`structured_data` columns on `test_results` are left in place (unused) — no migration needed.
+
 ## [1.0.12] - 2026-06-26
 
 ### 🔒 Security (CodeQL)
