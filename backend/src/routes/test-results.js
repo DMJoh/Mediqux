@@ -846,8 +846,8 @@ router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, 
       
       // Insert new lab values
       for (const labValue of lab_values) {
-        const numVal = parseFloat(labValue.value);
-        const valueInRange = !isNaN(numVal) && Math.abs(numVal) < 10_000_000;
+        const numVal = Number.parseFloat(labValue.value);
+        const valueInRange = !Number.isNaN(numVal) && Math.abs(numVal) < 10_000_000;
         if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
           await client.query(`
             INSERT INTO lab_values (

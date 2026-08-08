@@ -208,8 +208,8 @@ function displayMedications() {
     noMedications.style.display = 'none';
     
     tbody.innerHTML = filteredMedications.map(medication => {
-        const prescriptionCount = parseInt(medication.prescription_count) || 0;
-        const patientMedicationCount = parseInt(medication.patient_medication_count) || 0;
+        const prescriptionCount = Number.parseInt(medication.prescription_count) || 0;
+        const patientMedicationCount = Number.parseInt(medication.patient_medication_count) || 0;
         
         // Determine the actual usage - prescriptions automatically create patient_medications
         let usageDisplay = '';
@@ -655,8 +655,8 @@ async function viewMedication(id) {
 // Display medication details in modal
 function displayMedicationDetails(medication) {
     const content = document.getElementById('medicationDetailsContent');
-    const prescriptionCount = parseInt(medication.prescription_count) || 0;
-    const patientMedicationCount = parseInt(medication.patient_medication_count) || 0;
+    const prescriptionCount = Number.parseInt(medication.prescription_count) || 0;
+    const patientMedicationCount = Number.parseInt(medication.patient_medication_count) || 0;
     const totalUsage = prescriptionCount + patientMedicationCount;
     
     const activeIngredients = parseActiveIngredients(medication.active_ingredients);

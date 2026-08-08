@@ -728,8 +728,8 @@ function collectLabValuesFromContainer(containerId) {
         const referenceRange = row.querySelector('[name="referenceRange[]"]')?.value?.trim();
         const status = row.querySelector('[name="parameterStatus[]"]')?.value;
 
-        const numValue = parseFloat(value);
-        if (name && value && !isNaN(numValue)) {
+        const numValue = Number.parseFloat(value);
+        if (name && value && !Number.isNaN(numValue)) {
             labValues.push({
                 parameter_name: name,
                 value: numValue,
@@ -1344,8 +1344,8 @@ async function saveNewParameter() {
                 body: JSON.stringify({
                     parameter_name: parameterName,
                     unit: unit || null,
-                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
-                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    reference_min: referenceMin ? Number.parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? Number.parseFloat(referenceMax) : null,
                     gender_specific: genderSpecific || null,
                     aliases: aliases || null
                 })
@@ -1357,8 +1357,8 @@ async function saveNewParameter() {
                 body: JSON.stringify({
                     parameter_name: parameterName,
                     unit: unit || null,
-                    reference_min: referenceMin ? parseFloat(referenceMin) : null,
-                    reference_max: referenceMax ? parseFloat(referenceMax) : null,
+                    reference_min: referenceMin ? Number.parseFloat(referenceMin) : null,
+                    reference_max: referenceMax ? Number.parseFloat(referenceMax) : null,
                     gender_specific: genderSpecific || null,
                     aliases: aliases || null
                 })
