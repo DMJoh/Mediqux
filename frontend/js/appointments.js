@@ -392,8 +392,6 @@ async function editAppointment(id) {
 }
 
 async function saveAppointment() {
-    const form = document.getElementById('appointmentForm');
-    
     clearAllFieldErrors();
     
     let hasErrors = false;
