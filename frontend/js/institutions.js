@@ -295,8 +295,6 @@ async function editInstitution(id) {
 
 // Save institution (create or update)
 async function saveInstitution() {
-    const form = document.getElementById('institutionForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

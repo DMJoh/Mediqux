@@ -258,8 +258,6 @@ window.editFromView = editFromView;
 
 // Save patient (create or update)
 async function savePatient() {
-    const form = document.getElementById('patientForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

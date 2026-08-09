@@ -339,8 +339,6 @@ function showFieldError(input, message) {
 
 // Save prescription (create or update)
 async function savePrescription() {
-    const form = document.getElementById('prescriptionForm');
-    
     // Clear all previous validation states
     clearAllFieldErrors();
     

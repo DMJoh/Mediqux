@@ -285,15 +285,13 @@ function displayReports() {
         }
         
         // Determine overall status
-        let overallStatus = 'normal';
         let statusBadge = '<span class="badge bg-success">Normal</span>';
-        
+
         if (report.lab_values) {
-            const abnormalValues = report.lab_values.filter(val => 
+            const abnormalValues = report.lab_values.filter(val =>
                 val.status && val.status.toLowerCase() !== 'normal'
             );
             if (abnormalValues.length > 0) {
-                overallStatus = 'abnormal';
                 statusBadge = `<span class="badge bg-warning">Abnormal (${abnormalValues.length})</span>`;
             }
         }
@@ -1029,7 +1027,7 @@ async function viewPDF(reportId) {
         
         // Create object URL and open in new tab
         const url = URL.createObjectURL(blob);
-        const newTab = window.open(url, '_blank');
+        window.open(url, '_blank');
         
         // Clean up the URL after a delay
         setTimeout(() => {
