@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **`POST /api/auth/refresh`** — issues a fresh JWT for the current user, provided their existing token is still valid (`authenticateToken` re-checks `is_active` against the DB rather than trusting the token payload, so a deactivated user can't refresh even with an unexpired token). The new token reflects the user's *current* role/username from the DB, not whatever was in the original token — so a promoted/demoted user gets it right on refresh. Intended for mobile clients to silently renew their session before the token's natural expiry, rather than forcing a full re-login.
+
 ### 🔧 Code Quality
 
 - **CodeQL cleanup** — resolved all 12 open CodeQL alerts (all low-severity reliability/cleanliness findings, no vulnerabilities): removed 7 dead `const form = document.getElementById(...)` declarations left over in `saveX()` functions across appointments, prescriptions, patients, medications, doctors, institutions, and conditions pages; removed an unused `newTab` variable capturing `window.open()`'s return value in lab-reports.js; removed a `let overallStatus` variable in lab-reports.js that was assigned but never read (the actually-used `statusBadge` variable was untouched); removed an unused `Logger` variable in `logger.test.js` while preserving its `jest.resetModules()` side effect; removed an unused `path` import in `server.js`.
