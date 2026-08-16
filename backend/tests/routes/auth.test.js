@@ -210,6 +210,67 @@ describe('GET /api/auth/me', () => {
   });
 });
 
+// ─── POST /api/auth/refresh ────────────────────────────────────────────────
+
+describe('POST /api/auth/refresh', () => {
+  it('returns 401 when no Authorization header', async () => {
+    const res = await request(app).post('/api/auth/refresh');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when token is invalid', async () => {
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', 'Bearer totally.invalid.token');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 401 when the user backing a well-formed token is inactive', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'user', is_active: false, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with a new token for a currently-valid token', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'user', is_active: true, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(typeof res.body.data.token).toBe('string');
+
+    const decoded = jwt.verify(res.body.data.token, JWT_SECRET);
+    expect(decoded.userId).toBe(1);
+    expect(decoded.username).toBe('alice');
+    expect(decoded.role).toBe('user');
+  });
+
+  it('issues a token even for a role/username different from the original payload (reflects current DB state)', async () => {
+    // Token was signed while the user was 'user', but they've since been
+    // promoted to 'admin' - refresh should reflect the current DB role,
+    // not whatever was baked into the original token payload.
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'admin', is_active: true, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const decoded = jwt.verify(res.body.data.token, JWT_SECRET);
+    expect(decoded.role).toBe('admin');
+  });
+});
+
 // ─── PUT /api/auth/change-password ────────────────────────────────────────
 
 describe('PUT /api/auth/change-password', () => {

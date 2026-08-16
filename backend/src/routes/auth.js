@@ -165,6 +165,35 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Issue a fresh token for the current user, provided their existing token
+// is still valid (enforced by authenticateToken, which also re-checks
+// is_active against the DB rather than trusting the token payload).
+// Intended for silent client-side renewal before the current token expires.
+router.post('/refresh', authenticateToken, async (req, res) => {
+  try {
+    const token = jwt.sign(
+      {
+        userId: req.user.id,
+        username: req.user.username,
+        role: req.user.role
+      },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+
+    res.json({
+      success: true,
+      data: { token }
+    });
+  } catch (error) {
+    logger.error('Token refresh failed', { error: error.message, stack: error.stack, userId: req.user.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh token'
+    });
+  }
+});
+
 // Get current user info
 router.get('/me', authenticateToken, async (req, res) => {
   try {
