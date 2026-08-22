@@ -5,15 +5,19 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.14] - 2026-08-22
 
 ### ✨ Added
 
-- **`POST /api/auth/refresh`** — issues a fresh JWT for the current user, provided their existing token is still valid (`authenticateToken` re-checks `is_active` against the DB rather than trusting the token payload, so a deactivated user can't refresh even with an unexpired token). The new token reflects the user's *current* role/username from the DB, not whatever was in the original token — so a promoted/demoted user gets it right on refresh. Intended for mobile clients to silently renew their session before the token's natural expiry, rather than forcing a full re-login.
+- `POST /api/auth/refresh` — issues a fresh JWT for the current user if their existing token is still valid. Lets mobile clients silently renew a session instead of forcing re-login.
+
+### 🐛 Bug Fixes
+
+- Medication dosage form dropdown was missing "Lotion", even though the backend already listed it as a common form.
 
 ### 🔧 Code Quality
 
-- **CodeQL cleanup** — resolved all 12 open CodeQL alerts (all low-severity reliability/cleanliness findings, no vulnerabilities): removed 7 dead `const form = document.getElementById(...)` declarations left over in `saveX()` functions across appointments, prescriptions, patients, medications, doctors, institutions, and conditions pages; removed an unused `newTab` variable capturing `window.open()`'s return value in lab-reports.js; removed a `let overallStatus` variable in lab-reports.js that was assigned but never read (the actually-used `statusBadge` variable was untouched); removed an unused `Logger` variable in `logger.test.js` while preserving its `jest.resetModules()` side effect; removed an unused `path` import in `server.js`.
+- Resolved all 12 open CodeQL alerts (unused variables / dead assignments, no vulnerabilities) across 9 files.
 
 ## [1.0.13] - 2026-08-09
 
