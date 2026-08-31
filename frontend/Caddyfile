@@ -1,0 +1,23 @@
+:80 {
+	root * /usr/share/caddy
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:3000
+	}
+
+	handle /uploads/* {
+		reverse_proxy backend:3000
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer-when-downgrade"
+	}
+}

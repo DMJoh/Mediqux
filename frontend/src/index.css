@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: ui-sans-serif, "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif;
+  --font-body: ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Glass Aurora — locked design tokens (magenta / blue) */
+  --color-bg: #0a0917;
+  --color-glow-a: #c026d3;
+  --color-glow-b: #3b82f6;
+  --color-text: #f1eefc;
+  --color-muted: #a9a6c4;
+  --color-muted-2: #726f92;
+  --color-glass: rgb(255 255 255 / 5.5%);
+  --color-glass-2: rgb(255 255 255 / 4.5%);
+  --color-glass-border: rgb(255 255 255 / 10%);
+  --color-good: #34e0a1;
+}
+
+/* Accent presets — swap only the two gradient stops behind glow-gradient/
+   glow-text/most accent UI (buttons, active nav, focus glow). The dark glass
+   base and semantic status colors (Badge tones: red/amber/green) are untouched
+   by design — those mean something (critical/warning/active), not "brand".
+   No attribute set = the locked default above (magenta/blue). Applied via a
+   data-accent attribute on <html>; see lib/accent.js. */
+:root[data-accent='teal-cyan'] {
+  --color-glow-a: #14b8a6;
+  --color-glow-b: #22d3ee;
+}
+:root[data-accent='sunset'] {
+  --color-glow-a: #fb923c;
+  --color-glow-b: #f472b6;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid #7aa8ff;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Browsers only give <a href> a pointer cursor by default, not <button> — and
+     Tailwind's reset doesn't add it back. Every clickable icon/button in the app
+     is a real <button>, so this is a one-line fix at the source instead of adding
+     cursor-pointer to every component. */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: var(--color-glass);
+    border: 1px solid var(--color-glass-border);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+  }
+
+  .glow-gradient {
+    background: linear-gradient(135deg, var(--color-glow-a), var(--color-glow-b));
+  }
+
+  .glow-text {
+    background: linear-gradient(90deg, #fff, #dfe3ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

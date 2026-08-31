@@ -1,0 +1,13 @@
+FROM node:26-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN chmod +x docker-entrypoint.dev.sh
+
+EXPOSE 5173
+
+ENTRYPOINT ["sh", "./docker-entrypoint.dev.sh"]
