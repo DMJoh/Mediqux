@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 // Get upcoming appointments (for dashboard) - must be before /:id route
 router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
@@ -10,12 +10,8 @@ router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    let whereClause = "WHERE a.appointment_date >= NOW() AND a.status = 'scheduled'";
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause += ' AND a.patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE a.appointment_date >= NOW() AND a.status = 'scheduled' AND ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -55,12 +51,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: { total_appointments: 0, upcoming: 0, completed: 0, cancelled: 0, today: 0 } });
     }
 
-    let whereClause = '';
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause = 'WHERE patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE ${patientFilterClause(req.patientFilter, 'patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -121,23 +113,18 @@ router.get('/', addPatientFilter, async (req, res) => {
       WHERE 1=1
     `;
     
-    const queryParams = [];
-    let paramIndex = 1;
-    
-    // Apply RBAC patient filtering first
-    if (req.patientFilter && req.patientFilter !== 'none') {
-      query += ` AND a.patient_id = $${paramIndex}`;
-      queryParams.push(req.patientFilter);
-      paramIndex++;
-    } else if (req.patientFilter === 'none') {
-      // User has no patient access
+    if (req.patientFilter === 'none') {
       return res.json({
         success: true,
         data: [],
         count: 0
       });
     }
-    
+
+    const queryParams = [];
+    query += ` AND ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (status) {
       query += ` AND a.status = $${paramIndex}`;
@@ -182,10 +169,10 @@ router.get('/', addPatientFilter, async (req, res) => {
 });
 
 // Get single appointment by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await db.query(`
       SELECT 
         a.*,
@@ -205,13 +192,13 @@ router.get('/:id', async (req, res) => {
       WHERE a.id = $1
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Appointment not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]

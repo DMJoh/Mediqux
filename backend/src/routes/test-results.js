@@ -5,7 +5,7 @@ const fs = require('fs').promises;
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
-const { authenticateToken, addPatientFilter } = require('../middleware/auth');
+const { authenticateToken, addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 function generatePdfFilename(testName, testDate, firstName, lastName) {
   const formatDate = (dateString) => {
@@ -572,23 +572,18 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
       WHERE 1=1
     `;
     
-    const queryParams = [];
-    let paramIndex = 1;
-    
-    // Apply RBAC patient filtering first
-    if (req.patientFilter && req.patientFilter !== 'none') {
-      query += ` AND tr.patient_id = $${paramIndex}`;
-      queryParams.push(req.patientFilter);
-      paramIndex++;
-    } else if (req.patientFilter === 'none') {
-      // User has no patient access
+    if (req.patientFilter === 'none') {
       return res.json({
         success: true,
         data: [],
         count: 0
       });
     }
-    
+
+    const queryParams = [];
+    query += ` AND ${patientFilterClause(req.patientFilter, 'tr.patient_id', queryParams)}`;
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (search) {
       query += ` AND (
@@ -694,14 +689,14 @@ router.get('/:id', authenticateToken, addPatientFilter, async (req, res) => {
       GROUP BY tr.id, p.id, i.id, a.id, pb.id
       LIMIT 1
     `, [id]);
-    
-    if (result.rows.length === 0) {
+
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Test result not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]
@@ -1148,12 +1143,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: { total_reports: 0, unique_patients: 0, recent_reports: 0, abnormal_values: 0 } });
     }
 
-    let whereClause = '';
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause = 'WHERE tr.patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE ${patientFilterClause(req.patientFilter, 'tr.patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -1185,26 +1176,27 @@ router.get('/:id/download', authenticateToken, addPatientFilter, async (req, res
     const { id } = req.params;
     
     const result = await db.query(`
-      SELECT 
-        tr.pdf_file_path, 
-        tr.test_name, 
+      SELECT
+        tr.pdf_file_path,
+        tr.test_name,
         tr.test_date,
+        tr.patient_id,
         p.first_name,
         p.last_name
       FROM test_results tr
       LEFT JOIN patients p ON tr.patient_id = p.id
       WHERE tr.id = $1
     `, [id]);
-    
-    if (result.rows.length === 0) {
+
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Test result not found'
       });
     }
-    
+
     const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
-    
+
     if (!pdf_file_path) {
       return res.status(404).json({
         success: false,
@@ -1249,26 +1241,27 @@ router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) =>
     
     // Get test result details
     const result = await db.query(`
-      SELECT 
-        tr.pdf_file_path, 
-        tr.test_name, 
+      SELECT
+        tr.pdf_file_path,
+        tr.test_name,
         tr.test_date,
+        tr.patient_id,
         p.first_name,
         p.last_name
       FROM test_results tr
       LEFT JOIN patients p ON tr.patient_id = p.id
       WHERE tr.id = $1 AND tr.pdf_file_path IS NOT NULL
     `, [id]);
-    
-    if (result.rows.length === 0) {
+
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Test result or PDF file not found'
       });
     }
-    
+
     const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
-    
+
     // Check if file exists
     if (!require('fs').existsSync(pdf_file_path)) {
       return res.status(404).json({
@@ -1303,13 +1296,20 @@ router.get('/:id/lab-values', authenticateToken, addPatientFilter, async (req, r
     const { id } = req.params;
     
     const result = await db.query(`
-      SELECT lv.*, tr.test_name, tr.test_date
+      SELECT lv.*, tr.test_name, tr.test_date, tr.patient_id
       FROM lab_values lv
       JOIN test_results tr ON lv.test_result_id = tr.id
       WHERE tr.id = $1
       ORDER BY lv.created_at ASC
     `, [id]);
-    
+
+    if (result.rows.length > 0 && !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test result not found'
+      });
+    }
+
     res.json({
       success: true,
       data: result.rows,

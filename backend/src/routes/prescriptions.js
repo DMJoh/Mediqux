@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -59,23 +59,18 @@ router.get('/', addPatientFilter, async (req, res) => {
       WHERE 1=1
     `;
     
-    const queryParams = [];
-    let paramIndex = 1;
-    
-    // Apply RBAC patient filtering first
-    if (req.patientFilter && req.patientFilter !== 'none') {
-      query += ` AND pat.id = $${paramIndex}`;
-      queryParams.push(req.patientFilter);
-      paramIndex++;
-    } else if (req.patientFilter === 'none') {
-      // User has no patient access
+    if (req.patientFilter === 'none') {
       return res.json({
         success: true,
         data: [],
         count: 0
       });
     }
-    
+
+    const queryParams = [];
+    query += ` AND ${patientFilterClause(req.patientFilter, 'pat.id', queryParams)}`;
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (search) {
       query += ` AND (
@@ -115,7 +110,7 @@ router.get('/', addPatientFilter, async (req, res) => {
 });
 
 // Get single prescription by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -167,13 +162,13 @@ router.get('/:id', async (req, res) => {
       LIMIT 1
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Prescription not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]
@@ -422,12 +417,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: { total_prescriptions: 0, active_prescriptions: 0, unique_patients: 0, recent_prescriptions: 0 } });
     }
 
-    let whereClause = '';
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause = 'WHERE a.patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -468,7 +459,7 @@ router.get('/patient/:patient_id', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: [], count: 0 });
     }
 
-    if (req.patientFilter && String(req.patientFilter) !== patient_id) {
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
@@ -535,12 +526,7 @@ router.get('/appointment/:appointment_id', addPatientFilter, async (req, res) =>
     }
 
     const queryParams = [appointment_id];
-    let patientWhere = '';
-
-    if (req.patientFilter) {
-      patientWhere = ` AND a.patient_id = $2`;
-      queryParams.push(req.patientFilter);
-    }
+    const patientWhere = ` AND ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
