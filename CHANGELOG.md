@@ -5,6 +5,37 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-28
+
+Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
+
+### ⚠️ Breaking Changes
+
+- Production now runs behind a single port. `BACKEND_URL`, `MEDIQUX_API_URL`, `FRONTEND_DOCKER_PORT`, and `BACKEND_DOCKER_PORT` are gone, replaced by one `APP_PORT`. The backend is no longer reachable directly from the host in either environment; a Caddy container proxies `/api` and `/uploads` to it internally. See the updated `.env.example`.
+- `POST`/`PUT /api/users` now take `patientIds` (an array) instead of a single `patientId`. `GET /api/users` returns a `patients` array per user instead of flat `patient_id`/`patient_first_name`/`patient_last_name` fields.
+- The `doctor` role has been removed from the `users` table's role options. It never had any behavior different from `user`.
+
+### ✨ Added
+
+- Full React frontend rewrite. Every page (Dashboard, Patients, Institutions, Doctors, Appointments, Conditions, Medications, Prescriptions, Lab Reports, Diagnostic Studies, Users) is rebuilt on React, Vite, and Tailwind, replacing the old server-rendered Bootstrap pages. The old frontend is kept under `frontend-legacy/` for reference.
+- A user account can now be linked to more than one patient (new `user_patient_access` table), for households where one login needs to see multiple family members' records.
+- The patient detail page now shows that patient's own appointments, prescriptions, lab reports, diagnostic studies, and active medications in one place, instead of needing a separate search on each page.
+- New Settings page with a selectable accent color (Aurora, Teal, Sunset).
+- The sidebar now shows a real backend connectivity indicator. Previously it was a hardcoded "online" label with no actual health check behind it.
+
+### 🔒 Security
+
+- Fixed several endpoints (`patients`, `appointments`, `prescriptions`, and a few `test-results` routes) that would return any record by ID with no ownership check, regardless of a scoped account's actual patient access.
+
+### 🐛 Bug Fixes
+
+- Logging in with a wrong username or password showed "Session expired" instead of the actual "Invalid credentials" message from the backend.
+- Logging out and back in returned you to the page you logged out from instead of the dashboard.
+
+### 🔧 Code Quality
+
+- The duplicated per-route RBAC patient-scoping logic is now consolidated behind shared `patientFilterClause`/`patientFilterAllows` helpers in `backend/src/middleware/auth.js`.
+
 ## [1.0.14] - 2026-08-22
 
 ### ✨ Added
