@@ -1,52 +1,74 @@
 # Backend cleanup TODO
 
-Findings from a multi-angle code review of the backend diff (frontend-legacy findings excluded — that code is being retired, not maintained). Not yet actioned; revisit when doing a backend cleanup pass.
+Findings from a multi-angle code review of the backend diff (frontend-legacy findings excluded — that code is being retired, not maintained).
 
-## RBAC: write-side patient-scoping is unenforced (fix first)
+## Before deploying this release
 
-While building multi-patient account access, found and fixed the read-side version of this across `patients.js`, `appointments.js`, `prescriptions.js`, `test-results.js`, `diagnostic-studies.js` (every `GET` now uses the new `patientFilterClause`/`patientFilterAllows` helpers in `auth.js`). The **write side has the identical gap and is still unfixed**:
+This release includes real schema changes: `20260903000001-add-prescription-id-to-patient-medications.js` (additive, nullable column) and `20260903000002-add-unique-prescription-id-index.js` (a partial unique index on that same column) — see the `patient_medications` sections below. Both are additive/non-destructive, but back up the database before upgrading regardless:
 
-- `appointments.js` `PUT /:id` and `DELETE /:id` — no `addPatientFilter`/ownership check at all. A non-admin account scoped to specific patients can currently edit or delete *any* appointment, not just ones belonging to their linked patients.
-- `test-results.js` `POST /upload`, `POST /:id/lab-values`, `POST /`, `PUT /:id`, `DELETE /:id` — all have `addPatientFilter` wired into the route (so it *looks* protected), but none of the handler bodies actually read `req.patientFilter` — same silent gap as the `GET /:id` bug that was just fixed in this same file.
-- `patients.js` `PUT /:id`/`DELETE /:id` not yet checked — worth auditing at the same time given the pattern found elsewhere.
+```bash
+docker exec mediqux_postgres pg_dump -U mediqux_user mediqux_db > backup.sql
+```
 
-Fix: same shape as the read-side fix — for `PUT`/`DELETE`, fetch the existing row's `patient_id` first (or add it to the `RETURNING`/pre-check query) and call `patientFilterAllows(req.patientFilter, patientId)` before allowing the mutation, 403/404 otherwise. `diagnostic-studies.js` already does this correctly on `POST`/`PUT`/`DELETE` (mirror that file's pattern once at each site).
+Then `docker compose up -d` (runs pending migrations automatically) or `npm run db:migrate` directly.
 
-**Practical impact today: low** — the only real account in this deployment is the original admin. This becomes a real exposure the moment a second, patient-scoped (`role: 'user'`) account is created, which the multi-patient-access feature now makes easy to do.
+## RBAC: write-side patient-scoping — fixed
 
-## Bugs (fix first)
+Fixed. Every write endpoint below now checks `patientFilterAllows(req.patientFilter, patientId)` before allowing the mutation, mirroring the pattern `diagnostic-studies.js` already used:
 
-- **`src/routes/diagnostic-studies.js` (~lines 272, 330)** — `logger.warn(...)` is called in the `PUT /:id` and `DELETE /:id` catch blocks (attachment-unlink failure path), but this file never imports `logger`. If a file unlink ever actually fails (missing file, permission error), the `ReferenceError` crashes the request with a 500, masking the real cause and blocking the update/delete from completing at all. Fix: import `logger` (or swap to `console.warn`, matching what other route files do).
+- `appointments.js` `POST /`, `PUT /:id`, `DELETE /:id` — ownership checked against the target/existing row's `patient_id`.
+- `test-results.js` `POST /upload`, `POST /:id/lab-values`, `POST /`, `PUT /:id`, `DELETE /:id` — all now actually read `req.patientFilter` instead of just having the middleware wired in decoratively.
+- `prescriptions.js` `POST /`, `PUT /:id`, `DELETE /:id` — same gap existed here too (not originally listed above, found during the same pass) and is fixed identically, resolving ownership via the linked appointment's `patient_id`.
+- `patients.js` `PUT /:id`/`DELETE /:id` — audited and fixed; a scoped user can now only edit/delete their own linked patient record.
 
-- **`src/middleware/auth.js:35`** — missing-token detection was changed from an explicit `if (!token) return 401` guard to a string-match on `jsonwebtoken`'s internal error message (`'jwt must be provided'`). This couples 401-vs-403 behavior to an undocumented third-party string; a `jsonwebtoken` version bump or a different failure path (e.g. `TokenExpiredError`, empty-string token) silently falls through to the generic 403 branch. Fix: restore the explicit `if (!token)` guard, or branch on `error.name`/`instanceof jwt.JsonWebTokenError` instead of `error.message`.
+Test coverage added for every new 403/404 ownership-denial path across `tests/routes/{appointments,prescriptions,test-results,patients}.test.js`. Full suite (`npm test`) is green: 426/426 (after all fixes below).
 
-- **`POST /api/auth/refresh`** (`src/routes/auth.js`) — because of the same string-match bug above, calling `/refresh` with an **expired** token (the realistic trigger for wanting a refresh) returns a generic 403, not a distinguishable "expired, please refresh" signal (`jwt.verify` throws `TokenExpiredError` / `'jwt expired'`, which doesn't match the special-cased string). This undermines the endpoint's stated purpose. Check against the frontend's silent-refresh logic in `frontend/src/lib/auth.jsx` once fixed.
+## Bugs — fixed
 
-- **`src/routes/prescriptions.js` `PUT /:id`** (~lines 340-372) — verify intended semantics: the `patient_medications` upsert is keyed only on `(patient_id, medication_id)`, not per-prescription/appointment. If a patient has two different prescriptions for the same medication, editing either one now overwrites the single shared status row for that medication — confirm this is intentional before relying on it, since the changelog description ("stuck status") implies a narrower fix.
+- **`src/routes/diagnostic-studies.js`** — `logger` is now imported; the `PUT`/`DELETE` attachment-unlink failure path no longer risks a `ReferenceError`.
+- **`src/middleware/auth.js`** — missing-token detection restored to an explicit `if (!token)` 401 guard ahead of `jwt.verify`, and the catch block now branches on `error.name === 'TokenExpiredError'` (returning `{ error: 'Token expired', expired: true }`) instead of matching an undocumented `jsonwebtoken` error-message string.
+- **`POST /api/auth/refresh`** — the frontend's silent-refresh loop (`frontend/src/lib/auth.jsx`) fires every 20 minutes against a 24h token, well before expiry, so `/refresh` failing on an already-expired token is expected/by-design, not a bug — the real problem was the 403 being indistinguishable from "invalid token"; that's fixed by the `expired: true` flag above.
 
-## Behavior changes worth double-checking
+## `patient_medications` upsert semantics — fixed
 
-- `GET /` on `appointments.js`, `prescriptions.js`, `diagnostic-studies.js`, `test-results.js` all had their `?patient_id=` query-param filter silently removed — an admin/staff caller passing `?patient_id=X` now gets the *unfiltered* full list instead of a narrowed one, no error. No current frontend caller relies on this, but it's a quiet API contract change worth a deliberate decision (restore vs. document as removed).
-- `prescriptions.js` `GET /:id` renamed the response key `medication_status` → `status`. No current consumer reads the old key, but flag for any future/external consumer.
-- `GET /api/auth/me` / `PUT /change-password` now return 500 on a downstream DB error rather than the old `/me` behavior of 401 on a bad token specifically. The frontend's `api.js` treats 401/403 as "session expired" → logout; a transient 500 here won't trigger that path. Edge case, but worth a look.
-- `src/database/db.js` now throws at import time if `DB_USER`/`DB_PASSWORD` are unset (previously fell back to hardcoded defaults). Correct hardening — confirmed `docker-compose.dev.yml` and the test setup already supply both — just flagging as a hard break for any ad-hoc/local invocation without `.env` populated.
+Was keyed only on `(patient_id, medication_id)`, so two separate prescriptions of the same medication for one patient collided on a single shared status row — editing either one silently overwrote the other's displayed status.
 
-## Duplication / reuse cleanup
+Fixed with an additive migration (`20260903000001-add-prescription-id-to-patient-medications.js`) adding a nullable `prescription_id` FK (`ON DELETE CASCADE`) to `patient_medications`, plus a route-side change so each prescription gets its own status row:
 
-- **File-unlink path-traversal guard** (`path.resolve('./uploads')` + `startsWith` check before `fs.unlink`) is copy-pasted across 4 call sites in `test-results.js` and `diagnostic-studies.js`, with the base path computed via `process.cwd()` in the guard but via `__dirname` in multer's storage config — a working-directory mismatch would make the guard silently skip deletion instead of failing loudly. Extract to a shared `safeUnlinkUpload(filePath)` helper.
-- **Lab-value numeric validation** duplicated between `POST /` and `POST /:id/lab-values` in `test-results.js`; `PUT /:id` lacks the same guard entirely, so it accepts values the other two would reject. Extract to a shared validator, apply to all three.
-- **"Count linked rows, block delete" guard** now independently reimplemented a 4th time in `appointments.js` `DELETE /:id` (matching existing one-off versions in `conditions.js`/`institutions.js`/`medications.js`). Worth a shared `checkNoDependents(table, column, id)` helper.
-- **Distinct-values sort** (`.sort((a, b) => a.localeCompare(b))`) added independently in `conditions.js`, `institutions.js`, `medications.js` list-distinct-values endpoints — trivial, but a shared `sortLocale()` util would remove the triplication.
-- `auth.js` `login` and `POST /refresh` each independently build the JWT payload and call `jwt.sign(...)` — extract a shared `signUserToken(user)`.
-- `test-results.js` exports `module.exports = router` **and** bolts on `module.exports.generatePdfFilename = ...` — inconsistent with every other route file's plain `module.exports = router`.
+- `POST /` now always inserts a dedicated `patient_medications` row linked by `prescription_id`, instead of upserting on the pair.
+- `PUT /:id` tries, in order: (1) update its own row via `prescription_id`, (2) claim an unclaimed legacy row for the same `(patient_id, medication_id)` where `prescription_id IS NULL` (pre-migration data, or a row still shared with a sibling prescription), (3) insert a fresh row if neither exists.
+- All five `GET` joins in `prescriptions.js` prefer `pm.prescription_id = p.id`, falling back to the old pair-based match only when `prescription_id IS NULL`.
 
-## Efficiency (minor)
+No backfill — existing installs keep their current (shared-status) rows as-is; each one becomes prescription-specific automatically the first time that prescription is next edited. Nothing breaks for rows that are never touched. Migration still needs to be run (`docker compose up -d` runs it automatically, or `npm run db:migrate`) — not yet applied against any live deployment.
 
-- `prescriptions.js` `PUT /:id` — SELECT-then-branch UPDATE/INSERT into `patient_medications` (also has a TOCTOU race under concurrent requests) could be a single `INSERT ... ON CONFLICT (patient_id, medication_id) DO UPDATE ...`.
-- `appointments.js` `DELETE /:id` — new leading `SELECT COUNT(*) FROM test_results` before the delete adds a second round trip; could collapse into one conditional statement.
-- `test-results.js` `GET /` still selects `extracted_text`/`structured_data` even though nothing populates them since the PDF-parsing feature was removed — two permanently-null columns on every response. Low priority, but dead weight.
+## Behavior changes — checked against the frontend, confirmed safe
 
-## Structural (lower priority)
+- `?patient_id=` query-param filter removed from `GET /` on `appointments.js`, `prescriptions.js`, `diagnostic-studies.js`, `test-results.js`. Grepped the whole frontend for `patient_id=` — zero hits. The frontend's own patient filtering (`Appointments.jsx`, `Prescriptions.jsx`, `LabReports.jsx`, `DiagnosticStudies.jsx`) uses a separate `?patient=<id>` URL param, filtered client-side after fetching the full list — it never sent `?patient_id=` to the backend at all. Nothing to restore.
+- `prescriptions.js` `GET /:id` renamed the response key `medication_status` → `status`. Checked `PrescriptionDetail.jsx` — it reads `prescription.status`, the current name. Confirmed, not an issue.
+- `GET /api/auth/me` / `PUT /change-password` returning 500 on a downstream DB error: re-checked the code — `authenticateToken` middleware already handles every "bad token" case (401 missing/inactive user, 403 invalid/expired) *before* either handler runs. The only way to reach their own catch blocks is a genuine DB error, where 500 is correct. There's no code path where a bad token gets mishandled as a 500. Not a bug.
+- `src/database/db.js` throwing at import time if `DB_USER`/`DB_PASSWORD` are unset: confirmed both `docker-compose.yml` and `docker-compose.dev.yml` pass them through from `POSTGRES_USER`/`POSTGRES_PASSWORD` (defined in `.env.example`), so every real deployment path satisfies it. Deliberate hardening against silently falling back to hardcoded DB credentials — correct as-is, nothing to change.
 
-- `apiLimiter` is threaded through 9 separate route-registration call sites in `server.js` instead of applied once via `app.use(apiLimiter)` ahead of route mounting — any future route added to `server.js` must remember to also wire it in, with no structural guarantee it will be.
-- `addPatientFilter` in `auth.js` reads `req.user.role`/`req.user.patientIds` with no guard if `req.user` is unset — relies entirely on `server.js`'s middleware ordering (`authenticateToken` before route mount). The test suite injects `req.user` directly via `tests/helpers/createApp.js` and bypasses `authenticateToken` entirely, so an ordering regression here wouldn't be caught by tests.
+## Duplication / reuse cleanup — fixed
+
+- **File-unlink path-traversal guard** — extracted to `src/utils/uploads.js`'s `safeUnlinkUpload(filePath)`, replacing all 5 copy-pasted call sites in `test-results.js` and `diagnostic-studies.js` with one implementation (base path is always computed the same way now, closing the `process.cwd()`-vs-`__dirname` inconsistency mentioned here previously).
+- **Lab-value numeric validation** — extracted to `src/utils/labValues.js`'s `isValidLabValue(labValue)`, applied to all three insert sites in `test-results.js` (`POST /`, `POST /:id/lab-values`, and `PUT /:id`, which previously lacked the guard entirely and would let Postgres reject the whole update on one bad row).
+- **"Count linked rows, block delete" guard** — extracted to `src/utils/counts.js`'s `countRows(executor, sql, params)`, applied in `institutions.js`, `conditions.js`, and `medications.js` (split into two calls, one per table, replacing the old combined multi-column query). `appointments.js` `DELETE /:id` instead got its ownership check and linked-count check merged into a single `LEFT JOIN` query (see Efficiency below), so it doesn't use `countRows` — no standalone count query left to extract there.
+- **Distinct-values sort** — extracted to `src/utils/sort.js`'s `localeCompare` comparator, used as `.sort(localeCompare)` in `conditions.js`, `institutions.js`, `medications.js`.
+- **JWT signing** — extracted to `src/utils/jwt.js`'s `signUserToken(user)`, used by signup, login, and `POST /refresh`; `JWT_SECRET`/`JWT_EXPIRES_IN` now live in one place instead of being redefined (with the same hardcoded fallback) in both `routes/auth.js` and `middleware/auth.js`.
+- **`test-results.js`'s inconsistent export** — `generatePdfFilename` moved to `src/utils/pdfFilename.js` and imported normally; `test-results.js` now does a plain `module.exports = router` like every other route file.
+
+## Efficiency — fixed
+
+- `appointments.js` `DELETE /:id` — the ownership check and the linked-test-results check are now one query (`LEFT JOIN test_results ... GROUP BY a.patient_id`) instead of two separate round trips.
+- `test-results.js` `GET /` no longer selects `extracted_text`/`structured_data` — dead weight on every list-row response since nothing populates them post PDF-parsing removal. `GET /:id` (detail) still returns them via `tr.*`, since `LabReportDetail.jsx` has a real (if currently always-empty) display path for `extracted_text`.
+
+**TOCTOU race — fixed.** `prescriptions.js` `PUT /:id`'s own-row/claim-legacy/insert sequence for `patient_medications` now runs inside a transaction: a second migration (`20260903000002-add-unique-prescription-id-index.js`) adds a partial unique index on `prescription_id` (`WHERE prescription_id IS NOT NULL`, so unclaimed rows with `NULL` stay unaffected), the legacy-row claim step locks its candidate row with `SELECT ... FOR UPDATE` before claiming it, and the final insert is `INSERT ... ON CONFLICT (prescription_id) DO UPDATE ...` as a last line of defense if two concurrent requests for the same never-before-touched prescription both reach that branch.
+
+## Structural — fixed
+
+- `apiLimiter` is now applied once via `app.use(apiLimiter)` in `server.js`, positioned after the `/api/auth` mount (which keeps its own stricter `authLimiter` instead) and before every other route — no more threading it through each individual `app.use(...)` call.
+- `addPatientFilter` in `middleware/auth.js` now returns 401 if `req.user` is unset instead of throwing a `TypeError` on `req.user.role` — closes the silent-failure gap if `server.js`'s middleware ordering ever regresses.
+
+## Open items
+
+None. Everything identified in this file has been fixed or verified as correct/non-issue. Full test suite (`npm test`) is green: 427/427.

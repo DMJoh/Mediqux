@@ -26,15 +26,20 @@ Major release. The frontend has been completely rewritten, patient access is no 
 ### 🔒 Security
 
 - Fixed several endpoints (`patients`, `appointments`, `prescriptions`, and a few `test-results` routes) that would return any record by ID with no ownership check, regardless of a scoped account's actual patient access.
+- The same ownership check was also missing on the write side: creating, editing, or deleting an appointment, prescription, or test result didn't verify the record belonged to a patient the account has access to. Fixed across `appointments`, `prescriptions`, and `test-results`, with an audit of `patients`' own edit/delete routes too.
 
 ### 🐛 Bug Fixes
 
 - Logging in with a wrong username or password showed "Session expired" instead of the actual "Invalid credentials" message from the backend.
 - Logging out and back in returned you to the page you logged out from instead of the dashboard.
+- Two separate prescriptions of the same medication for the same patient shared one status record, so editing either one's status silently overwrote the other's. Each prescription now tracks its own status independently (new `prescription_id` column on `patient_medications`).
+- A missing/expired login token could return a generic error instead of a clean 401, and an expired token was indistinguishable from an invalid one.
+- A file-unlink failure on editing or deleting a diagnostic study could crash the request instead of just logging a warning.
 
 ### 🔧 Code Quality
 
 - The duplicated per-route RBAC patient-scoping logic is now consolidated behind shared `patientFilterClause`/`patientFilterAllows` helpers in `backend/src/middleware/auth.js`.
+- Several other duplicated patterns across route files (upload cleanup, lab value validation, dependent-record counts, distinct-value sorting, JWT signing) were consolidated into shared helpers under `backend/src/utils/`.
 
 ## [1.0.14] - 2026-08-22
 
