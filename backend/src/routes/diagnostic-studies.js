@@ -6,6 +6,7 @@ const fsSync = require('node:fs');
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
+const { safeUnlinkUpload } = require('../utils/uploads');
 const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 // --- File upload setup ---
@@ -247,15 +248,7 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
     if (req.file) {
       // Delete old file if exists
       if (attachment_path) {
-        try {
-          const uploadsDir = path.resolve('./uploads');
-          const filePath = path.resolve(attachment_path);
-          if (filePath.startsWith(uploadsDir + path.sep)) {
-            await fs.unlink(filePath);
-          }
-        } catch (error_) {
-          logger.warn('Failed to delete old attachment file', { error: error_.message, path: attachment_path });
-        }
+        await safeUnlinkUpload(attachment_path);
       }
       attachment_path = req.file.path;
       attachment_original_name = req.file.originalname;
@@ -305,15 +298,7 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
 
     // Delete attachment file if exists
     if (existing.rows[0].attachment_path) {
-      try {
-        const uploadsDir = path.resolve('./uploads');
-        const filePath = path.resolve(existing.rows[0].attachment_path);
-        if (filePath.startsWith(uploadsDir + path.sep)) {
-          await fs.unlink(filePath);
-        }
-      } catch (error_) {
-        logger.warn('Failed to delete attachment file', { error: error_.message, path: existing.rows[0].attachment_path });
-      }
+      await safeUnlinkUpload(existing.rows[0].attachment_path);
     }
 
     await db.query('DELETE FROM diagnostic_studies WHERE id = $1', [req.params.id]);

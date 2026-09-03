@@ -126,7 +126,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update patient
-router.put('/:id', async (req, res) => {
+router.put('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -140,7 +140,14 @@ router.put('/:id', async (req, res) => {
       emergency_contact_name,
       emergency_contact_phone
     } = req.body;
-    
+
+    if (!patientFilterAllows(req.patientFilter, id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient not found'
+      });
+    }
+
     const result = await db.query(`
       UPDATE patients SET
         first_name = $1,
@@ -182,10 +189,17 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete patient
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    if (!patientFilterAllows(req.patientFilter, id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient not found'
+      });
+    }
+
     const result = await db.query(`
       DELETE FROM patients WHERE id = $1 RETURNING id
     `, [id]);

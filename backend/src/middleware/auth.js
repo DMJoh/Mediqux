@@ -1,13 +1,19 @@
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 const logger = require('../utils/logger');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const { JWT_SECRET } = require('../utils/jwt');
 
 const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[1];
-  
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Access token required'
+    });
+  }
+
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
@@ -37,10 +43,11 @@ const authenticateToken = async (req, res, next) => {
 
     next();
   } catch (error) {
-    if (error.message === 'jwt must be provided') {
-      return res.status(401).json({
+    if (error.name === 'TokenExpiredError') {
+      return res.status(403).json({
         success: false,
-        error: 'Access token required'
+        error: 'Token expired',
+        expired: true
       });
     }
     logger.warn('Token verification failed', {
@@ -77,6 +84,16 @@ const requireRole = (roles) => {
 const requireAdmin = requireRole(['admin']);
 
 const addPatientFilter = (req, res, next) => {
+  // Relies on authenticateToken having already populated req.user — guard
+  // here rather than letting a middleware-ordering regression throw a
+  // TypeError on req.user.role instead of a clear 401.
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      error: 'Authentication required'
+    });
+  }
+
   if (req.user.role === 'admin') {
     req.patientFilter = null;
     return next();

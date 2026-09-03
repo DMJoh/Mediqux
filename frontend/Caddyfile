@@ -6,10 +6,6 @@
 		reverse_proxy backend:3000
 	}
 
-	handle /uploads/* {
-		reverse_proxy backend:3000
-	}
-
 	handle {
 		try_files {path} /index.html
 		file_server

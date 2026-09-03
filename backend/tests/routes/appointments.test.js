@@ -2,12 +2,15 @@ const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
 jest.mock('../../src/database/db', () => ({ query: jest.fn() }));
-jest.mock('../../src/middleware/auth', () => ({
-  addPatientFilter: (req, res, next) => next(),
-  authenticateToken: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    addPatientFilter: (req, res, next) => next(),
+    authenticateToken: (req, res, next) => next(),
+    requireAdmin: (req, res, next) => next(),
+  };
+});
 
 const db = require('../../src/database/db');
 const appointmentsRouter = require('../../src/routes/appointments');
@@ -219,6 +222,24 @@ describe('POST /appointments', () => {
     });
     expect(res.status).toBe(500);
   });
+
+  it('returns 403 when a scoped user tries to create an appointment for another patient', async () => {
+    const res = await request(filteredApp).post('/').send({
+      patient_id: '00000000-0000-0000-0000-000000000099',
+      appointment_date: '2027-06-01T10:00:00',
+    });
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('allows a scoped user to create an appointment for their own linked patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 8, patient_id: '00000000-0000-0000-0000-000000000005' }] });
+    const res = await request(filteredApp).post('/').send({
+      patient_id: '00000000-0000-0000-0000-000000000005',
+      appointment_date: '2027-06-01T10:00:00',
+    });
+    expect(res.status).toBe(201);
+  });
 });
 
 // ─── PUT /:id ─────────────────────────────────────────────────────────────
@@ -227,14 +248,16 @@ describe('PUT /appointments/:id', () => {
   const updateBody = { patient_id: 1, appointment_date: '2027-07-01T10:00:00', type: 'follow-up', status: 'scheduled' };
 
   it('returns 200 on successful update', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1, ...updateBody }] });
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 1 }] })      // ownership check (SELECT existing)
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...updateBody }] }); // UPDATE
     const res = await request(adminApp).put('/1').send(updateBody);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
 
   it('returns 404 when appointment not found', async () => {
-    db.query.mockResolvedValueOnce({ rows: [] });
+    db.query.mockResolvedValueOnce({ rows: [] }); // ownership check finds nothing
     const res = await request(adminApp).put('/999').send(updateBody);
     expect(res.status).toBe(404);
   });
@@ -244,29 +267,41 @@ describe('PUT /appointments/:id', () => {
     const res = await request(adminApp).put('/1').send(updateBody);
     expect(res.status).toBe(500);
   });
+
+  it('returns 403 when a scoped user tries to update another patient\'s appointment', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: '00000000-0000-0000-0000-000000000099' }] });
+    const res = await request(filteredApp).put('/1').send(updateBody);
+    expect(res.status).toBe(403);
+  });
+
+  it('allows a scoped user to update their own linked patient\'s appointment', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: '00000000-0000-0000-0000-000000000005' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...updateBody }] });
+    const res = await request(filteredApp).put('/1').send(updateBody);
+    expect(res.status).toBe(200);
+  });
 });
 
 // ─── DELETE /:id ──────────────────────────────────────────────────────────
 
 describe('DELETE /appointments/:id', () => {
   it('returns 409 when appointment has linked test results', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ count: '3' }] }); // linked test results
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 1, linked_count: '3' }] }); // combined ownership + linked-count check
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/test results/i);
   });
 
   it('returns 404 when not found', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ count: '0' }] })  // no linked test results
-      .mockResolvedValueOnce({ rows: [] });                // DELETE → not found
+    db.query.mockResolvedValueOnce({ rows: [] }); // combined check finds nothing
     const res = await request(adminApp).delete('/999');
     expect(res.status).toBe(404);
   });
 
   it('returns 200 on successful deletion', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [{ count: '0' }] })                          // no linked test results
+      .mockResolvedValueOnce({ rows: [{ patient_id: 1, linked_count: '0' }] })       // combined check: no linked test results
       .mockResolvedValueOnce({ rows: [{ id: 1, appointment_date: '2027-01-01' }] }); // DELETE RETURNING
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(200);
@@ -277,5 +312,11 @@ describe('DELETE /appointments/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 403 when a scoped user tries to delete another patient\'s appointment', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: '00000000-0000-0000-0000-000000000099', linked_count: '0' }] });
+    const res = await request(filteredApp).delete('/1');
+    expect(res.status).toBe(403);
   });
 });

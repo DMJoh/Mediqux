@@ -6,23 +6,9 @@ const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
 const { authenticateToken, addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
-
-function generatePdfFilename(testName, testDate, firstName, lastName) {
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
-  };
-  
-  const sanitizeFilename = (str) => {
-    return str.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toLowerCase();
-  };
-  
-  const testNameClean = sanitizeFilename(testName || 'lab_report');
-  const dateFormatted = formatDate(testDate);
-  const patientName = sanitizeFilename(`${firstName || ''}_${lastName || ''}`.replace(/^_|_$/g, ''));
-  
-  return `${testNameClean}_${dateFormatted}_${patientName || 'unknown'}.pdf`;
-}
+const { safeUnlinkUpload } = require('../utils/uploads');
+const { isValidLabValue } = require('../utils/labValues');
+const { generatePdfFilename } = require('../utils/pdfFilename');
 
 router.get('/panels', async (req, res) => {
   try {
@@ -525,8 +511,6 @@ router.get('/', authenticateToken, addPatientFilter, async (req, res) => {
         tr.test_type,
         tr.test_date,
         tr.pdf_file_path,
-        tr.extracted_text,
-        tr.structured_data,
         tr.institution_id,
         tr.created_at,
         tr.updated_at,
@@ -733,6 +717,14 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
       });
     }
 
+    if (!patientFilterAllows(req.patientFilter, patientId)) {
+      await safeUnlinkUpload(pdfFile.path);
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
     // Verify patient exists
     const patientCheck = await db.query('SELECT id FROM patients WHERE id = $1', [patientId]);
     if (patientCheck.rows.length === 0) {
@@ -790,15 +782,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
-      try {
-        const uploadsDir = path.resolve('./uploads');
-        const filePath = path.resolve(req.file.path);
-        if (filePath.startsWith(uploadsDir + path.sep)) {
-          await fs.unlink(filePath);
-        }
-      } catch (unlinkError) {
-        console.error('Error deleting uploaded file:', unlinkError);
-      }
+      await safeUnlinkUpload(req.file.path);
     }
     
     res.status(500).json({
@@ -823,28 +807,33 @@ router.post('/:id/lab-values', authenticateToken, addPatientFilter, async (req, 
     }
     
     // Verify test result exists
-    const testResultCheck = await db.query('SELECT id FROM test_results WHERE id = $1', [id]);
+    const testResultCheck = await db.query('SELECT id, patient_id FROM test_results WHERE id = $1', [id]);
     if (testResultCheck.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Test result not found'
       });
     }
-    
+
+    if (!patientFilterAllows(req.patientFilter, testResultCheck.rows[0].patient_id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
     const client = await db.getClient();
-    
+
     try {
       await client.query('BEGIN');
-      
+
       // Delete existing lab values for this test result
       await client.query('DELETE FROM lab_values WHERE test_result_id = $1', [id]);
 
       // Insert new lab values
       let insertedCount = 0;
       for (const labValue of lab_values) {
-        const numVal = Number.parseFloat(labValue.value);
-        const valueInRange = !Number.isNaN(numVal) && Math.abs(numVal) < 10_000_000;
-        if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
+        if (isValidLabValue(labValue)) {
           await client.query(`
             INSERT INTO lab_values (
               test_result_id, parameter_name, value, unit, reference_range, status
@@ -906,7 +895,14 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
         error: 'Patient, test name, test type, and test date are required'
       });
     }
-    
+
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
     // Verify patient exists
     const patientCheck = await db.query('SELECT id FROM patients WHERE id = $1', [patient_id]);
     if (patientCheck.rows.length === 0) {
@@ -946,9 +942,7 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
       // request (mirrors the same check in POST /:id/lab-values)
       if (lab_values && Array.isArray(lab_values) && lab_values.length > 0) {
         for (const labValue of lab_values) {
-          const numVal = Number.parseFloat(labValue.value);
-          const valueInRange = !Number.isNaN(numVal) && Math.abs(numVal) < 10_000_000;
-          if (labValue.parameter_name && labValue.value !== null && labValue.value !== '' && valueInRange) {
+          if (isValidLabValue(labValue)) {
             await client.query(`
               INSERT INTO lab_values (
                 test_result_id, parameter_name, value, unit, reference_range, status
@@ -1003,6 +997,22 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
       lab_values
     } = req.body;
 
+    if (req.patientFilter === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const existing = await db.query('SELECT patient_id FROM test_results WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test result not found'
+      });
+    }
+
+    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     const client = await db.getClient();
 
     try {
@@ -1045,20 +1055,25 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
         // Delete existing lab values
         await client.query('DELETE FROM lab_values WHERE test_result_id = $1', [id]);
         
-        // Insert new lab values
+        // Insert new lab values, skipping any with a non-numeric or
+        // out-of-range value rather than letting Postgres reject the whole
+        // update (same guard POST and POST /:id/lab-values already apply —
+        // this endpoint previously lacked it).
         for (const labValue of lab_values) {
-          await client.query(`
-            INSERT INTO lab_values (
-              test_result_id, parameter_name, value, unit, reference_range, status
-            ) VALUES ($1, $2, $3, $4, $5, $6)
-          `, [
-            id,
-            labValue.parameter_name,
-            labValue.value,
-            labValue.unit || null,
-            labValue.reference_range || null,
-            labValue.status || 'normal'
-          ]);
+          if (isValidLabValue(labValue)) {
+            await client.query(`
+              INSERT INTO lab_values (
+                test_result_id, parameter_name, value, unit, reference_range, status
+              ) VALUES ($1, $2, $3, $4, $5, $6)
+            `, [
+              id,
+              labValue.parameter_name,
+              labValue.value,
+              labValue.unit || null,
+              labValue.reference_range || null,
+              labValue.status || 'normal'
+            ]);
+          }
         }
       }
       
@@ -1090,13 +1105,28 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
 router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    if (req.patientFilter === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     // Get PDF file path before deletion
     const filePathResult = await db.query(
-      'SELECT pdf_file_path FROM test_results WHERE id = $1',
+      'SELECT pdf_file_path, patient_id FROM test_results WHERE id = $1',
       [id]
     );
-    
+
+    if (filePathResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Test result not found'
+      });
+    }
+
+    if (!patientFilterAllows(req.patientFilter, filePathResult.rows[0].patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     const result = await db.query(
       'DELETE FROM test_results WHERE id = $1 RETURNING test_name, patient_id',
       [id]
@@ -1111,16 +1141,7 @@ router.delete('/:id', authenticateToken, addPatientFilter, async (req, res) => {
     
     // Delete PDF file if it exists
     if (filePathResult.rows.length > 0 && filePathResult.rows[0].pdf_file_path) {
-      try {
-        const uploadsDir = path.resolve('./uploads');
-        const filePath = path.resolve(filePathResult.rows[0].pdf_file_path);
-        if (filePath.startsWith(uploadsDir + path.sep)) {
-          await fs.unlink(filePath);
-        }
-      } catch (fileError) {
-        console.error('Error deleting PDF file:', fileError);
-        // Don't fail the request if file deletion fails
-      }
+      await safeUnlinkUpload(filePathResult.rows[0].pdf_file_path);
     }
     
     res.json({
@@ -1325,6 +1346,3 @@ router.get('/:id/lab-values', authenticateToken, addPatientFilter, async (req, r
 });
 
 module.exports = router;
-
-// Export pure utility functions for unit testing
-module.exports.generatePdfFilename = generatePdfFilename;

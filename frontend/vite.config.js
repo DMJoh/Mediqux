@@ -12,7 +12,6 @@ export default defineConfig({
     // the frontend code never needs to know the backend's actual host/port.
     proxy: {
       '/api': { target: 'http://backend:3000', changeOrigin: true },
-      '/uploads': { target: 'http://backend:3000', changeOrigin: true },
     },
   },
 })
