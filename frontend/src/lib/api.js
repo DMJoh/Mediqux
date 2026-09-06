@@ -20,7 +20,7 @@ export function getApiBaseUrl() {
 // 401 from them to mean "those credentials are wrong," not "your session expired."
 // Treating every 401/403 the same here used to blow away that real error message
 // (e.g. "Invalid credentials") and force a logout for a user who was never logged in.
-const UNAUTHENTICATED_PATHS = ['/auth/login', '/auth/signup']
+const UNAUTHENTICATED_PATHS = ['/auth/login', '/auth/signup', '/auth/initial-config']
 function isUnauthenticatedEndpoint(path) {
   return UNAUTHENTICATED_PATHS.some((p) => path.startsWith(p))
 }

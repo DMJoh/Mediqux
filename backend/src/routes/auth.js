@@ -11,6 +11,22 @@ router.post('/signup', async (req, res) => {
   try {
     const { username, email, password, firstName, lastName } = req.body;
 
+    // Self-service signup only exists to create the very first (admin)
+    // account on a fresh install. Once any account exists, further accounts
+    // are created by an admin via the Users page, which also handles patient
+    // access — an open signup endpoint that self-registers a "user"-role
+    // account was itself a precondition for a previously reported RBAC
+    // exploit, so this is closed rather than left reachable indefinitely.
+    const userCountResult = await db.query('SELECT COUNT(*) as count FROM users');
+    const isFirstUser = Number.parseInt(userCountResult.rows[0].count) === 0;
+
+    if (!isFirstUser) {
+      return res.status(403).json({
+        success: false,
+        error: 'Self-service signup is disabled. Ask an administrator to create your account.'
+      });
+    }
+
     // Check if user already exists
     const existingUser = await db.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
@@ -27,11 +43,7 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Check if this is the first user - make them admin
-    const userCountResult = await db.query('SELECT COUNT(*) as count FROM users');
-    const isFirstUser = Number.parseInt(userCountResult.rows[0].count) === 0;
-    const userRole = isFirstUser ? 'admin' : 'user';
+    const userRole = 'admin';
 
     // Create user
     const result = await db.query(
