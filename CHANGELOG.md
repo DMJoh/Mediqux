@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
 
+### Upgrading from 1.x
+
+Back up your database first:
+```bash
+docker exec mediqux_postgres pg_dump -U mediqux_user mediqux_db > backup.sql
+```
+
+Download the new `docker-compose.yml` and `.env.example`, and carry over your existing `POSTGRES_PASSWORD`, `JWT_SECRET`, `PUID`/`PGID` into the new `.env` (set `APP_PORT` to whatever your old `FRONTEND_DOCKER_PORT` was). Then `docker compose pull && docker compose up -d` — migrations run automatically.
+
+Your data is not at risk either way: the database and uploads volumes keep the same names as before, so they're picked up automatically regardless of which compose file you run. We tested pulling the new images against an untouched 1.x `docker-compose.yml`/`.env` directly (no file changes at all) and the app came up and worked correctly — the new frontend image carries its own routing configuration now, rather than reading it from environment variables. The one thing that setup does **not** get you is the point of this release's port change: your backend stays directly reachable on its old port instead of being reachable only through Caddy. There's no data-loss or downtime risk in staying on the old files a while longer, but updating them is what actually closes that off, so don't skip it indefinitely.
+
 ### ⚠️ Breaking Changes
 
 - Production now runs behind a single port. `BACKEND_URL`, `MEDIQUX_API_URL`, `FRONTEND_DOCKER_PORT`, and `BACKEND_DOCKER_PORT` are gone, replaced by one `APP_PORT`. The backend is no longer reachable directly from the host in either environment; a Caddy container proxies `/api` and `/uploads` to it internally. See the updated `.env.example`.
@@ -35,6 +46,8 @@ Major release. The frontend has been completely rewritten, patient access is no 
 - Two separate prescriptions of the same medication for the same patient shared one status record, so editing either one's status silently overwrote the other's. Each prescription now tracks its own status independently (new `prescription_id` column on `patient_medications`).
 - A missing/expired login token could return a generic error instead of a clean 401, and an expired token was indistinguishable from an invalid one.
 - A file-unlink failure on editing or deleting a diagnostic study could crash the request instead of just logging a warning.
+- Uploaded lab report PDFs and diagnostic study attachments were fetchable by anyone who knew or guessed the file's path, with no login required — a plain static file route sat in parallel with the actual authenticated download endpoints and bypassed them entirely. That route is gone; files are only reachable through the authenticated endpoints now.
+- Behind the new single-port setup, the backend couldn't tell a real visitor's IP from Caddy's own, which both broke rate limiting (it started throwing on every request) and meant every visitor was rate-limited as one shared client. Fixed, with a `TRUST_PROXY_HOPS` override for anyone running their own reverse proxy in front of Mediqux's.
 
 ### 🔧 Code Quality
 
