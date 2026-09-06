@@ -14,6 +14,7 @@ Major release. The frontend has been completely rewritten, patient access is no 
 - Production now runs behind a single port. `BACKEND_URL`, `MEDIQUX_API_URL`, `FRONTEND_DOCKER_PORT`, and `BACKEND_DOCKER_PORT` are gone, replaced by one `APP_PORT`. The backend is no longer reachable directly from the host in either environment; a Caddy container proxies `/api` and `/uploads` to it internally. See the updated `.env.example`.
 - `POST`/`PUT /api/users` now take `patientIds` (an array) instead of a single `patientId`. `GET /api/users` returns a `patients` array per user instead of flat `patient_id`/`patient_first_name`/`patient_last_name` fields.
 - The `doctor` role has been removed from the `users` table's role options. It never had any behavior different from `user`.
+- Self-service signup (`POST /api/auth/signup`) now only works for the very first account on an empty database. Once that account exists, it returns 403 — every additional account has to be created by an admin from the Users page. If you were relying on open self-registration for additional accounts, that path is gone; add those accounts via Users instead.
 
 ### ✨ Added
 
@@ -35,6 +36,7 @@ Major release. The frontend has been completely rewritten, patient access is no 
 - Two separate prescriptions of the same medication for the same patient shared one status record, so editing either one's status silently overwrote the other's. Each prescription now tracks its own status independently (new `prescription_id` column on `patient_medications`).
 - A missing/expired login token could return a generic error instead of a clean 401, and an expired token was indistinguishable from an invalid one.
 - A file-unlink failure on editing or deleting a diagnostic study could crash the request instead of just logging a warning.
+- A fresh install had no way to create the first account. The setup-detection screen from the old frontend never got ported to the rewrite, so a brand new database just showed a normal login form with no account to log into.
 
 ### 🔧 Code Quality
 
