@@ -25,6 +25,19 @@ const authLimiter = rateLimit({
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// The backend is never exposed directly to the host in either dev or prod
+// (Caddy fronts it in prod, Vite's dev proxy fronts it in dev) — trusting
+// exactly one hop lets express-rate-limit and req.ip read the real client
+// IP from X-Forwarded-For instead of the proxy's own address, without
+// trusting a longer chain a client could spoof into. Anyone running their
+// own reverse proxy in front of Mediqux's own (Traefik, Nginx Proxy
+// Manager, a Cloudflare Tunnel, ...) adds a second hop, and should set
+// TRUST_PROXY_HOPS=2 accordingly — see the README for details. Not in
+// .env.example on purpose: the default of 1 is correct for the vast
+// majority of installs that don't do this, and shouldn't be something
+// every new user has to stop and think about.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+
 // CORS Configuration - Allow all origins
 // Security is handled by JWT authentication layer
 app.use(cors({

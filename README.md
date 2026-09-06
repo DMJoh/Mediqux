@@ -155,6 +155,16 @@ PGID=1000
 LOG_LEVEL=info  # Options: error, warn, info, debug
 ```
 
+### Running behind your own reverse proxy
+
+Mediqux already ships with Caddy in front of the backend, so most installs don't need to read this. If you're also putting your own reverse proxy in front of the whole stack (Traefik, Nginx Proxy Manager, a Cloudflare Tunnel, etc.), there are now two hops between a visitor and the backend instead of one, and the backend needs to know that to correctly identify each visitor's real IP address (used for rate limiting) instead of mistaking your proxy for every single visitor.
+
+Set `TRUST_PROXY_HOPS` to the number of proxies in front of Mediqux's own Caddy (usually `2`):
+```bash
+TRUST_PROXY_HOPS=2
+```
+Leave it unset if Mediqux's bundled Caddy is the only thing in front of it, which is the default setup.
+
 ## Logging & Monitoring
 
 ```bash
