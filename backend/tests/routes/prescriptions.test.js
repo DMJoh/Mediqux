@@ -2,12 +2,15 @@ const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
 jest.mock('../../src/database/db', () => ({ query: jest.fn(), getClient: jest.fn() }));
-jest.mock('../../src/middleware/auth', () => ({
-  addPatientFilter: (req, res, next) => next(),
-  authenticateToken: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    addPatientFilter: (req, res, next) => next(),
+    authenticateToken: (req, res, next) => next(),
+    requireAdmin: (req, res, next) => next(),
+  };
+});
 
 const db = require('../../src/database/db');
 const prescriptionsRouter = require('../../src/routes/prescriptions');
@@ -153,34 +156,23 @@ describe('POST /prescriptions', () => {
     expect(res.body.error).toMatch(/medication not found/i);
   });
 
-  it('returns 201 on successful creation (new patient medication)', async () => {
+  it('returns 201 on successful creation and inserts a dedicated patient_medications row', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 5 }] })    // appointment check
       .mockResolvedValueOnce({ rows: [{ id: 2, name: 'Aspirin' }] }); // medication check
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })                              // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 5, ...validPrescription }] }) // INSERT prescription
-      .mockResolvedValueOnce({ rows: [] })                              // check patient_medications → none
-      .mockResolvedValueOnce({ rows: [] })                              // INSERT patient_medications
+      .mockResolvedValueOnce({ rows: [] })                              // INSERT patient_medications (linked by prescription_id)
       .mockResolvedValueOnce({ rows: [] });                             // COMMIT
     const res = await request(adminApp).post('/').send(validPrescription);
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO patient_medications'),
+      expect.arrayContaining([5, validPrescription.medication_id, 5])
+    );
     expect(mockClient.release).toHaveBeenCalled();
-  });
-
-  it('returns 201 when patient medication already exists (UPDATE path)', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2, name: 'Aspirin' }] });
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [] })                              // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 5, ...validPrescription }] }) // INSERT prescription
-      .mockResolvedValueOnce({ rows: [{ id: 10 }] })                   // existing patient_medication found
-      .mockResolvedValueOnce({ rows: [] })                              // UPDATE patient_medications
-      .mockResolvedValueOnce({ rows: [] });                             // COMMIT
-    const res = await request(adminApp).post('/').send(validPrescription);
-    expect(res.status).toBe(201);
   });
 
   it('returns 500 and rolls back when transaction fails', async () => {
@@ -226,65 +218,105 @@ describe('PUT /prescriptions/:id', () => {
   });
 
   it('returns 404 when not found', async () => {
-    db.query.mockResolvedValueOnce({ rows: [] }); // UPDATE → not found
+    db.query.mockResolvedValueOnce({ rows: [] }); // ownership check (SELECT existing) → not found
     const res = await request(adminApp).put('/999').send(validUpdate);
     expect(res.status).toBe(404);
   });
 
   it('returns 200 on successful update', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
-      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
-      .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })         // ownership check
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] }) // UPDATE prescription
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });        // get appointment
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })    // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] }) // own patient_medications row found and updated
+      .mockResolvedValueOnce({ rows: [] });   // COMMIT
     const res = await request(adminApp).put('/1').send(validUpdate);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(mockClient.release).toHaveBeenCalled();
   });
 
-  it('reverting status to active still updates patient_medications (not skipped)', async () => {
+  it('reverting status to active still updates its own patient_medications row (not skipped)', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
-      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
-      .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] })
+      .mockResolvedValueOnce({ rows: [] });
     const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'active' });
     expect(res.status).toBe(200);
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE patient_medications'),
-      expect.arrayContaining(['active', 5, validUpdate.medication_id])
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE prescription_id = $3'),
+      expect.arrayContaining([validUpdate.medication_id, 'active', '1'])
     );
   });
 
-  it('returns 200 and updates patient medication status when status != active', async () => {
+  it('claims an unclaimed legacy patient_medications row when this prescription has none of its own', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
-      .mockResolvedValueOnce({ rows: [{ id: 9 }] })                          // existing patient_medications found
-      .mockResolvedValueOnce({ rows: [] });                                   // UPDATE patient_medications
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })          // BEGIN
+      .mockResolvedValueOnce({ rows: [] })          // no own row yet
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] }) // legacy candidate locked via FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] })          // UPDATE (claim)
+      .mockResolvedValueOnce({ rows: [] });         // COMMIT
     const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'completed' });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-  });
-
-  it('inserts a patient_medications row when none exists yet (e.g. seeded prescriptions)', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })          // UPDATE prescription
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                  // get appointment
-      .mockResolvedValueOnce({ rows: [] })                                   // no existing patient_medications row
-      .mockResolvedValueOnce({ rows: [] });                                   // INSERT patient_medications
-    const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'discontinued' });
-    expect(res.status).toBe(200);
-    expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO patient_medications'),
-      expect.arrayContaining([5, validUpdate.medication_id, 'discontinued'])
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('prescription_id IS NULL'),
+      expect.arrayContaining([5, validUpdate.medication_id])
     );
   });
 
-  it('returns 500 when DB throws', async () => {
+  it('inserts a new patient_medications row when neither an own row nor a legacy row exists (e.g. seeded prescriptions)', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // no own row
+      .mockResolvedValueOnce({ rows: [] }) // no unclaimed legacy row
+      .mockResolvedValueOnce({ rows: [] }) // INSERT ... ON CONFLICT
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+    const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'discontinued' });
+    expect(res.status).toBe(200);
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO patient_medications'),
+      expect.arrayContaining([5, validUpdate.medication_id, '1', 'discontinued'])
+    );
+  });
+
+  it('returns 500 and rolls back the patient_medications transaction when it fails', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })              // BEGIN
+      .mockRejectedValueOnce(new Error('DB error'));    // own-row UPDATE throws
+    const res = await request(adminApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(500);
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it('returns 500 when DB throws before the transaction starts', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).put('/1').send(validUpdate);
     expect(res.status).toBe(500);
+  });
+
+  it('returns 403 when a scoped user tries to update another patient\'s prescription', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: OTHER_UUID }] }); // ownership check
+    const res = await request(filteredApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(403);
   });
 });
 
@@ -292,13 +324,15 @@ describe('PUT /prescriptions/:id', () => {
 
 describe('DELETE /prescriptions/:id', () => {
   it('returns 404 when not found', async () => {
-    db.query.mockResolvedValueOnce({ rows: [] }); // DELETE → not found
+    db.query.mockResolvedValueOnce({ rows: [] }); // ownership check → not found
     const res = await request(adminApp).delete('/999');
     expect(res.status).toBe(404);
   });
 
   it('returns 200 on successful deletion', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ appointment_id: 1, medication_id: 2 }] });
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })                          // ownership check
+      .mockResolvedValueOnce({ rows: [{ appointment_id: 1, medication_id: 2 }] });   // DELETE
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -308,6 +342,12 @@ describe('DELETE /prescriptions/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 403 when a scoped user tries to delete another patient\'s prescription', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: OTHER_UUID }] }); // ownership check
+    const res = await request(filteredApp).delete('/1');
+    expect(res.status).toBe(403);
   });
 });
 

@@ -34,8 +34,6 @@ services:
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
-    ports:
-      - "${BACKEND_DOCKER_PORT:-3000}:3000"
     volumes:
       - mediqux_uploads:/app/uploads
     depends_on:
@@ -53,20 +51,13 @@ services:
   frontend:
     image: ghcr.io/dmjoh/mediqux/mediqux-frontend:${IMAGE_TAG}
     container_name: mediqux_frontend
-    environment:
-      MEDIQUX_API_URL: ${BACKEND_URL:-http://localhost:3000/api}
     ports:
-      - "${FRONTEND_DOCKER_PORT:-8080}:80"
+      - "${APP_PORT:-8080}:80"
     depends_on:
       - backend
     networks:
       - mediqux_network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data:

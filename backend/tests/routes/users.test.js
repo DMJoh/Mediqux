@@ -1,7 +1,7 @@
 const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
-jest.mock('../../src/database/db', () => ({ query: jest.fn() }));
+jest.mock('../../src/database/db', () => ({ query: jest.fn(), getClient: jest.fn() }));
 jest.mock('../../src/middleware/auth', () => ({
   requireAdmin: (req, res, next) => {
     if (req.user && req.user.role === 'admin') return next();
@@ -9,7 +9,6 @@ jest.mock('../../src/middleware/auth', () => ({
   },
   authenticateToken: (req, res, next) => next(),
   addPatientFilter: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
 }));
 
 const db = require('../../src/database/db');
@@ -18,7 +17,12 @@ const usersRouter = require('../../src/routes/users');
 const adminApp = createApp(usersRouter, { role: 'admin' });
 const userApp  = createApp(usersRouter, { role: 'user' });
 
-beforeEach(() => db.query.mockReset());
+let mockClient;
+beforeEach(() => {
+  db.query.mockReset();
+  mockClient = { query: jest.fn(), release: jest.fn() };
+  db.getClient.mockResolvedValue(mockClient);
+});
 
 // ─── GET / (admin only) ───────────────────────────────────────────────────
 
@@ -64,49 +68,64 @@ describe('POST /users', () => {
   });
 
   it('returns 400 when username/email already exists', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })       // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // existing user found
+      .mockResolvedValueOnce({ rows: [] });      // ROLLBACK
     const res = await request(adminApp).post('/').send(validUser);
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/already exists/i);
   });
 
-  it('returns 400 when patientId provided but patient not found', async () => {
-    db.query
+  it('returns 400 when patientIds provided but a patient is not found', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })   // BEGIN
       .mockResolvedValueOnce({ rows: [] })   // no existing user
-      .mockResolvedValueOnce({ rows: [] });  // patient not found
-    const res = await request(adminApp).post('/').send({ ...validUser, patientId: 99 });
+      .mockResolvedValueOnce({ rows: [] })   // patient check: none found
+      .mockResolvedValueOnce({ rows: [] });  // ROLLBACK
+    const res = await request(adminApp).post('/').send({ ...validUser, patientIds: ['99'] });
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/patient not found/i);
+    expect(res.body.error).toMatch(/not found/i);
   });
 
-  it('returns 201 on successful user creation (no patientId)', async () => {
-    db.query
+  it('returns 201 on successful user creation (no patientIds)', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })   // BEGIN
       .mockResolvedValueOnce({ rows: [] })   // no existing user
       .mockResolvedValueOnce({               // INSERT
         rows: [{ id: 5, username: 'newuser', email: 'new@example.com',
-                 first_name: 'New', last_name: 'User', role: 'user',
-                 patient_id: null, created_at: new Date() }]
-      });
+                 first_name: 'New', last_name: 'User', role: 'user', created_at: new Date() }]
+      })
+      .mockResolvedValueOnce({ rows: [] });  // COMMIT
     const res = await request(adminApp).post('/').send(validUser);
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
+    expect(mockClient.release).toHaveBeenCalled();
   });
 
-  it('returns 201 when patientId is valid', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [] })          // no existing user
-      .mockResolvedValueOnce({ rows: [{ id: 10 }] }) // patient exists
+  it('returns 201 when patientIds are valid', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })            // BEGIN
+      .mockResolvedValueOnce({ rows: [] })            // no existing user
+      .mockResolvedValueOnce({ rows: [{ id: '10' }] }) // patient check: found
       .mockResolvedValueOnce({ rows: [{ id: 5, username: 'newuser', email: 'new@example.com',
-        first_name: 'New', last_name: 'User', role: 'user', patient_id: 10, created_at: new Date() }] });
-    const res = await request(adminApp).post('/').send({ ...validUser, patientId: 10 });
+        first_name: 'New', last_name: 'User', role: 'user', created_at: new Date() }] }) // INSERT user
+      .mockResolvedValueOnce({ rows: [] })            // INSERT user_patient_access
+      .mockResolvedValueOnce({ rows: [] });           // COMMIT
+    const res = await request(adminApp).post('/').send({ ...validUser, patientIds: ['10'] });
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
+    expect(res.body.data.patientIds).toEqual(['10']);
   });
 
-  it('returns 500 when DB throws', async () => {
-    db.query.mockRejectedValue(new Error('DB error'));
+  it('returns 500 and rolls back when DB throws', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })              // BEGIN
+      .mockRejectedValueOnce(new Error('DB error'))     // existing-user check throws
+      .mockResolvedValueOnce({ rows: [] });             // ROLLBACK
     const res = await request(adminApp).post('/').send(validUser);
     expect(res.status).toBe(500);
+    expect(mockClient.release).toHaveBeenCalled();
   });
 });
 
@@ -121,32 +140,45 @@ describe('PUT /users/:id', () => {
   });
 
   it('returns 404 when user not found', async () => {
-    db.query.mockResolvedValueOnce({ rows: [] });
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })  // BEGIN
+      .mockResolvedValueOnce({ rows: [] })  // user check: not found
+      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
     const res = await request(adminApp).put('/999').send(updateBody);
     expect(res.status).toBe(404);
   });
 
-  it('returns 400 when patientId provided but patient not found', async () => {
-    db.query
+  it('returns 400 when patientIds provided but a patient is not found', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })          // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 2 }] }) // user exists
-      .mockResolvedValueOnce({ rows: [] });          // patient not found
-    const res = await request(adminApp).put('/2').send({ ...updateBody, patientId: 99 });
+      .mockResolvedValueOnce({ rows: [] })          // patient check: none found
+      .mockResolvedValueOnce({ rows: [] });         // ROLLBACK
+    const res = await request(adminApp).put('/2').send({ ...updateBody, patientIds: ['99'] });
     expect(res.status).toBe(400);
   });
 
   it('returns 200 on successful update', async () => {
-    db.query
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })                              // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 2 }] })                    // user exists
-      .mockResolvedValueOnce({ rows: [{ id: 2, username: 'updated' }] }); // UPDATE
+      .mockResolvedValueOnce({ rows: [{ id: 2, username: 'updated' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] })                              // DELETE user_patient_access
+      .mockResolvedValueOnce({ rows: [] });                             // COMMIT
     const res = await request(adminApp).put('/2').send(updateBody);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+    expect(mockClient.release).toHaveBeenCalled();
   });
 
-  it('returns 500 when DB throws', async () => {
-    db.query.mockRejectedValue(new Error('DB error'));
+  it('returns 500 and rolls back when DB throws', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })          // BEGIN
+      .mockRejectedValueOnce(new Error('DB error')) // user check throws
+      .mockResolvedValueOnce({ rows: [] });         // ROLLBACK
     const res = await request(adminApp).put('/2').send(updateBody);
     expect(res.status).toBe(500);
+    expect(mockClient.release).toHaveBeenCalled();
   });
 });
 

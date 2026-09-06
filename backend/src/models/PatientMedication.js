@@ -25,6 +25,10 @@ module.exports = (sequelize) => {
       type: DataTypes.UUID,
       allowNull: false
     },
+    prescription_id: {
+      type: DataTypes.UUID,
+      allowNull: true
+    },
     status: {
       type: DataTypes.STRING(50),
       allowNull: false,

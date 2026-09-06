@@ -22,8 +22,6 @@ services:
   backend:
     build: ./backend
     container_name: mediqux_backend
-    ports:
-      - "${BACKEND_DOCKER_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       DEBUG: ${DEBUG:-true}
@@ -56,15 +54,13 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: mediqux_frontend
     ports:
-      - "${FRONTEND_DOCKER_PORT:-8080}:80"
-    environment:
-      MEDIQUX_API_URL: ${BACKEND_URL:-http://localhost:3000/api}
+      - "${APP_PORT:-5173}:5173"
     volumes:
-      - ./frontend/css:/usr/share/nginx/html/css
-      - ./frontend/js:/usr/share/nginx/html/js
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:

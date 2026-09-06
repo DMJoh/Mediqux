@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { countRows } = require('../utils/counts');
+const { localeCompare } = require('../utils/sort');
 
 // Get all medications with usage statistics
 router.get('/', async (req, res) => {
@@ -281,28 +283,22 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     
     // Check if medication is referenced in prescriptions or patient medications
-    const usageCheck = await db.query(`
-      SELECT 
-        COUNT(DISTINCT p.id) as prescription_count,
-        COUNT(DISTINCT pm.id) as patient_medication_count
-      FROM medications m
-      LEFT JOIN prescriptions p ON m.id = p.medication_id
-      LEFT JOIN patient_medications pm ON m.id = pm.medication_id
-      WHERE m.id = $1
-      GROUP BY m.id
-    `, [id]);
-    
-    if (usageCheck.rows.length > 0) {
-      const prescriptionCount = Number.parseInt(usageCheck.rows[0].prescription_count) || 0;
-      const patientMedicationCount = Number.parseInt(usageCheck.rows[0].patient_medication_count) || 0;
-      const totalUsage = prescriptionCount + patientMedicationCount;
-      
-      if (totalUsage > 0) {
-        return res.status(400).json({
-          success: false,
-          error: `Cannot delete medication. It is referenced in ${prescriptionCount} prescription(s) and ${patientMedicationCount} patient medication record(s). Please remove these references first.`
-        });
-      }
+    const prescriptionCount = await countRows(
+      db,
+      'SELECT COUNT(*) as count FROM prescriptions WHERE medication_id = $1',
+      [id]
+    );
+    const patientMedicationCount = await countRows(
+      db,
+      'SELECT COUNT(*) as count FROM patient_medications WHERE medication_id = $1',
+      [id]
+    );
+
+    if (prescriptionCount + patientMedicationCount > 0) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot delete medication. It is referenced in ${prescriptionCount} prescription(s) and ${patientMedicationCount} patient medication record(s). Please remove these references first.`
+      });
     }
     
     const result = await db.query(`
@@ -362,7 +358,7 @@ router.get('/forms/available', async (req, res) => {
     ];
     
     const existingForms = result.rows.map(row => row.form);
-    const allForms = [...new Set([...commonForms, ...existingForms])].sort((a, b) => a.localeCompare(b));
+    const allForms = [...new Set([...commonForms, ...existingForms])].sort(localeCompare);
     
     res.json({
       success: true,

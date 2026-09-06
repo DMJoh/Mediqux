@@ -5,15 +5,55 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-08-28
+
+Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
+
+### ⚠️ Breaking Changes
+
+- Production now runs behind a single port. `BACKEND_URL`, `MEDIQUX_API_URL`, `FRONTEND_DOCKER_PORT`, and `BACKEND_DOCKER_PORT` are gone, replaced by one `APP_PORT`. The backend is no longer reachable directly from the host in either environment; a Caddy container proxies `/api` and `/uploads` to it internally. See the updated `.env.example`.
+- `POST`/`PUT /api/users` now take `patientIds` (an array) instead of a single `patientId`. `GET /api/users` returns a `patients` array per user instead of flat `patient_id`/`patient_first_name`/`patient_last_name` fields.
+- The `doctor` role has been removed from the `users` table's role options. It never had any behavior different from `user`.
 
 ### ✨ Added
 
-- **`POST /api/auth/refresh`** — issues a fresh JWT for the current user, provided their existing token is still valid (`authenticateToken` re-checks `is_active` against the DB rather than trusting the token payload, so a deactivated user can't refresh even with an unexpired token). The new token reflects the user's *current* role/username from the DB, not whatever was in the original token — so a promoted/demoted user gets it right on refresh. Intended for mobile clients to silently renew their session before the token's natural expiry, rather than forcing a full re-login.
+- Full React frontend rewrite. Every page (Dashboard, Patients, Institutions, Doctors, Appointments, Conditions, Medications, Prescriptions, Lab Reports, Diagnostic Studies, Users) is rebuilt on React, Vite, and Tailwind, replacing the old server-rendered Bootstrap pages. The old frontend is kept under `frontend-legacy/` for reference.
+- A user account can now be linked to more than one patient (new `user_patient_access` table), for households where one login needs to see multiple family members' records.
+- The patient detail page now shows that patient's own appointments, prescriptions, lab reports, diagnostic studies, and active medications in one place, instead of needing a separate search on each page.
+- New Settings page with a selectable accent color (Aurora, Teal, Sunset).
+- The sidebar now shows a real backend connectivity indicator. Previously it was a hardcoded "online" label with no actual health check behind it.
+
+### 🔒 Security
+
+- Fixed several endpoints (`patients`, `appointments`, `prescriptions`, and a few `test-results` routes) that would return any record by ID with no ownership check, regardless of a scoped account's actual patient access.
+- The same ownership check was also missing on the write side: creating, editing, or deleting an appointment, prescription, or test result didn't verify the record belonged to a patient the account has access to. Fixed across `appointments`, `prescriptions`, and `test-results`, with an audit of `patients`' own edit/delete routes too.
+
+### 🐛 Bug Fixes
+
+- Logging in with a wrong username or password showed "Session expired" instead of the actual "Invalid credentials" message from the backend.
+- Logging out and back in returned you to the page you logged out from instead of the dashboard.
+- Two separate prescriptions of the same medication for the same patient shared one status record, so editing either one's status silently overwrote the other's. Each prescription now tracks its own status independently (new `prescription_id` column on `patient_medications`).
+- A missing/expired login token could return a generic error instead of a clean 401, and an expired token was indistinguishable from an invalid one.
+- A file-unlink failure on editing or deleting a diagnostic study could crash the request instead of just logging a warning.
 
 ### 🔧 Code Quality
 
-- **CodeQL cleanup** — resolved all 12 open CodeQL alerts (all low-severity reliability/cleanliness findings, no vulnerabilities): removed 7 dead `const form = document.getElementById(...)` declarations left over in `saveX()` functions across appointments, prescriptions, patients, medications, doctors, institutions, and conditions pages; removed an unused `newTab` variable capturing `window.open()`'s return value in lab-reports.js; removed a `let overallStatus` variable in lab-reports.js that was assigned but never read (the actually-used `statusBadge` variable was untouched); removed an unused `Logger` variable in `logger.test.js` while preserving its `jest.resetModules()` side effect; removed an unused `path` import in `server.js`.
+- The duplicated per-route RBAC patient-scoping logic is now consolidated behind shared `patientFilterClause`/`patientFilterAllows` helpers in `backend/src/middleware/auth.js`.
+- Several other duplicated patterns across route files (upload cleanup, lab value validation, dependent-record counts, distinct-value sorting, JWT signing) were consolidated into shared helpers under `backend/src/utils/`.
+
+## [1.0.14] - 2026-08-22
+
+### ✨ Added
+
+- `POST /api/auth/refresh` — issues a fresh JWT for the current user if their existing token is still valid. Lets mobile clients silently renew a session instead of forcing re-login.
+
+### 🐛 Bug Fixes
+
+- Medication dosage form dropdown was missing "Lotion", even though the backend already listed it as a common form.
+
+### 🔧 Code Quality
+
+- Resolved all 12 open CodeQL alerts (unused variables / dead assignments, no vulnerabilities) across 9 files.
 
 ## [1.0.13] - 2026-08-09
 

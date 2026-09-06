@@ -1,13 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../database/db');
 const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const { signUserToken } = require('../utils/jwt');
 
 // Register new user
 router.post('/signup', async (req, res) => {
@@ -47,15 +44,7 @@ router.post('/signup', async (req, res) => {
     const user = result.rows[0];
 
     // Create JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = signUserToken(user);
 
     res.status(201).json({
       success: true,
@@ -124,15 +113,7 @@ router.post('/login', async (req, res) => {
     );
 
     // Create JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = signUserToken(user);
 
     // Log successful authentication
     logger.auth('User login successful', { 
@@ -171,15 +152,7 @@ router.post('/login', async (req, res) => {
 // Intended for silent client-side renewal before the current token expires.
 router.post('/refresh', authenticateToken, async (req, res) => {
   try {
-    const token = jwt.sign(
-      {
-        userId: req.user.id,
-        username: req.user.username,
-        role: req.user.role
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = signUserToken(req.user);
 
     res.json({
       success: true,

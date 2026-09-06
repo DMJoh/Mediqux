@@ -2,18 +2,21 @@ const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
 jest.mock('../../src/database/db', () => ({ query: jest.fn() }));
-jest.mock('../../src/middleware/auth', () => ({
-  addPatientFilter: (req, res, next) => next(), // patientFilter already set by createApp
-  authenticateToken: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    addPatientFilter: (req, res, next) => next(), // patientFilter already set by createApp
+    authenticateToken: (req, res, next) => next(),
+    requireAdmin: (req, res, next) => next(),
+  };
+});
 
 const db = require('../../src/database/db');
 const patientsRouter = require('../../src/routes/patients');
 
 const adminApp = createApp(patientsRouter, { role: 'admin' });
-const userApp  = createApp(patientsRouter, { role: 'user', patientId: 10 });
+const userApp  = createApp(patientsRouter, { role: 'user', patientId: '10' });
 const noPatientApp = createApp(patientsRouter, { role: 'user', patientId: null });
 
 beforeEach(() => db.query.mockReset());
@@ -36,8 +39,10 @@ describe('GET /patients', () => {
     expect(res.body.success).toBe(true);
   });
 
-  it('user with no patientId (patientFilter="none"): returns empty array without hitting DB', async () => {
-    // createApp sets patientFilter='none' when patientId is null and role is 'user'
+  it('user with no patientId (patientFilter="none"): returns empty array', async () => {
+    // createApp sets patientFilter='none' when patientId is null and role is 'user'.
+    // patients.js always queries (WHERE 1=0 for 'none'), it doesn't short-circuit.
+    db.query.mockResolvedValueOnce({ rows: [] });
     const res = await request(noPatientApp).get('/');
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);
@@ -123,6 +128,19 @@ describe('PUT /patients/:id', () => {
     const res = await request(adminApp).put('/1').send(updatedFields);
     expect(res.status).toBe(500);
   });
+
+  it('returns 404 when a scoped user tries to update a patient outside their access', async () => {
+    const res = await request(userApp).put('/999').send(updatedFields);
+    expect(res.status).toBe(404);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('allows a scoped user to update their own linked patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 10, ...updatedFields }] });
+    const res = await request(userApp).put('/10').send(updatedFields);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
 });
 
 // ─── DELETE /:id ──────────────────────────────────────────────────────────
@@ -145,5 +163,18 @@ describe('DELETE /patients/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).delete('/1');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 404 when a scoped user tries to delete a patient outside their access', async () => {
+    const res = await request(userApp).delete('/999');
+    expect(res.status).toBe(404);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  it('allows a scoped user to delete their own linked patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: '10' }] });
+    const res = await request(userApp).delete('/10');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
