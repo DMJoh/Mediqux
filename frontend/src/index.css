@@ -70,8 +70,15 @@
   .glass {
     background: var(--color-glass);
     border: 1px solid var(--color-glass-border);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
+    /* Using Tailwind's own backdrop-blur utility here rather than hand-written
+       backdrop-filter/-webkit-backdrop-filter: Tailwind's CSS pipeline (Lightning
+       CSS under @tailwindcss/vite) was silently dropping the unprefixed
+       backdrop-filter declaration from this rule during the production build —
+       present in dev, gone once built — leaving glass surfaces fully see-through
+       in production. @apply lets Tailwind generate + prefix the property itself
+       instead of us writing both variants by hand and hoping the build doesn't
+       collapse them wrong. */
+    @apply backdrop-blur-[22px];
   }
 
   .glow-gradient {
