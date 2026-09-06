@@ -17,9 +17,9 @@
   },
   "dependencies": {
     "express": "^5.2.1",
-    "pg": "^8.22.0",
+    "pg": "^8.23.0",
     "cors": "^2.8.6",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "dotenv": "^17.4.2",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
