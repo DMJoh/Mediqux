@@ -28,6 +28,11 @@ import { api, getConnectionStatus, subscribeConnectionStatus } from '../../lib/a
 
 const IDLE_HEALTH_CHECK_MS = 5 * 60 * 1000
 
+// The bell is a placeholder with no real feature behind it yet — hidden until
+// notifications are actually built, rather than shipping a button whose only
+// purpose is a "coming soon" toast.
+const NOTIFICATIONS_ENABLED = false
+
 /** Reflects the passive connection tracking in api.js — updates for free off of
  * whatever requests the app is already making, no dedicated poll. */
 function useConnectionStatus() {
@@ -240,19 +245,21 @@ export default function AppShell() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {header.action}
-              {/* TODO: real notifications (appointment reminders, follow-up due dates, etc.)
-                  — needs a design pass on what actually counts as a notification and how it's
-                  sourced before building the panel. Toast is a placeholder so the click isn't
-                  silently dead in the meantime. */}
-              <button
-                type="button"
-                onClick={() => notify('Notifications are coming soon. Appointment and follow-up reminders are planned.')}
-                aria-label="Notifications (coming soon)"
-                title="Notifications (coming soon)"
-                className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-glass-border bg-white/6 text-muted hover:text-white"
-              >
-                <Bell size={15} />
-              </button>
+              {/* Notifications: hidden until the real feature (appointment reminders,
+                  follow-up due dates, etc.) is built — needs a design pass on what
+                  actually counts as a notification and how it's sourced. Flip
+                  NOTIFICATIONS_ENABLED back on to restore the placeholder bell. */}
+              {NOTIFICATIONS_ENABLED && (
+                <button
+                  type="button"
+                  onClick={() => notify('Notifications are coming soon. Appointment and follow-up reminders are planned.')}
+                  aria-label="Notifications (coming soon)"
+                  title="Notifications (coming soon)"
+                  className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-glass-border bg-white/6 text-muted hover:text-white"
+                >
+                  <Bell size={15} />
+                </button>
+              )}
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger asChild>
                   <button
