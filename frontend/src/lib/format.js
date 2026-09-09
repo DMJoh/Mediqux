@@ -32,8 +32,10 @@ export function isValidPhone(value) {
   return !value || PHONE_REGEX.test(value)
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export function isValidEmail(value) {
-  return !value || value.includes('@')
+  return !value || EMAIL_REGEX.test(value)
 }
 
 export function isValidWebsite(value) {
