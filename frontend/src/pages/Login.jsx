@@ -3,6 +3,8 @@ import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { HeartPulse, Eye, EyeOff } from 'lucide-react'
 import { useAuth } from '../lib/auth'
 import { api, ApiError } from '../lib/api'
+import { isValidEmail } from '../lib/format'
+import { Field, TextInput } from '../components/ui/Field'
 
 export default function Login() {
   const { login, signup, isAuthenticated } = useAuth()
@@ -177,40 +179,44 @@ function LoginForm({ login, onDone, destination }) {
 
 function SetupForm({ signup, onDone, destination }) {
   const [form, setForm] = useState({ firstName: '', lastName: '', username: '', email: '', password: '', confirm: '' })
-  const [error, setError] = useState('')
+  const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState('')
   const [loading, setLoading] = useState(false)
 
   function set(key) {
     return (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   }
 
+  function validate() {
+    const next = {}
+    if (!form.firstName.trim()) next.firstName = 'First name is required'
+    if (!form.lastName.trim()) next.lastName = 'Last name is required'
+    if (!form.username.trim()) next.username = 'Username is required'
+    if (!form.email.trim()) next.email = 'Email is required'
+    else if (!isValidEmail(form.email.trim())) next.email = 'Please enter a valid email address'
+    if (!form.password) next.password = 'Password is required'
+    else if (form.password.length < 6) next.password = 'Password must be at least 6 characters'
+    if (form.confirm !== form.password) next.confirm = 'Passwords do not match'
+    setErrors(next)
+    return Object.keys(next).length === 0
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
-    setError('')
-    if (!form.firstName || !form.lastName || !form.username || !form.email || !form.password) {
-      setError('Fill in every field.')
-      return
-    }
-    if (form.password.length < 6) {
-      setError('Password must be at least 6 characters.')
-      return
-    }
-    if (form.password !== form.confirm) {
-      setError('Passwords do not match.')
-      return
-    }
+    setSubmitError('')
+    if (!validate()) return
     setLoading(true)
     try {
       await signup({
-        firstName: form.firstName,
-        lastName: form.lastName,
-        username: form.username,
-        email: form.email,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        username: form.username.trim(),
+        email: form.email.trim(),
         password: form.password,
       })
       onDone(destination)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not create the account. Please try again.')
+      setSubmitError(err instanceof ApiError ? err.message : 'Could not create the account. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -223,65 +229,47 @@ function SetupForm({ signup, onDone, destination }) {
       </p>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="firstName" className="text-xs font-semibold uppercase tracking-wide text-muted">
-            First name
-          </label>
-          <input id="firstName" autoComplete="given-name" value={form.firstName} onChange={set('firstName')} className={fieldClass()} />
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="lastName" className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Last name
-          </label>
-          <input id="lastName" autoComplete="family-name" value={form.lastName} onChange={set('lastName')} className={fieldClass()} />
-        </div>
+        <Field label="First name" htmlFor="firstName" required error={errors.firstName}>
+          <TextInput id="firstName" autoComplete="given-name" value={form.firstName} error={errors.firstName} onChange={set('firstName')} />
+        </Field>
+        <Field label="Last name" htmlFor="lastName" required error={errors.lastName}>
+          <TextInput id="lastName" autoComplete="family-name" value={form.lastName} error={errors.lastName} onChange={set('lastName')} />
+        </Field>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="setupUsername" className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Username
-        </label>
-        <input id="setupUsername" autoComplete="username" value={form.username} onChange={set('username')} className={fieldClass()} />
-      </div>
+      <Field label="Username" htmlFor="setupUsername" required error={errors.username}>
+        <TextInput id="setupUsername" autoComplete="username" value={form.username} error={errors.username} onChange={set('username')} />
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Email
-        </label>
-        <input id="email" type="email" autoComplete="email" value={form.email} onChange={set('email')} className={fieldClass()} />
-      </div>
+      <Field label="Email" htmlFor="email" required error={errors.email}>
+        <TextInput id="email" type="email" autoComplete="email" value={form.email} error={errors.email} onChange={set('email')} />
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="setupPassword" className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Password
-        </label>
-        <input
+      <Field label="Password" htmlFor="setupPassword" required error={errors.password}>
+        <TextInput
           id="setupPassword"
           type="password"
           autoComplete="new-password"
           value={form.password}
+          error={errors.password}
           onChange={set('password')}
-          className={fieldClass()}
         />
-      </div>
+      </Field>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="confirm" className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Confirm password
-        </label>
-        <input
+      <Field label="Confirm password" htmlFor="confirm" required error={errors.confirm}>
+        <TextInput
           id="confirm"
           type="password"
           autoComplete="new-password"
           value={form.confirm}
+          error={errors.confirm}
           onChange={set('confirm')}
-          className={fieldClass()}
         />
-      </div>
+      </Field>
 
-      {error && (
+      {submitError && (
         <p role="alert" className="rounded-[10px] border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
+          {submitError}
         </p>
       )}
 
