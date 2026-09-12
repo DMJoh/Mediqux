@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { isValidEmail } from '../../lib/format'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { usePatients } from '../../lib/queries'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select, MultiSelect } from '../ui/Field'
@@ -39,7 +40,6 @@ function toForm(user) {
  * user's password goes through the separate ResetPasswordDialog / reset-password route. */
 export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(user))
-  const [touched, setTouched] = useState({})
   const { data: patients } = usePatients()
 
   function computeErrors(f) {
@@ -52,19 +52,11 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     const payload = {
       firstName: form.first_name.trim(),
       lastName: form.last_name.trim(),

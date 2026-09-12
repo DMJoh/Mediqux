@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X, Plus } from 'lucide-react'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Textarea, MultiSelect } from '../ui/Field'
 import { Button, IconButton } from '../ui/Button'
@@ -117,7 +118,6 @@ function IngredientsInput({ value, onChange }) {
 /** Shared add/edit form for medications — used from the list page (add) and the detail page (edit). */
 export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(medication))
-  const [touched, setTouched] = useState({})
 
   function computeErrors(f) {
     const next = {}
@@ -125,19 +125,11 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit({
       name: form.name.trim(),
       generic_name: form.generic_name.trim() || null,

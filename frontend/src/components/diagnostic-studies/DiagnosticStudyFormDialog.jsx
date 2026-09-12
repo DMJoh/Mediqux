@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePatients, useDoctors, useInstitutions } from '../../lib/queries'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select, Textarea } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -50,7 +51,6 @@ function toFields(study) {
 export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit, saving }) {
   const [fields, setFields] = useState(() => toFields(study))
   const [file, setFile] = useState(null)
-  const [touched, setTouched] = useState({})
   const [fileError, setFileError] = useState(undefined)
   const { data: patients } = usePatients()
   const { data: doctors } = useDoctors()
@@ -64,12 +64,8 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
     return next
   }
 
-  const allErrors = computeErrors(fields)
-  const errors = { ...Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k])), file: fileError }
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors: fieldErrors, touch, guardSubmit } = useFieldValidation(fields, computeErrors)
+  const errors = { ...fieldErrors, file: fileError }
 
   function handleFileChange(e) {
     const picked = e.target.files?.[0] || null
@@ -91,10 +87,7 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
 
     const formData = new FormData()
     formData.append('patient_id', fields.patient_id)

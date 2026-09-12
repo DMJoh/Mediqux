@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { isValidPhone, isValidEmail } from '../../lib/format'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select, Textarea } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -38,7 +39,6 @@ function toForm(patient) {
  */
 export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(patient))
-  const [touched, setTouched] = useState({})
 
   function computeErrors(f) {
     const next = {}
@@ -51,19 +51,11 @@ export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, savin
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit({
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),

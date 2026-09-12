@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -10,28 +11,19 @@ import { Button } from '../ui/Button'
 export function ResetPasswordDialog({ open, onOpenChange, user, onSubmit, saving }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [touched, setTouched] = useState({})
 
-  function computeErrors(pw, cf) {
+  function computeErrors({ password, confirm }) {
     const next = {}
-    if (pw.length < 6) next.password = 'Password must be at least 6 characters'
-    else if (pw !== cf) next.confirm = 'Passwords do not match'
+    if (password.length < 6) next.password = 'Password must be at least 6 characters'
+    else if (password !== confirm) next.confirm = 'Passwords do not match'
     return next
   }
 
-  const allErrors = computeErrors(password, confirm)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation({ password, confirm }, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit(password)
   }
 

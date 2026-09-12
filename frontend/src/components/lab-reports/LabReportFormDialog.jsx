@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { usePatients, useAppointments, useInstitutions, useDoctors } from '../../lib/queries'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select } from '../ui/Field'
 import { Button, IconButton } from '../ui/Button'
@@ -109,7 +110,6 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
   const [fields, setFields] = useState(() => toFields(report))
   const [labValues, setLabValues] = useState(() => toLabValues(report))
   const [file, setFile] = useState(null)
-  const [touched, setTouched] = useState({})
   const [fileError, setFileError] = useState(undefined)
   const { data: patients } = usePatients()
   const { data: appointments } = useAppointments()
@@ -132,12 +132,8 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
     return next
   }
 
-  const allErrors = computeErrors(fields)
-  const errors = { ...Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k])), file: fileError }
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors: fieldErrors, touch, guardSubmit } = useFieldValidation(fields, computeErrors)
+  const errors = { ...fieldErrors, file: fileError }
 
   function handleFileChange(e) {
     const picked = e.target.files?.[0] || null
@@ -159,10 +155,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     const cleanedValues = labValues
       .filter((v) => v.parameter_name.trim() && v.value !== '' && !Number.isNaN(Number(v.value)))
       .map((v) => ({

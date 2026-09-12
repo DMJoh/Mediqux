@@ -482,6 +482,4 @@ Complete RESTful API with 50+ endpoints across:
 
 ## License
 
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
-
-This project allows forking, using, modifying, and distributing while preventing commercial use. Attribution and same license required for derivatives.
+[AGPLv3](https://www.gnu.org/licenses/agpl-3.0). Free to use, modify, and self-host. If you run a modified version as a network service, you must make that version's source available to its users under the same license.
