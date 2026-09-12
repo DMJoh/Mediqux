@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useAppointments, useMedications } from '../../lib/queries'
 import { formatDate } from '../../lib/format'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select, Textarea } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -40,7 +41,6 @@ function toForm(prescription) {
  * for" selector, matching the legacy UI's model. */
 export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(prescription))
-  const [touched, setTouched] = useState({})
   const { data: appointments } = useAppointments()
   const { data: medications } = useMedications()
 
@@ -61,19 +61,11 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit({
       appointment_id: form.appointment_id,
       medication_id: form.medication_id,

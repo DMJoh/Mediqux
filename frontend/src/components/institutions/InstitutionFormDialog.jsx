@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { isValidPhone, isValidEmail, isValidWebsite } from '../../lib/format'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -23,7 +24,6 @@ function toForm(institution) {
 /** Shared add/edit form for institutions — used from the list page (add) and the detail page (edit). */
 export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(institution))
-  const [touched, setTouched] = useState({})
 
   function computeErrors(f) {
     const next = {}
@@ -34,19 +34,11 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit({
       name: form.name.trim(),
       type: form.type || null,

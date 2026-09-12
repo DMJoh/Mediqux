@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePatients, useDoctors, useInstitutions } from '../../lib/queries'
 import { toDatetimeLocal } from '../../lib/format'
+import { useFieldValidation } from '../../lib/useFieldValidation'
 import { Dialog } from '../ui/Dialog'
 import { Field, TextInput, Select, Textarea } from '../ui/Field'
 import { Button } from '../ui/Button'
@@ -37,7 +38,6 @@ function toForm(appointment) {
  * includes patient_id/appointment_date/status in full to avoid a 500 from a null NOT NULL column. */
 export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(appointment))
-  const [touched, setTouched] = useState({})
   const { data: patients } = usePatients()
   const { data: doctors } = useDoctors()
   const { data: institutions } = useInstitutions()
@@ -54,19 +54,11 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
     return next
   }
 
-  const allErrors = computeErrors(form)
-  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
-
-  function touch(field) {
-    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
-  }
+  const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (Object.keys(allErrors).length > 0) {
-      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
-      return
-    }
+    if (guardSubmit()) return
     onSubmit({
       patient_id: form.patient_id,
       doctor_id: form.doctor_id || null,
