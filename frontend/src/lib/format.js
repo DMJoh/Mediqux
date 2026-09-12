@@ -32,7 +32,7 @@ export function isValidPhone(value) {
   return !value || PHONE_REGEX.test(value)
 }
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
 
 export function isValidEmail(value) {
   return !value || EMAIL_REGEX.test(value)
