@@ -188,7 +188,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
         ))}
       </datalist>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Patient" htmlFor="patient_id" required error={errors.patient_id}>
             <Select

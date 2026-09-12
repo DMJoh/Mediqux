@@ -57,7 +57,7 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={condition ? 'Edit condition' : 'Add medical condition'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Field label="Name" htmlFor="name" required error={errors.name}>
           <TextInput
             id="name"

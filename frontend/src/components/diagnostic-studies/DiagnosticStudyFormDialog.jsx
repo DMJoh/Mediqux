@@ -108,7 +108,7 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={study ? 'Edit diagnostic study' : 'Add diagnostic study'} size="lg">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Patient" htmlFor="patient_id" required error={errors.patient_id}>
             <Select

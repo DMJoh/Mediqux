@@ -28,7 +28,7 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
   function computeErrors(f) {
     const next = {}
     if (!f.name.trim()) next.name = 'Institution name is required'
-    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
+    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
     if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
     if (!isValidWebsite(f.website.trim())) next.website = 'Website must start with http:// or https://'
     return next
@@ -51,7 +51,7 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={institution ? 'Edit institution' : 'Add new institution'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="name" required error={errors.name}>
             <TextInput

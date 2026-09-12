@@ -79,7 +79,7 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={prescription ? 'Edit prescription' : 'Add prescription'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Field label="Appointment" htmlFor="appointment_id" required error={errors.appointment_id}>
           <Select
             id="appointment_id"

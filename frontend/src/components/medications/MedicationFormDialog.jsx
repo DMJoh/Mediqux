@@ -143,7 +143,7 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={medication ? 'Edit medication' : 'Add medication'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="name" required error={errors.name}>
             <TextInput
