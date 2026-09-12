@@ -10,19 +10,28 @@ import { Button } from '../ui/Button'
 export function ResetPasswordDialog({ open, onOpenChange, user, onSubmit, saving }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
 
-  function validate() {
+  function computeErrors(pw, cf) {
     const next = {}
-    if (password.length < 6) next.password = 'Password must be at least 6 characters'
-    else if (password !== confirm) next.confirm = 'Passwords do not match'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (pw.length < 6) next.password = 'Password must be at least 6 characters'
+    else if (pw !== cf) next.confirm = 'Passwords do not match'
+    return next
+  }
+
+  const allErrors = computeErrors(password, confirm)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit(password)
   }
 
@@ -42,11 +51,19 @@ export function ResetPasswordDialog({ open, onOpenChange, user, onSubmit, saving
             value={password}
             error={errors.password}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => touch('password')}
             placeholder="Minimum 6 characters"
           />
         </Field>
         <Field label="Confirm password" htmlFor="confirmPassword" required error={errors.confirm}>
-          <TextInput id="confirmPassword" type="password" value={confirm} error={errors.confirm} onChange={(e) => setConfirm(e.target.value)} />
+          <TextInput
+            id="confirmPassword"
+            type="password"
+            value={confirm}
+            error={errors.confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            onBlur={() => touch('confirm')}
+          />
         </Field>
 
         <div className="mt-2 flex justify-end gap-2">

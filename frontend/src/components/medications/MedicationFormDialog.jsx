@@ -117,18 +117,27 @@ function IngredientsInput({ value, onChange }) {
 /** Shared add/edit form for medications — used from the list page (add) and the detail page (edit). */
 export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(medication))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.name.trim()) next.name = 'Medication name is required'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.name.trim()) next.name = 'Medication name is required'
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       name: form.name.trim(),
       generic_name: form.generic_name.trim() || null,
@@ -145,7 +154,13 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="name" required error={errors.name}>
-            <TextInput id="name" value={form.name} error={errors.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            <TextInput
+              id="name"
+              value={form.name}
+              error={errors.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onBlur={() => touch('name')}
+            />
           </Field>
           <Field label="Generic name" htmlFor="generic_name">
             <TextInput id="generic_name" value={form.generic_name} onChange={(e) => setForm((f) => ({ ...f, generic_name: e.target.value }))} />

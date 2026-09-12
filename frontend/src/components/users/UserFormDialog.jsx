@@ -39,23 +39,32 @@ function toForm(user) {
  * user's password goes through the separate ResetPasswordDialog / reset-password route. */
 export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(user))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
   const { data: patients } = usePatients()
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.first_name.trim()) next.first_name = 'First name is required'
-    if (!form.last_name.trim()) next.last_name = 'Last name is required'
-    if (!form.username.trim()) next.username = 'Username is required'
-    if (!form.email.trim() || !isValidEmail(form.email.trim())) next.email = 'Please enter a valid email address'
-    if (!user && form.password.length < 6) next.password = 'Password must be at least 6 characters'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.first_name.trim()) next.first_name = 'First name is required'
+    if (!f.last_name.trim()) next.last_name = 'Last name is required'
+    if (!f.username.trim()) next.username = 'Username is required'
+    if (!f.email.trim() || !isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
+    if (!user && f.password.length < 6) next.password = 'Password must be at least 6 characters'
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     const payload = {
       firstName: form.first_name.trim(),
       lastName: form.last_name.trim(),
@@ -79,6 +88,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
               value={form.first_name}
               error={errors.first_name}
               onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+              onBlur={() => touch('first_name')}
             />
           </Field>
           <Field label="Last name" htmlFor="last_name" required error={errors.last_name}>
@@ -87,6 +97,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
               value={form.last_name}
               error={errors.last_name}
               onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+              onBlur={() => touch('last_name')}
             />
           </Field>
         </div>
@@ -98,6 +109,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
               value={form.username}
               error={errors.username}
               onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+              onBlur={() => touch('username')}
             />
           </Field>
           <Field label="Email" htmlFor="email" required error={errors.email}>
@@ -107,6 +119,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
               value={form.email}
               error={errors.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              onBlur={() => touch('email')}
             />
           </Field>
         </div>
@@ -119,6 +132,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
               value={form.password}
               error={errors.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              onBlur={() => touch('password')}
               placeholder="Minimum 6 characters"
             />
           </Field>

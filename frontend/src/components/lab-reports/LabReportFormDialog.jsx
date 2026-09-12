@@ -109,7 +109,8 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
   const [fields, setFields] = useState(() => toFields(report))
   const [labValues, setLabValues] = useState(() => toLabValues(report))
   const [file, setFile] = useState(null)
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
+  const [fileError, setFileError] = useState(undefined)
   const { data: patients } = usePatients()
   const { data: appointments } = useAppointments()
   const { data: institutions } = useInstitutions()
@@ -122,37 +123,46 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
     [appointments, fields.patient_id],
   )
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!fields.patient_id) next.patient_id = 'Please select a patient'
-    if (!fields.test_name.trim()) next.test_name = 'Test name is required'
-    if (!fields.test_type) next.test_type = 'Please select a test type'
-    if (!fields.test_date) next.test_date = 'Please select a test date'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.patient_id) next.patient_id = 'Please select a patient'
+    if (!f.test_name.trim()) next.test_name = 'Test name is required'
+    if (!f.test_type) next.test_type = 'Please select a test type'
+    if (!f.test_date) next.test_date = 'Please select a test date'
+    return next
+  }
+
+  const allErrors = computeErrors(fields)
+  const errors = { ...Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k])), file: fileError }
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleFileChange(e) {
     const picked = e.target.files?.[0] || null
     if (picked && picked.type !== 'application/pdf') {
-      setErrors((prev) => ({ ...prev, file: 'Only PDF files are supported' }))
+      setFileError('Only PDF files are supported')
       e.target.value = ''
       setFile(null)
       return
     }
     if (picked && picked.size > MAX_FILE_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File must be 10MB or smaller' }))
+      setFileError('File must be 10MB or smaller')
       e.target.value = ''
       setFile(null)
       return
     }
-    setErrors((prev) => ({ ...prev, file: undefined }))
+    setFileError(undefined)
     setFile(picked)
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     const cleanedValues = labValues
       .filter((v) => v.parameter_name.trim() && v.value !== '' && !Number.isNaN(Number(v.value)))
       .map((v) => ({
@@ -192,7 +202,10 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
               id="patient_id"
               value={fields.patient_id}
               error={errors.patient_id}
-              onChange={(e) => setFields((f) => ({ ...f, patient_id: e.target.value, appointment_id: '' }))}
+              onChange={(e) => {
+                setFields((f) => ({ ...f, patient_id: e.target.value, appointment_id: '' }))
+                touch('patient_id')
+              }}
             >
               <option value="">Select patient</option>
               {(patients ?? []).map((p) => (
@@ -226,12 +239,21 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
             value={fields.test_name}
             error={errors.test_name}
             onChange={(e) => setFields((f) => ({ ...f, test_name: e.target.value }))}
+            onBlur={() => touch('test_name')}
           />
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Test type" htmlFor="test_type" required error={errors.test_type}>
-            <Select id="test_type" value={fields.test_type} error={errors.test_type} onChange={(e) => setFields((f) => ({ ...f, test_type: e.target.value }))}>
+            <Select
+              id="test_type"
+              value={fields.test_type}
+              error={errors.test_type}
+              onChange={(e) => {
+                setFields((f) => ({ ...f, test_type: e.target.value }))
+                touch('test_type')
+              }}
+            >
               <option value="">Select type</option>
               {TEST_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -247,6 +269,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
               value={fields.test_date}
               error={errors.test_date}
               onChange={(e) => setFields((f) => ({ ...f, test_date: e.target.value }))}
+              onBlur={() => touch('test_date')}
             />
           </Field>
         </div>
