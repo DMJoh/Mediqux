@@ -1,12 +1,22 @@
-# Mediqux
+<p align="center">
+  <img src=".github/logo.svg" width="88" alt="Mediqux logo" />
+</p>
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
-[![GitHub Release](https://img.shields.io/github/v/release/DMJoh/Mediqux)](https://github.com/DMJoh/Mediqux/releases)
-[![Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
+<h1 align="center">Mediqux</h1>
 
-A self-hosted medical record system for individuals and families. Patients, doctors, appointments, prescriptions, lab reports, and diagnostic studies, all in one place, running entirely on your own infrastructure.
+<p align="center">
+  A self-hosted medical record system for individuals and families.
+</p>
+
+<p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
+  <a href="https://docker.com"><img src="https://img.shields.io/badge/Docker-Containerized-blue" alt="Docker" /></a>
+  <a href="https://postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-17-blue" alt="PostgreSQL" /></a>
+  <a href="https://github.com/DMJoh/Mediqux/releases"><img src="https://img.shields.io/github/v/release/DMJoh/Mediqux" alt="GitHub Release" /></a>
+  <a href="https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml"><img src="https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release" alt="Build" /></a>
+</p>
+
+Patients, doctors, appointments, prescriptions, lab reports, and diagnostic studies, all in one place, running entirely on your own infrastructure.
 
 > All data stays on hardware you control. No cloud dependency, no external API calls, no telemetry.
 
@@ -42,8 +52,8 @@ curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.en
 Edit `.env`. At minimum, change `POSTGRES_PASSWORD` and `JWT_SECRET`, and set `APP_PORT` to whatever host port you want the app on:
 
 ```bash
-POSTGRES_PASSWORD=your_secure_database_password
-JWT_SECRET=your_long_random_jwt_secret_key
+POSTGRES_PASSWORD=your_secure_database_password  # generate with: openssl rand -hex 32
+JWT_SECRET=your_long_random_jwt_secret_key  # generate with: openssl rand -hex 32
 APP_PORT=8080
 ```
 
@@ -69,8 +79,8 @@ docker compose -f docker-compose.dev.yml up -d
 Everything lives in `.env`. The essentials:
 
 ```bash
-POSTGRES_PASSWORD=change_this_secure_password_123
-JWT_SECRET=change_this_jwt_secret_key_for_production_use_long_random_string
+POSTGRES_PASSWORD=change_this_secure_password_123  # generate with: openssl rand -hex 32
+JWT_SECRET=change_this_jwt_secret_key_for_production_use_long_random_string  # generate with: openssl rand -hex 32
 APP_PORT=8080
 MAX_FILE_SIZE=10MB
 PUID=1000
@@ -95,7 +105,6 @@ Leave it unset if Mediqux's bundled Caddy is the only thing in front of it. That
 ```bash
 # Logs
 docker compose logs -f backend
-docker compose logs backend | jq 'select(.level=="ERROR")'
 
 # Health
 curl http://localhost:8080/api/health
@@ -141,7 +150,7 @@ Built on [Node.js](https://nodejs.org/), [Express](https://expressjs.com/), [Pos
 
 ## License
 
-[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Free to use and modify, not for commercial use, and derivatives must carry the same license.
+[AGPLv3](https://www.gnu.org/licenses/agpl-3.0). Free to use, modify, and self-host. If you run a modified version as a network service, you must make that version's source available to its users under the same license.
 
 ## About this project
 
