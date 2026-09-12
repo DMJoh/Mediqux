@@ -72,7 +72,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={user ? 'Edit user' : 'Add user'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="first_name" required error={errors.first_name}>
             <TextInput

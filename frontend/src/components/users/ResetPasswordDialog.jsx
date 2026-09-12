@@ -35,7 +35,7 @@ export function ResetPasswordDialog({ open, onOpenChange, user, onSubmit, saving
       description={user ? `Set a new password for ${user.first_name} ${user.last_name} (${user.username}).` : undefined}
       size="sm"
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Field label="New password" htmlFor="newPassword" required error={errors.password}>
           <TextInput
             id="newPassword"

@@ -30,7 +30,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
     const next = {}
     if (!f.first_name.trim()) next.first_name = 'First name is required'
     if (!f.last_name.trim()) next.last_name = 'Last name is required'
-    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
+    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
     if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
     return next
   }
@@ -58,7 +58,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={doctor ? 'Edit doctor' : 'Add new doctor'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="First name" htmlFor="first_name" required error={errors.first_name}>
             <TextInput

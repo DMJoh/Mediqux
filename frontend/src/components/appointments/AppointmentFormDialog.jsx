@@ -73,7 +73,7 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={appointment ? 'Edit appointment' : 'Schedule appointment'}>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <Field label="Patient" htmlFor="patient_id" required error={errors.patient_id}>
           <Select
             id="patient_id"
