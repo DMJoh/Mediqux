@@ -30,21 +30,30 @@ function toForm(condition) {
  * server requirement, and duplicate-name/code errors just surface through the normal error toast. */
 export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(condition))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.name.trim()) next.name = 'Condition name is required'
-    if (form.icd_code.trim() && !ICD_REGEX.test(form.icd_code.trim())) {
+    if (!f.name.trim()) next.name = 'Condition name is required'
+    if (f.icd_code.trim() && !ICD_REGEX.test(f.icd_code.trim())) {
       next.icd_code = 'ICD code should look like A12 or A12.34'
     }
-    setErrors(next)
-    return Object.keys(next).length === 0
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       name: form.name.trim(),
       description: form.description.trim() || null,
@@ -58,7 +67,13 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
     <Dialog open={open} onOpenChange={onOpenChange} title={condition ? 'Edit condition' : 'Add medical condition'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Name" htmlFor="name" required error={errors.name}>
-          <TextInput id="name" value={form.name} error={errors.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          <TextInput
+            id="name"
+            value={form.name}
+            error={errors.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onBlur={() => touch('name')}
+          />
         </Field>
 
         <Field label="Description" htmlFor="description">
@@ -73,6 +88,7 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
               value={form.icd_code}
               error={errors.icd_code}
               onChange={(e) => setForm((f) => ({ ...f, icd_code: e.target.value }))}
+              onBlur={() => touch('icd_code')}
             />
           </Field>
           <Field label="Category" htmlFor="category">

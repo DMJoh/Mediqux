@@ -37,27 +37,36 @@ function toForm(appointment) {
  * includes patient_id/appointment_date/status in full to avoid a 500 from a null NOT NULL column. */
 export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(appointment))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
   const { data: patients } = usePatients()
   const { data: doctors } = useDoctors()
   const { data: institutions } = useInstitutions()
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.patient_id) next.patient_id = 'Please select a patient'
-    if (!form.appointment_date) next.appointment_date = 'Please select a date and time'
-    if (form.appointment_date && !appointment && form.status === 'scheduled') {
-      if (new Date(form.appointment_date) < new Date()) {
+    if (!f.patient_id) next.patient_id = 'Please select a patient'
+    if (!f.appointment_date) next.appointment_date = 'Please select a date and time'
+    if (f.appointment_date && !appointment && f.status === 'scheduled') {
+      if (new Date(f.appointment_date) < new Date()) {
         next.appointment_date = 'Cannot schedule an appointment in the past'
       }
     }
-    setErrors(next)
-    return Object.keys(next).length === 0
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       patient_id: form.patient_id,
       doctor_id: form.doctor_id || null,
@@ -74,7 +83,15 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
     <Dialog open={open} onOpenChange={onOpenChange} title={appointment ? 'Edit appointment' : 'Schedule appointment'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Patient" htmlFor="patient_id" required error={errors.patient_id}>
-          <Select id="patient_id" value={form.patient_id} error={errors.patient_id} onChange={(e) => setForm((f) => ({ ...f, patient_id: e.target.value }))}>
+          <Select
+            id="patient_id"
+            value={form.patient_id}
+            error={errors.patient_id}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, patient_id: e.target.value }))
+              touch('patient_id')
+            }}
+          >
             <option value="">Select patient</option>
             {(patients ?? []).map((p) => (
               <option key={p.id} value={p.id}>
@@ -117,6 +134,7 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
               value={form.appointment_date}
               error={errors.appointment_date}
               onChange={(e) => setForm((f) => ({ ...f, appointment_date: e.target.value }))}
+              onBlur={() => touch('appointment_date')}
             />
           </Field>
           <Field label="Type" htmlFor="type">

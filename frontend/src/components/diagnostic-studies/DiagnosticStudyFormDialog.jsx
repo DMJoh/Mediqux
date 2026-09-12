@@ -50,41 +50,51 @@ function toFields(study) {
 export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit, saving }) {
   const [fields, setFields] = useState(() => toFields(study))
   const [file, setFile] = useState(null)
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
+  const [fileError, setFileError] = useState(undefined)
   const { data: patients } = usePatients()
   const { data: doctors } = useDoctors()
   const { data: institutions } = useInstitutions()
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!fields.patient_id) next.patient_id = 'Please select a patient'
-    if (!fields.study_type) next.study_type = 'Please select a study type'
-    if (!fields.study_date) next.study_date = 'Please select a study date'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.patient_id) next.patient_id = 'Please select a patient'
+    if (!f.study_type) next.study_type = 'Please select a study type'
+    if (!f.study_date) next.study_date = 'Please select a study date'
+    return next
+  }
+
+  const allErrors = computeErrors(fields)
+  const errors = { ...Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k])), file: fileError }
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleFileChange(e) {
     const picked = e.target.files?.[0] || null
     if (picked && !ALLOWED_TYPES.includes(picked.type)) {
-      setErrors((prev) => ({ ...prev, file: 'Only PDF, JPEG, PNG, or WEBP files are supported' }))
+      setFileError('Only PDF, JPEG, PNG, or WEBP files are supported')
       e.target.value = ''
       setFile(null)
       return
     }
     if (picked && picked.size > MAX_FILE_BYTES) {
-      setErrors((prev) => ({ ...prev, file: 'File must be 20MB or smaller' }))
+      setFileError('File must be 20MB or smaller')
       e.target.value = ''
       setFile(null)
       return
     }
-    setErrors((prev) => ({ ...prev, file: undefined }))
+    setFileError(undefined)
     setFile(picked)
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
 
     const formData = new FormData()
     formData.append('patient_id', fields.patient_id)
@@ -108,7 +118,15 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Patient" htmlFor="patient_id" required error={errors.patient_id}>
-            <Select id="patient_id" value={fields.patient_id} error={errors.patient_id} onChange={(e) => setFields((f) => ({ ...f, patient_id: e.target.value }))}>
+            <Select
+              id="patient_id"
+              value={fields.patient_id}
+              error={errors.patient_id}
+              onChange={(e) => {
+                setFields((f) => ({ ...f, patient_id: e.target.value }))
+                touch('patient_id')
+              }}
+            >
               <option value="">Select patient</option>
               {(patients ?? []).map((p) => (
                 <option key={p.id} value={p.id}>
@@ -118,7 +136,15 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
             </Select>
           </Field>
           <Field label="Study type" htmlFor="study_type" required error={errors.study_type}>
-            <Select id="study_type" value={fields.study_type} error={errors.study_type} onChange={(e) => setFields((f) => ({ ...f, study_type: e.target.value }))}>
+            <Select
+              id="study_type"
+              value={fields.study_type}
+              error={errors.study_type}
+              onChange={(e) => {
+                setFields((f) => ({ ...f, study_type: e.target.value }))
+                touch('study_type')
+              }}
+            >
               <option value="">Select type</option>
               {STUDY_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -137,6 +163,7 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
               value={fields.study_date}
               error={errors.study_date}
               onChange={(e) => setFields((f) => ({ ...f, study_date: e.target.value }))}
+              onBlur={() => touch('study_date')}
             />
           </Field>
           <Field label="Body region" htmlFor="body_region">

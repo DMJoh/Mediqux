@@ -23,22 +23,31 @@ function toForm(doctor) {
 /** Shared add/edit form for doctors — used from the list page (add) and the detail page (edit). */
 export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(doctor))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
   const { data: availableInstitutions } = useAvailableInstitutions()
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.first_name.trim()) next.first_name = 'First name is required'
-    if (!form.last_name.trim()) next.last_name = 'Last name is required'
-    if (!isValidEmail(form.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
-    if (!isValidPhone(form.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.first_name.trim()) next.first_name = 'First name is required'
+    if (!f.last_name.trim()) next.last_name = 'Last name is required'
+    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
+    if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
@@ -65,6 +74,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
               value={form.first_name}
               error={errors.first_name}
               onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+              onBlur={() => touch('first_name')}
             />
           </Field>
           <Field label="Last name" htmlFor="last_name" required error={errors.last_name}>
@@ -73,6 +83,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
               value={form.last_name}
               error={errors.last_name}
               onChange={(e) => setForm((f) => ({ ...f, last_name: e.target.value }))}
+              onBlur={() => touch('last_name')}
             />
           </Field>
         </div>
@@ -92,7 +103,13 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Phone" htmlFor="phone" error={errors.phone}>
-            <TextInput id="phone" value={form.phone} error={errors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            <TextInput
+              id="phone"
+              value={form.phone}
+              error={errors.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onBlur={() => touch('phone')}
+            />
           </Field>
           <Field label="Email" htmlFor="email" error={errors.email}>
             <TextInput
@@ -101,6 +118,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
               value={form.email}
               error={errors.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              onBlur={() => touch('email')}
             />
           </Field>
         </div>

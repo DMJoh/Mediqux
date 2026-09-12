@@ -40,7 +40,7 @@ function toForm(prescription) {
  * for" selector, matching the legacy UI's model. */
 export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(prescription))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
   const { data: appointments } = useAppointments()
   const { data: medications } = useMedications()
 
@@ -51,20 +51,29 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
 
   const selectedAppointment = (appointments ?? []).find((a) => a.id === form.appointment_id)
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.appointment_id) next.appointment_id = 'Please select an appointment'
-    if (!form.medication_id) next.medication_id = 'Please select a medication'
-    if (!form.dosage.trim()) next.dosage = 'Dosage is required'
-    if (!form.frequency) next.frequency = 'Please select a frequency'
-    if (!form.duration.trim()) next.duration = 'Duration is required'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.appointment_id) next.appointment_id = 'Please select an appointment'
+    if (!f.medication_id) next.medication_id = 'Please select a medication'
+    if (!f.dosage.trim()) next.dosage = 'Dosage is required'
+    if (!f.frequency) next.frequency = 'Please select a frequency'
+    if (!f.duration.trim()) next.duration = 'Duration is required'
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       appointment_id: form.appointment_id,
       medication_id: form.medication_id,
@@ -84,7 +93,10 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
             id="appointment_id"
             value={form.appointment_id}
             error={errors.appointment_id}
-            onChange={(e) => setForm((f) => ({ ...f, appointment_id: e.target.value }))}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, appointment_id: e.target.value }))
+              touch('appointment_id')
+            }}
           >
             <option value="">Select appointment</option>
             {sortedAppointments.map((a) => (
@@ -112,7 +124,10 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
             id="medication_id"
             value={form.medication_id}
             error={errors.medication_id}
-            onChange={(e) => setForm((f) => ({ ...f, medication_id: e.target.value }))}
+            onChange={(e) => {
+              setForm((f) => ({ ...f, medication_id: e.target.value }))
+              touch('medication_id')
+            }}
           >
             <option value="">Select medication</option>
             {(medications ?? []).map((m) => (
@@ -132,10 +147,19 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
               value={form.dosage}
               error={errors.dosage}
               onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
+              onBlur={() => touch('dosage')}
             />
           </Field>
           <Field label="Frequency" htmlFor="frequency" required error={errors.frequency}>
-            <Select id="frequency" value={form.frequency} error={errors.frequency} onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}>
+            <Select
+              id="frequency"
+              value={form.frequency}
+              error={errors.frequency}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, frequency: e.target.value }))
+                touch('frequency')
+              }}
+            >
               <option value="">Select frequency</option>
               {FREQUENCIES.map((f) => (
                 <option key={f} value={f}>
@@ -154,6 +178,7 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
               value={form.duration}
               error={errors.duration}
               onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+              onBlur={() => touch('duration')}
             />
           </Field>
           <Field label="Status" htmlFor="status">

@@ -23,21 +23,30 @@ function toForm(institution) {
 /** Shared add/edit form for institutions — used from the list page (add) and the detail page (edit). */
 export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(institution))
-  const [errors, setErrors] = useState({})
+  const [touched, setTouched] = useState({})
 
-  function validate() {
+  function computeErrors(f) {
     const next = {}
-    if (!form.name.trim()) next.name = 'Institution name is required'
-    if (!isValidEmail(form.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
-    if (!isValidPhone(form.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    if (!isValidWebsite(form.website.trim())) next.website = 'Website must start with http:// or https://'
-    setErrors(next)
-    return Object.keys(next).length === 0
+    if (!f.name.trim()) next.name = 'Institution name is required'
+    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address with @ symbol'
+    if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+    if (!isValidWebsite(f.website.trim())) next.website = 'Website must start with http:// or https://'
+    return next
+  }
+
+  const allErrors = computeErrors(form)
+  const errors = Object.fromEntries(Object.entries(allErrors).filter(([k]) => touched[k]))
+
+  function touch(field) {
+    setTouched((t) => (t[field] ? t : { ...t, [field]: true }))
   }
 
   function handleSubmit(e) {
     e.preventDefault()
-    if (!validate()) return
+    if (Object.keys(allErrors).length > 0) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(Object.keys(allErrors).map((k) => [k, true])) }))
+      return
+    }
     onSubmit({
       name: form.name.trim(),
       type: form.type || null,
@@ -53,7 +62,13 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Name" htmlFor="name" required error={errors.name}>
-            <TextInput id="name" value={form.name} error={errors.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            <TextInput
+              id="name"
+              value={form.name}
+              error={errors.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onBlur={() => touch('name')}
+            />
           </Field>
           <Field label="Type" htmlFor="type">
             <Select id="type" value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
@@ -73,7 +88,13 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Phone" htmlFor="phone" error={errors.phone}>
-            <TextInput id="phone" value={form.phone} error={errors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            <TextInput
+              id="phone"
+              value={form.phone}
+              error={errors.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onBlur={() => touch('phone')}
+            />
           </Field>
           <Field label="Email" htmlFor="email" error={errors.email}>
             <TextInput
@@ -82,6 +103,7 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
               value={form.email}
               error={errors.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              onBlur={() => touch('email')}
             />
           </Field>
         </div>
@@ -93,6 +115,7 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
             value={form.website}
             error={errors.website}
             onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+            onBlur={() => touch('website')}
           />
         </Field>
 
