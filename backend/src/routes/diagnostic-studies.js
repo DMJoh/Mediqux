@@ -6,7 +6,8 @@ const fsSync = require('node:fs');
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { safeUnlinkUpload } = require('../utils/uploads');
+const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 // --- File upload setup ---
 const storage = multer.diskStorage({
@@ -50,12 +51,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: { total_studies: 0, this_month: 0, unique_patients: 0 } });
     }
 
-    let whereClause = '';
     const params = [];
-    if (req.patientFilter) {
-      whereClause = 'WHERE patient_id = $1';
-      params.push(req.patientFilter);
-    }
+    const whereClause = `WHERE ${patientFilterClause(req.patientFilter, 'patient_id', params)}`;
 
     const result = await db.query(`
       SELECT
@@ -81,11 +78,7 @@ router.get('/', addPatientFilter, async (req, res) => {
     }
 
     const params = [];
-    let patientWhere = '';
-    if (req.patientFilter) {
-      patientWhere = 'AND ds.patient_id = $1';
-      params.push(req.patientFilter);
-    }
+    const patientWhere = `AND ${patientFilterClause(req.patientFilter, 'ds.patient_id', params)}`;
 
     const { search, study_type } = req.query;
     let extraWhere = '';
@@ -144,11 +137,7 @@ router.get('/:id', addPatientFilter, async (req, res) => {
     }
 
     const params = [req.params.id];
-    let patientWhere = '';
-    if (req.patientFilter) {
-      patientWhere = 'AND ds.patient_id = $2';
-      params.push(req.patientFilter);
-    }
+    const patientWhere = `AND ${patientFilterClause(req.patientFilter, 'ds.patient_id', params)}`;
 
     const result = await db.query(`
       SELECT
@@ -190,11 +179,8 @@ router.post('/', upload.single('attachment'), addPatientFilter, async (req, res)
       return res.status(400).json({ success: false, message: 'patient_id, study_type and study_date are required' });
     }
 
-    // Non-admin users can only create studies for their own patient
-    if (req.patientFilter === 'none') {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
-    if (req.patientFilter && req.patientFilter !== patient_id) {
+    // Non-admin users can only create studies for a patient they have access to
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
@@ -250,8 +236,8 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
       return res.status(404).json({ success: false, message: 'Study not found' });
     }
 
-    // Non-admin: can only edit their own patient's study
-    if (req.patientFilter && existing.rows[0].patient_id !== req.patientFilter) {
+    // Non-admin: can only edit a study for a patient they have access to
+    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
@@ -262,15 +248,7 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
     if (req.file) {
       // Delete old file if exists
       if (attachment_path) {
-        try {
-          const uploadsDir = path.resolve('./uploads');
-          const filePath = path.resolve(attachment_path);
-          if (filePath.startsWith(uploadsDir + path.sep)) {
-            await fs.unlink(filePath);
-          }
-        } catch (error_) {
-          logger.warn('Failed to delete old attachment file', { error: error_.message, path: attachment_path });
-        }
+        await safeUnlinkUpload(attachment_path);
       }
       attachment_path = req.file.path;
       attachment_original_name = req.file.originalname;
@@ -313,22 +291,14 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Study not found' });
     }
 
-    // Non-admin: can only delete their own patient's study
-    if (req.patientFilter && existing.rows[0].patient_id !== req.patientFilter) {
+    // Non-admin: can only delete a study for a patient they have access to
+    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
     // Delete attachment file if exists
     if (existing.rows[0].attachment_path) {
-      try {
-        const uploadsDir = path.resolve('./uploads');
-        const filePath = path.resolve(existing.rows[0].attachment_path);
-        if (filePath.startsWith(uploadsDir + path.sep)) {
-          await fs.unlink(filePath);
-        }
-      } catch (error_) {
-        logger.warn('Failed to delete attachment file', { error: error_.message, path: existing.rows[0].attachment_path });
-      }
+      await safeUnlinkUpload(existing.rows[0].attachment_path);
     }
 
     await db.query('DELETE FROM diagnostic_studies WHERE id = $1', [req.params.id]);

@@ -1,263 +1,161 @@
-# 🏥 Mediqux - Medical Record System
+<p align="center">
+  <img src=".github/logo.svg" width="88" alt="Mediqux logo" />
+</p>
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-[![Docker](https://img.shields.io/badge/Docker-Containerized-blue)](https://docker.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-blue)](https://postgresql.org)
-[![GitHub Release](https://img.shields.io/github/v/release/DMJoh/Mediqux)](https://github.com/DMJoh/Mediqux/releases)
+<h1 align="center">Mediqux</h1>
 
-[![Github Actions Build](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release)](https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml)
+<p align="center">
+  A self-hosted medical record system for individuals and families.
+</p>
 
-> **🔒 PRIVACY FIRST: All data stays on your local infrastructure. No cloud dependencies, no external API calls.**
+<p align="center">
+  <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3" /></a>
+  <a href="https://docker.com"><img src="https://img.shields.io/badge/Docker-Containerized-blue" alt="Docker" /></a>
+  <a href="https://postgresql.org"><img src="https://img.shields.io/badge/PostgreSQL-17-blue" alt="PostgreSQL" /></a>
+  <a href="https://github.com/DMJoh/Mediqux/releases"><img src="https://img.shields.io/github/v/release/DMJoh/Mediqux" alt="GitHub Release" /></a>
+  <a href="https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml"><img src="https://github.com/DMJoh/Mediqux/actions/workflows/docker-build.yml/badge.svg?event=release" alt="Build" /></a>
+</p>
 
-A comprehensive medical record system for individuals and families. Built for complete local deployment with automated lab report processing.
+Patients, doctors, appointments, prescriptions, lab reports, and diagnostic studies, all in one place, running entirely on your own infrastructure.
 
-## 📖 Table of Contents
+> All data stays on hardware you control. No cloud dependency, no external API calls, no telemetry.
 
-- [Key Features](#-key-features)
-- [Tech Stack](#️-tech-stack)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Screenshots](SCREENSHOTS.md)
-- [Logging & Monitoring](#-logging--monitoring)
-- [Updates & Maintenance](#-updates--maintenance)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-- [Support](#-support)
-- [Acknowledgements](#-acknowledgements)
+## Features
 
-## 🌟 Key Features
+- **Patient records**: contact details, history, and every related appointment, prescription, lab report, and diagnostic study in one view.
+- **Providers**: doctors and institutions, linked to the appointments and prescriptions they're involved in.
+- **Appointments & prescriptions**: visit scheduling, diagnosis notes, and medication tracking with per-prescription status.
+- **Lab reports**: upload a PDF, or enter results manually against reusable reference panels.
+- **Diagnostic studies**: imaging and other study files, linked to the patient, doctor, and institution.
+- **Multi-patient accounts**: one login can be scoped to several patients, for a family sharing a single account.
+- **Role-based access**: admin and user roles. Non-admin accounts only ever see the patients they're linked to, enforced on both reads and writes.
+- **Single exposed port**: Caddy fronts the app and proxies API/upload requests internally. Nothing else is reachable from outside the container network.
 
-### 📋 **Core Medical Management**
-- **Patient Records** - Complete patient information and history
-- **Healthcare Providers** - Doctor and institution management  
-- **Appointments** - Visit scheduling and documentation
-- **Medications** - Drug database with prescription tracking
-- **Medical Conditions** - Disease management with ICD codes
+## Tech stack
 
-### 🧪 **Lab Reports (Advanced)**
-- **PDF Upload** - Drag-and-drop lab report files
-- **Reference Panels** - Define reusable lab panels and reference ranges (CBC, CMP, Lipid, etc.)
-- **Manual Entry** - Full forms for manual lab data entry
-- **Secure Storage** - Files stored locally with descriptive names
+| | |
+|---|---|
+| Backend | Node.js, Express, PostgreSQL (via `pg`) |
+| Frontend | React, Vite, Tailwind CSS, TanStack Query, Radix UI |
+| Reverse proxy | Caddy |
+| Deployment | Docker Compose |
 
-### 🩻 **Diagnostic Studies**
-- **File Attachments** - Upload imaging and diagnostic study files (PDF, images)
-- **Study Management** - Track radiology, ECG, ultrasound, and other diagnostic studies
-- **Linked Records** - Associate studies with patients, doctors, and institutions
-- **Secure Local Storage** - All files stored on your own infrastructure
+## Quick start
 
-### 🔐 **Privacy & Security**
-- **100% Local** - No cloud services, no external APIs
-- **JWT Authentication** - Secure user sessions
-- **Role-based Access** - Admin and user permissions
-- **Data Sovereignty** - Complete control over your medical data
-
-## 🛠️ Tech Stack
-
-- **Backend**: Node.js 24 LTS, Express, Sequelize ORM
-- **Database**: PostgreSQL 17 with JSONB support
-- **Frontend**: Vanilla JS, Bootstrap 5
-- **Infrastructure**: Docker Compose
-
-## 📋 Installation
-
-### 🏭 Production Installation
-
-**Step 1: Download and Configure**
 ```bash
-# Create application directory
 mkdir mediqux && cd mediqux
 
-# Download docker-compose.yml
 curl -O https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/docker-compose.yml
-
-# Download environment template directly as .env
 curl -o .env https://raw.githubusercontent.com/DMJoh/Mediqux/refs/heads/main/.env.example
 ```
 
-**Step 2: Configure Environment**
-Edit `.env` file with your settings:
+Edit `.env`. At minimum, change `POSTGRES_PASSWORD` and `JWT_SECRET`, and set `APP_PORT` to whatever host port you want the app on:
+
 ```bash
-# Security — change both
-POSTGRES_PASSWORD=your_secure_database_password
-JWT_SECRET=your_long_random_jwt_secret_key
+POSTGRES_PASSWORD=your_secure_database_password  # generate with: openssl rand -hex 32
+JWT_SECRET=your_long_random_jwt_secret_key  # generate with: openssl rand -hex 32
+APP_PORT=8080
+```
 
-# API URL that users' browsers will reach
-BACKEND_URL=http://your-server-ip:3000/api
+Then bring it up:
 
-FRONTEND_DOCKER_PORT=8080
-BACKEND_DOCKER_PORT=3000
+```bash
+docker compose up -d
+```
 
+Open `http://your-server:APP_PORT`. On a fresh install you'll land on a setup screen to create the admin account. After that, additional accounts are created by an admin from the Users page, not via open signup.
+
+### Development
+
+```bash
+git clone https://github.com/DMJoh/Mediqux.git
+cd Mediqux
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up -d
+```
+
+## Configuration
+
+Everything lives in `.env`. The essentials:
+
+```bash
+POSTGRES_PASSWORD=change_this_secure_password_123  # generate with: openssl rand -hex 32
+JWT_SECRET=change_this_jwt_secret_key_for_production_use_long_random_string  # generate with: openssl rand -hex 32
+APP_PORT=8080
 MAX_FILE_SIZE=10MB
 PUID=1000
 PGID=1000
+LOG_LEVEL=info  # error, warn, info, debug
 ```
 
-> If the app loads but shows errors or can't connect, see the [URL & port configuration guide](https://github.com/DMJoh/Mediqux/wiki/Configuring-URL-&-Ports).
+Caddy proxies `/api` and `/uploads` to the backend internally, so `APP_PORT` is the only port you expose. The backend itself is never reachable from the host directly.
 
-**Step 3: Deploy**
+### Running behind your own reverse proxy
+
+If you're putting Traefik, Nginx Proxy Manager, a Cloudflare Tunnel, or anything else in front of Mediqux's own Caddy, there are now two proxy hops between a visitor and the backend instead of one. Set `TRUST_PROXY_HOPS` so rate limiting can identify real visitors instead of treating your proxy as every visitor:
+
 ```bash
-# Start all services (migrations run automatically)
-docker compose up -d
-
-# Check deployment status
-docker compose ps
-docker compose logs
+TRUST_PROXY_HOPS=2
 ```
 
-**Step 4: Access Your Installation**
-- **Web Interface**: http://your-server:8080
-- **API Endpoint**: http://your-server:3000/api
-- **Health Check**: http://your-server:3000/api/health
+Leave it unset if Mediqux's bundled Caddy is the only thing in front of it. That's the default setup for most installs.
 
-**Step 5: Create Admin Account**
-1. Open the web interface
-2. You'll see a setup screen for first-time installation
-3. Create your admin account
-4. Start managing your medical data!
-
-### 🔧 Development Installation
-
-For developers or advanced users who want to modify the system:
+## Operations
 
 ```bash
-# Clone repository
-git clone <repository-url>
-cd mediqux
-
-# Copy environment template
-cp .env.example .env
-
-# Start development environment (migrations run automatically)
-docker compose -f docker-compose.dev.yml up -d
-
-# The system will build from source code and run migrations
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-```bash
-# Security
-JWT_SECRET=your_very_long_random_secret_key_here
-POSTGRES_PASSWORD=your_secure_database_password
-
-# API URL that users' browsers will reach
-# (port must match BACKEND_DOCKER_PORT for direct access)
-BACKEND_URL=http://your-server-ip:3000/api
-
-# Ports Docker exposes on your host machine
-FRONTEND_DOCKER_PORT=8080
-BACKEND_DOCKER_PORT=3000
-
-# File Uploads
-MAX_FILE_SIZE=50MB
-
-# User Permissions
-PUID=1000
-PGID=1000
-
-# Logging
-LOG_LEVEL=INFO  # Options: ERROR, WARN, INFO, DEBUG
-```
-
-## 📊 Logging & Monitoring
-
-```bash
-# View logs
+# Logs
 docker compose logs -f backend
 
-# Parse JSON logs with jq
-docker compose logs backend | jq
+# Health
+curl http://localhost:8080/api/health
+curl http://localhost:8080/api/system/database
 
-# Filter by log level
-docker compose logs backend | jq 'select(.level=="ERROR")'
+# Update
+docker compose pull && docker compose up -d
 
-# Enable debug logging
-LOG_LEVEL=DEBUG docker-compose up -d
-
-# System health
-curl http://localhost:3000/api/health
-curl http://localhost:3000/api/system/database
-```
-
-## 🔄 Updates & Maintenance
-
-```bash
-# Update to latest version
-docker compose pull
-docker compose up -d
-
-# Database backup
+# Backup / restore
 docker exec mediqux_postgres pg_dump -U mediqux_user mediqux_db > backup.sql
-
-# Database restore
 docker exec -i mediqux_postgres psql -U mediqux_user mediqux_db < backup.sql
 
-# Check migration status
-docker exec mediqux_backend npm run db:migrate:status
+# Migration status
+docker exec mediqux_backend npx sequelize-cli db:migrate:status
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-**Cannot connect to database:**
+**Database won't connect**
 ```bash
 docker compose ps postgres
 docker compose logs postgres
 ```
 
-**File upload fails:**
+**File upload fails**
 ```bash
 docker exec mediqux_backend ls -la /app/uploads
 ```
 
-**Frontend can't reach backend:**
+**Frontend can't reach backend**: the backend's port isn't published to the host, only Caddy is. Check the internal connection instead:
 ```bash
-curl http://your-server:3000/api/health
+docker compose logs frontend
+docker exec mediqux_frontend wget -qO- http://backend:3000/api/health
 ```
 
-## 🤝 Contributing
+## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Test thoroughly
-4. Submit a Pull Request
+Fork, branch, make your change, open a PR. Issues and suggestions are welcome even if you're not submitting code.
 
-## 💬 Support
+## Acknowledgements
 
-- **Health Endpoints**: `/api/health` for system status
-- **Logs**: `docker-compose logs` for detailed information
-- **Community**: [GitHub Issues](https://github.com/DMJoh/Mediqux/issues)
+Built on [Node.js](https://nodejs.org/), [Express](https://expressjs.com/), [PostgreSQL](https://www.postgresql.org/), [React](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/), [TanStack Query](https://tanstack.com/query/), [Radix UI](https://www.radix-ui.com/), [Caddy](https://caddyserver.com/), and [Docker](https://www.docker.com/).
 
----
-## 🙏 Acknowledgements
+## License
 
-Built with these excellent open-source technologies:
+[AGPLv3](https://www.gnu.org/licenses/agpl-3.0). Free to use, modify, and self-host. If you run a modified version as a network service, you must make that version's source available to its users under the same license.
 
-- **[Node.js](https://nodejs.org/)** & **[Express.js](https://expressjs.com/)** - Server runtime and web framework
-- **[PostgreSQL](https://www.postgresql.org/)** & **[Sequelize](https://sequelize.org/)** - Database and ORM
-- **[Docker](https://www.docker.com/)** - Containerization platform
-- **[Bootstrap](https://getbootstrap.com/)** - Responsive UI framework
-- **[PDF-Parse](https://www.npmjs.com/package/pdf-parse)** - Local PDF processing
-- **[bcryptjs](https://www.npmjs.com/package/bcryptjs)** & **[JWT](https://jwt.io/)** - Security and authentication
-- **[Claude Code](https://claude.ai/code)** - AI development assistance
+## About this project
 
-Special thanks to the open-source community for enabling privacy-focused, locally-hosted healthcare solutions.
+I built Mediqux because I wanted a private, self-hosted place to track medical records, appointments, lab results, and diagnostic studies for my family, and couldn't find one that fit. The idea, requirements, and design decisions are mine; AI tooling helped write the code.
 
+Sharing it in case it's useful to you too. Open an issue if something's broken or missing.
 
-
-**Built for privacy-first medical record management.** 🏥
-
-*Made with ❤️ by developers who believe in data sovereignty.*
-
----
-
-## 📝 A Note from the Developer
-
-Mediqux was built to solve a real personal need - a private, self-hosted place to manage medical records, appointments, lab results, and diagnostic studies for my family. I couldn't find anything that fit, so I built it.
-
-This project was developed with the help of AI coding assistance. The idea, requirements, and design decisions are entirely mine, the AI helped bring them to life in code.
-
-I'm sharing this in case it's useful to others. If you use it and find a bug or have a suggestion, feel free to open an issue.
-
-> **Please note:** This is a personal project shared as-is. Review and assess it for your own needs before using it in any sensitive or clinical context.
+> This is a personal project shared as-is. Review it against your own needs before relying on it for anything sensitive or clinical.

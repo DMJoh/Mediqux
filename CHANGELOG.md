@@ -5,11 +5,74 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] - 2026-09-13
+
+Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
+
+### Upgrading from 1.x
+
+Back up your database first:
+```bash
+docker exec mediqux_postgres pg_dump -U mediqux_user mediqux_db > backup.sql
+```
+
+Download the new `docker-compose.yml` and `.env.example`, and carry over your existing `POSTGRES_PASSWORD`, `JWT_SECRET`, `PUID`/`PGID` into the new `.env` (set `APP_PORT` to whatever your old `FRONTEND_DOCKER_PORT` was). Then `docker compose pull && docker compose up -d` — migrations run automatically.
+
+Your data is not at risk either way: the database and uploads volumes keep the same names as before, so they're picked up automatically regardless of which compose file you run. We tested pulling the new images against an untouched 1.x `docker-compose.yml`/`.env` directly (no file changes at all) and the app came up and worked correctly — the new frontend image carries its own routing configuration now, rather than reading it from environment variables. The one thing that setup does **not** get you is the point of this release's port change: your backend stays directly reachable on its old port instead of being reachable only through Caddy. There's no data-loss or downtime risk in staying on the old files a while longer, but updating them is what actually closes that off, so don't skip it indefinitely.
+
+### ⚠️ Breaking Changes
+
+- Production now runs behind a single port. `BACKEND_URL`, `MEDIQUX_API_URL`, `FRONTEND_DOCKER_PORT`, and `BACKEND_DOCKER_PORT` are gone, replaced by one `APP_PORT`. The backend is no longer reachable directly from the host in either environment; a Caddy container proxies `/api` and `/uploads` to it internally. See the updated `.env.example`.
+- `POST`/`PUT /api/users` now take `patientIds` (an array) instead of a single `patientId`. `GET /api/users` returns a `patients` array per user instead of flat `patient_id`/`patient_first_name`/`patient_last_name` fields.
+- The `doctor` role has been removed from the `users` table's role options. It never had any behavior different from `user`.
+- Self-service signup (`POST /api/auth/signup`) now only works for the very first account on an empty database. Once that account exists, it returns 403 — every additional account has to be created by an admin from the Users page. If you were relying on open self-registration for additional accounts, that path is gone; add those accounts via Users instead.
+- License changed from CC BY-NC-SA 4.0 to AGPLv3. Still free to use, modify, and self-host; the difference is that running a modified version as a network service now requires making that version's source available to its users, and commercial use is no longer blanket-prohibited the way it was under the old license.
+
+### ✨ Added
+
+- Full React frontend rewrite. Every page (Dashboard, Patients, Institutions, Doctors, Appointments, Conditions, Medications, Prescriptions, Lab Reports, Diagnostic Studies, Users) is rebuilt on React, Vite, and Tailwind, replacing the old server-rendered Bootstrap pages. The old frontend is kept under `frontend-legacy/` for reference.
+- A user account can now be linked to more than one patient (new `user_patient_access` table), for households where one login needs to see multiple family members' records.
+- The patient detail page now shows that patient's own appointments, prescriptions, lab reports, diagnostic studies, and active medications in one place, instead of needing a separate search on each page.
+- New Settings page with a selectable accent color (Aurora, Teal, Sunset).
+- The sidebar now shows a real backend connectivity indicator. Previously it was a hardcoded "online" label with no actual health check behind it.
+- Form validation errors now show inline as soon as you leave a field (or pick a value in a dropdown), instead of staying silent until a failed save attempt.
+- `POSTGRES_HOST` can be set to point the backend at an external PostgreSQL instance instead of the bundled container.
+
+### 🔒 Security
+
+- Fixed several endpoints (`patients`, `appointments`, `prescriptions`, and a few `test-results` routes) that would return any record by ID with no ownership check, regardless of a scoped account's actual patient access.
+- The same ownership check was also missing on the write side: creating, editing, or deleting an appointment, prescription, or test result didn't verify the record belonged to a patient the account has access to. Fixed across `appointments`, `prescriptions`, and `test-results`, with an audit of `patients`' own edit/delete routes too.
+- The frontend container now runs as a non-root user. It previously ran as root only because Caddy was bound to the privileged port 80; moved to 8080 internally so no elevated privileges are needed at all.
+
+### 🐛 Bug Fixes
+
+- Logging in with a wrong username or password showed "Session expired" instead of the actual "Invalid credentials" message from the backend.
+- Logging out and back in returned you to the page you logged out from instead of the dashboard.
+- Two separate prescriptions of the same medication for the same patient shared one status record, so editing either one's status silently overwrote the other's. Each prescription now tracks its own status independently (new `prescription_id` column on `patient_medications`).
+- A missing/expired login token could return a generic error instead of a clean 401, and an expired token was indistinguishable from an invalid one.
+- A file-unlink failure on editing or deleting a diagnostic study could crash the request instead of just logging a warning.
+- A fresh install had no way to create the first account. The setup-detection screen from the old frontend never got ported to the rewrite, so a brand new database just showed a normal login form with no account to log into.
+- Uploaded lab report PDFs and diagnostic study attachments were fetchable by anyone who knew or guessed the file's path, with no login required — a plain static file route sat in parallel with the actual authenticated download endpoints and bypassed them entirely. That route is gone; files are only reachable through the authenticated endpoints now.
+- Behind the new single-port setup, the backend couldn't tell a real visitor's IP from Caddy's own, which both broke rate limiting (it started throwing on every request) and meant every visitor was rate-limited as one shared client. Fixed, with a `TRUST_PROXY_HOPS` override for anyone running their own reverse proxy in front of Mediqux's.
 
 ### 🔧 Code Quality
 
-- **CodeQL cleanup** — resolved all 12 open CodeQL alerts (all low-severity reliability/cleanliness findings, no vulnerabilities): removed 7 dead `const form = document.getElementById(...)` declarations left over in `saveX()` functions across appointments, prescriptions, patients, medications, doctors, institutions, and conditions pages; removed an unused `newTab` variable capturing `window.open()`'s return value in lab-reports.js; removed a `let overallStatus` variable in lab-reports.js that was assigned but never read (the actually-used `statusBadge` variable was untouched); removed an unused `Logger` variable in `logger.test.js` while preserving its `jest.resetModules()` side effect; removed an unused `path` import in `server.js`.
+- The duplicated per-route RBAC patient-scoping logic is now consolidated behind shared `patientFilterClause`/`patientFilterAllows` helpers in `backend/src/middleware/auth.js`.
+- Several other duplicated patterns across route files (upload cleanup, lab value validation, dependent-record counts, distinct-value sorting, JWT signing) were consolidated into shared helpers under `backend/src/utils/`.
+
+## [1.0.14] - 2026-08-22
+
+### ✨ Added
+
+- `POST /api/auth/refresh` — issues a fresh JWT for the current user if their existing token is still valid. Lets mobile clients silently renew a session instead of forcing re-login.
+
+### 🐛 Bug Fixes
+
+- Medication dosage form dropdown was missing "Lotion", even though the backend already listed it as a common form.
+
+### 🔧 Code Quality
+
+- Resolved all 12 open CodeQL alerts (unused variables / dead assignments, no vulnerabilities) across 9 files.
 
 ## [1.0.13] - 2026-08-09
 
@@ -423,6 +486,4 @@ Complete RESTful API with 50+ endpoints across:
 
 ## License
 
-Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
-
-This project allows forking, using, modifying, and distributing while preventing commercial use. Attribution and same license required for derivatives.
+[AGPLv3](https://www.gnu.org/licenses/agpl-3.0). Free to use, modify, and self-host. If you run a modified version as a network service, you must make that version's source available to its users under the same license.

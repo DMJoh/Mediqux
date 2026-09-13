@@ -18,8 +18,22 @@ beforeEach(() => db.query.mockReset());
 // ─── POST /api/auth/signup ─────────────────────────────────────────────────
 
 describe('POST /api/auth/signup', () => {
-  it('returns 400 when username or email already exists', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // existing user check
+  it('returns 403 when an account already exists, without checking username/email collision', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] }); // user count > 0
+    const res = await request(app)
+      .post('/api/auth/signup')
+      .send({ username: 'bob', email: 'bob@example.com', password: 'pass123', firstName: 'Bob', lastName: 'Jones' });
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toMatch(/disabled/i);
+    // rejected before it ever queries for a username/email collision
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 400 when username or email already exists (first-user case)', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] })  // user count = 0, allowed to proceed
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] });       // existing user check finds a collision
     const res = await request(app)
       .post('/api/auth/signup')
       .send({ username: 'alice', email: 'alice@example.com', password: 'pass123', firstName: 'Alice', lastName: 'Smith' });
@@ -28,10 +42,10 @@ describe('POST /api/auth/signup', () => {
     expect(res.body.error).toMatch(/already exists/i);
   });
 
-  it('assigns admin role to the very first user', async () => {
+  it('creates the first account as admin', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [] })                            // no existing user
       .mockResolvedValueOnce({ rows: [{ count: '0' }] })             // user count = 0
+      .mockResolvedValueOnce({ rows: [] })                            // no existing user
       .mockResolvedValueOnce({ rows: [{ id: 1, username: 'alice', email: 'alice@example.com', first_name: 'Alice', last_name: 'Smith', role: 'admin', created_at: new Date() }] }); // insert
 
     const res = await request(app)
@@ -43,25 +57,12 @@ describe('POST /api/auth/signup', () => {
     expect(res.body.data.token).toBeDefined();
   });
 
-  it('assigns user role when other accounts already exist', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [] })                             // no existing user
-      .mockResolvedValueOnce({ rows: [{ count: '5' }] })              // user count > 0
-      .mockResolvedValueOnce({ rows: [{ id: 2, username: 'bob', email: 'bob@example.com', first_name: 'Bob', last_name: 'Jones', role: 'user', created_at: new Date() }] });
-
-    const res = await request(app)
-      .post('/api/auth/signup')
-      .send({ username: 'bob', email: 'bob@example.com', password: 'pass123', firstName: 'Bob', lastName: 'Jones' });
-    expect(res.status).toBe(201);
-    expect(res.body.data.user.role).toBe('user');
-  });
-
   it('returns JWT token with correct payload on success', async () => {
     const createdAt = new Date();
     db.query
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] })
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ count: '1' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 10, username: 'carol', email: 'carol@example.com', first_name: 'Carol', last_name: 'White', role: 'user', created_at: createdAt }] });
+      .mockResolvedValueOnce({ rows: [{ id: 10, username: 'carol', email: 'carol@example.com', first_name: 'Carol', last_name: 'White', role: 'admin', created_at: createdAt }] });
 
     const res = await request(app)
       .post('/api/auth/signup')
@@ -70,7 +71,7 @@ describe('POST /api/auth/signup', () => {
     const decoded = jwt.verify(res.body.data.token, JWT_SECRET);
     expect(decoded.userId).toBe(10);
     expect(decoded.username).toBe('carol');
-    expect(decoded.role).toBe('user');
+    expect(decoded.role).toBe('admin');
   });
 
   it('returns 500 when the database throws', async () => {
@@ -207,6 +208,67 @@ describe('GET /api/auth/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.user.username).toBe('alice');
+  });
+});
+
+// ─── POST /api/auth/refresh ────────────────────────────────────────────────
+
+describe('POST /api/auth/refresh', () => {
+  it('returns 401 when no Authorization header', async () => {
+    const res = await request(app).post('/api/auth/refresh');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 403 when token is invalid', async () => {
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', 'Bearer totally.invalid.token');
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 401 when the user backing a well-formed token is inactive', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'user', is_active: false, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 with a new token for a currently-valid token', async () => {
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'user', is_active: true, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(typeof res.body.data.token).toBe('string');
+
+    const decoded = jwt.verify(res.body.data.token, JWT_SECRET);
+    expect(decoded.userId).toBe(1);
+    expect(decoded.username).toBe('alice');
+    expect(decoded.role).toBe('user');
+  });
+
+  it('issues a token even for a role/username different from the original payload (reflects current DB state)', async () => {
+    // Token was signed while the user was 'user', but they've since been
+    // promoted to 'admin' - refresh should reflect the current DB role,
+    // not whatever was baked into the original token payload.
+    const token = jwt.sign({ userId: 1, username: 'alice', role: 'user' }, JWT_SECRET);
+    db.query.mockResolvedValueOnce({
+      rows: [{ id: 1, username: 'alice', role: 'admin', is_active: true, patient_id: null }],
+    });
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    const decoded = jwt.verify(res.body.data.token, JWT_SECRET);
+    expect(decoded.role).toBe('admin');
   });
 });
 

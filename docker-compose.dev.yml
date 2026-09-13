@@ -22,13 +22,11 @@ services:
   backend:
     build: ./backend
     container_name: mediqux_backend
-    ports:
-      - "${BACKEND_DOCKER_PORT:-3000}:3000"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       DEBUG: ${DEBUG:-true}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
-      DB_HOST: postgres
+      DB_HOST: ${POSTGRES_HOST:-postgres}
       DB_PORT: ${POSTGRES_PORT:-5432}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
@@ -38,6 +36,7 @@ services:
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -56,19 +55,22 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: mediqux_frontend
     ports:
-      - "${FRONTEND_DOCKER_PORT:-8080}:80"
-    environment:
-      MEDIQUX_API_URL: ${BACKEND_URL:-http://localhost:3000/api}
+      - "${APP_PORT:-5173}:5173"
     volumes:
-      - ./frontend/css:/usr/share/nginx/html/css
-      - ./frontend/js:/usr/share/nginx/html/js
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       - backend
     networks:
       - mediqux_network_dev
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data_dev:

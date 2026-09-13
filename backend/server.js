@@ -25,6 +25,19 @@ const authLimiter = rateLimit({
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// The backend is never exposed directly to the host in either dev or prod
+// (Caddy fronts it in prod, Vite's dev proxy fronts it in dev) — trusting
+// exactly one hop lets express-rate-limit and req.ip read the real client
+// IP from X-Forwarded-For instead of the proxy's own address, without
+// trusting a longer chain a client could spoof into. Anyone running their
+// own reverse proxy in front of Mediqux's own (Traefik, Nginx Proxy
+// Manager, a Cloudflare Tunnel, ...) adds a second hop, and should set
+// TRUST_PROXY_HOPS=2 accordingly — see the README for details. Not in
+// .env.example on purpose: the default of 1 is correct for the vast
+// majority of installs that don't do this, and shouldn't be something
+// every new user has to stop and think about.
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+
 // CORS Configuration - Allow all origins
 // Security is handled by JWT authentication layer
 app.use(cors({
@@ -43,12 +56,26 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+// Uploaded files (lab report PDFs, diagnostic study attachments) are
+// intentionally NOT served statically here — that bypassed the RBAC checks
+// on test-results.js's and diagnostic-studies.js's /:id/view and
+// /:id/download routes, since a raw /uploads/<filename> path was fetchable
+// by anyone with no auth at all. Those authenticated routes read the same
+// files straight off disk instead.
 
+// Public routes (no authentication required) — rate-limited by the
+// stricter authLimiter instead of the general apiLimiter applied below.
+const authRoutes = require('./src/routes/auth');
+app.use('/api/auth', authLimiter, authRoutes);
+
+// Every route registered from here on is rate-limited by apiLimiter,
+// applied once instead of threading it through each individual mount —
+// a request matched and answered by the /api/auth router above never
+// reaches this middleware.
+app.use(apiLimiter);
 
 // System database connectivity check (enhanced with Sequelize)
-app.get('/api/system/database', apiLimiter, async (req, res) => {
+app.get('/api/system/database', async (req, res) => {
   try {
     // Test Sequelize connection
     await sequelize.authenticate();
@@ -70,8 +97,7 @@ app.get('/api/system/database', apiLimiter, async (req, res) => {
   }
 });
 
-// Routes
-const authRoutes = require('./src/routes/auth');
+// Protected routes (authentication required)
 const usersRoutes = require('./src/routes/users');
 const { authenticateToken } = require('./src/middleware/auth');
 const patientRoutes = require('./src/routes/patients');
@@ -84,23 +110,19 @@ const prescriptionRoutes = require('./src/routes/prescriptions');
 const testResultRoutes = require('./src/routes/test-results');
 const diagnosticStudiesRoutes = require('./src/routes/diagnostic-studies');
 
-// Public routes (no authentication required)
-app.use('/api/auth', authLimiter, authRoutes);
-
-// Protected routes (authentication required)
-app.use('/api/users', apiLimiter, authenticateToken, usersRoutes);
-app.use('/api/patients', apiLimiter, authenticateToken, patientRoutes);
-app.use('/api/doctors', apiLimiter, authenticateToken, doctorRoutes);
-app.use('/api/institutions', apiLimiter, authenticateToken, institutionRoutes);
-app.use('/api/appointments', apiLimiter, authenticateToken, appointmentRoutes);
-app.use('/api/conditions', apiLimiter, authenticateToken, conditionRoutes);
-app.use('/api/medications', apiLimiter, authenticateToken, medicationRoutes);
-app.use('/api/prescriptions', apiLimiter, authenticateToken, prescriptionRoutes);
-app.use('/api/test-results', apiLimiter, authenticateToken, testResultRoutes);
-app.use('/api/diagnostic-studies', apiLimiter, authenticateToken, diagnosticStudiesRoutes);
+app.use('/api/users', authenticateToken, usersRoutes);
+app.use('/api/patients', authenticateToken, patientRoutes);
+app.use('/api/doctors', authenticateToken, doctorRoutes);
+app.use('/api/institutions', authenticateToken, institutionRoutes);
+app.use('/api/appointments', authenticateToken, appointmentRoutes);
+app.use('/api/conditions', authenticateToken, conditionRoutes);
+app.use('/api/medications', authenticateToken, medicationRoutes);
+app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
+app.use('/api/test-results', authenticateToken, testResultRoutes);
+app.use('/api/diagnostic-studies', authenticateToken, diagnosticStudiesRoutes);
 
 // Enhanced health check with system info
-app.get('/api/health', apiLimiter, (req, res) => {
+app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'Server running',
     timestamp: new Date(),

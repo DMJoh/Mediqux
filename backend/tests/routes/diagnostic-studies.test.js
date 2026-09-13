@@ -9,12 +9,15 @@ jest.mock('multer', () => {
   multer.diskStorage = () => ({});
   return multer;
 });
-jest.mock('../../src/middleware/auth', () => ({
-  addPatientFilter: (req, res, next) => next(),
-  authenticateToken: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    addPatientFilter: (req, res, next) => next(),
+    authenticateToken: (req, res, next) => next(),
+    requireAdmin: (req, res, next) => next(),
+  };
+});
 
 jest.mock('node:fs', () => ({
   existsSync: jest.fn(),

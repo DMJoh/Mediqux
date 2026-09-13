@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { countRows } = require('../utils/counts');
+const { localeCompare } = require('../utils/sort');
 
 // Get condition categories for dropdown - must be before /:id route
 router.get('/categories/list', async (req, res) => {
@@ -36,7 +38,7 @@ router.get('/categories/list', async (req, res) => {
     ];
     
     const existingCategories = result.rows.map(row => row.category);
-    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort((a, b) => a.localeCompare(b));
+    const allCategories = [...new Set([...commonCategories, ...existingCategories])].sort(localeCompare);
     
     res.json({
       success: true,
@@ -353,15 +355,13 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     
     // Check if condition is referenced in appointments
-    const appointmentCheck = await db.query(`
-      SELECT COUNT(*) as count 
+    const usageCount = await countRows(db, `
+      SELECT COUNT(*) as count
       FROM appointments a
       JOIN medical_conditions mc ON (a.diagnosis ILIKE '%' || mc.name || '%')
       WHERE mc.id = $1
     `, [id]);
-    
-    const usageCount = Number.parseInt(appointmentCheck.rows[0].count);
-    
+
     if (usageCount > 0) {
       return res.status(400).json({
         success: false,

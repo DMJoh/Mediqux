@@ -17,37 +17,36 @@ jest.mock('multer', () => {
   m.diskStorage = () => ({});
   return m;
 });
-jest.mock('../../src/middleware/auth', () => ({
-  authenticateToken: (req, res, next) => { if (!req.user) req.user = { id: 1, role: 'admin', patientId: null }; next(); },
-  addPatientFilter:  (req, res, next) => next(), // patientFilter is pre-set by app-level middleware
-  requireAdmin:      (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    authenticateToken: (req, res, next) => { if (!req.user) req.user = { id: 1, role: 'admin', patientIds: [] }; next(); },
+    addPatientFilter:  (req, res, next) => next(), // patientFilter is pre-set by app-level middleware
+    requireAdmin:      (req, res, next) => next(),
+  };
+});
 
 const db = require('../../src/database/db');
 const testResultsRouter = require('../../src/routes/test-results');
-
-// Destructure exported pure functions
-const {
-  generatePdfFilename,
-} = testResultsRouter;
+const { generatePdfFilename } = require('../../src/utils/pdfFilename');
 
 // Admin app (patientFilter = null)
 const app = express();
 app.use(express.json());
-app.use((req, res, next) => { req.user = { id: 1, role: 'admin', patientId: null }; req.patientFilter = null; next(); });
+app.use((req, res, next) => { req.user = { id: 1, role: 'admin', patientIds: [] }; req.patientFilter = null; next(); });
 app.use('/', testResultsRouter);
 
 // No-access app (patientFilter = 'none')
 const noneApp = express();
 noneApp.use(express.json());
-noneApp.use((req, res, next) => { req.user = { id: 2, role: 'user', patientId: null }; req.patientFilter = 'none'; next(); });
+noneApp.use((req, res, next) => { req.user = { id: 2, role: 'user', patientIds: [] }; req.patientFilter = 'none'; next(); });
 noneApp.use('/', testResultsRouter);
 
-// Filtered app (patientFilter = specific patient id)
+// Filtered app (patientFilter = specific patient id array)
 const filteredApp = express();
 filteredApp.use(express.json());
-filteredApp.use((req, res, next) => { req.user = { id: 3, role: 'user', patientId: 5 }; req.patientFilter = 5; next(); });
+filteredApp.use((req, res, next) => { req.user = { id: 3, role: 'user', patientIds: [5] }; req.patientFilter = [5]; next(); });
 filteredApp.use('/', testResultsRouter);
 
 const fsModule = require('fs');
@@ -682,6 +681,12 @@ describe('POST / (create test result)', () => {
     const res = await request(app).post('/').send(validBody);
     expect(res.status).toBe(500);
   });
+
+  it('returns 403 when a scoped user tries to create a test result for another patient', async () => {
+    const res = await request(filteredApp).post('/').send({ ...validBody, patient_id: 99 });
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
 });
 
 // ─── POST /:id/lab-values ─────────────────────────────────────────────────
@@ -734,22 +739,25 @@ describe('POST /:id/lab-values', () => {
     expect(res.status).toBe(500);
     expect(mockClient.release).toHaveBeenCalled();
   });
+
+  it('returns 403 when a scoped user tries to add lab values to another patient\'s test result', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 99 }] }); // test result check
+    const res = await request(filteredApp).post('/1/lab-values').send({ lab_values: [{ parameter_name: 'HB', value: 12 }] });
+    expect(res.status).toBe(403);
+  });
 });
 
 // ─── PUT /:id (update test result) ────────────────────────────────────────
 
 describe('PUT /:id (update test result)', () => {
   it('returns 404 when test result not found', async () => {
-    mockClient.query
-      .mockResolvedValueOnce({ rows: [] })  // BEGIN
-      .mockResolvedValueOnce({ rows: [] })  // UPDATE → not found
-      .mockResolvedValueOnce({ rows: [] }); // ROLLBACK
+    db.query.mockResolvedValueOnce({ rows: [] }); // ownership check (SELECT existing) → not found
     const res = await request(app).put('/999').send({ test_name: 'CBC' });
     expect(res.status).toBe(404);
-    expect(mockClient.release).toHaveBeenCalled();
   });
 
   it('returns 200 on successful update without lab values', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 5 }] }); // ownership check
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })                             // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 1, test_name: 'CBC' }] }) // UPDATE
@@ -761,6 +769,7 @@ describe('PUT /:id (update test result)', () => {
   });
 
   it('returns 200 on successful update with lab values', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 5 }] }); // ownership check
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })                             // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 1, test_name: 'CBC' }] }) // UPDATE
@@ -775,13 +784,42 @@ describe('PUT /:id (update test result)', () => {
     expect(mockClient.release).toHaveBeenCalled();
   });
 
+  it('skips lab values with a non-numeric or out-of-range value instead of erroring', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 5 }] }); // ownership check
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })                             // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1, test_name: 'CBC' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] })                             // DELETE existing lab values
+      .mockResolvedValueOnce({ rows: [] })                             // INSERT (only the 1 valid lab value)
+      .mockResolvedValueOnce({ rows: [] });                            // COMMIT
+    const res = await request(app).put('/1').send({
+      test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01',
+      lab_values: [
+        { parameter_name: 'Hemoglobin', value: 14.0, unit: 'g/dL' },
+        { parameter_name: 'BadValue', value: 'abc' },        // skipped: non-numeric
+        { parameter_name: 'BigNumber', value: 99999999 },    // skipped: value too large
+      ],
+    });
+    expect(res.status).toBe(200);
+    // BEGIN, UPDATE, DELETE, INSERT (only the 1 valid value), COMMIT = 5 calls
+    expect(mockClient.query).toHaveBeenCalledTimes(5);
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
   it('returns 500 and rolls back on transaction error', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 5 }] }); // ownership check
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })               // BEGIN
       .mockRejectedValueOnce(new Error('Update failed')); // UPDATE throws
     const res = await request(app).put('/1').send({ test_name: 'CBC' });
     expect(res.status).toBe(500);
     expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it('returns 403 when a scoped user tries to update another patient\'s test result', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: 99 }] }); // ownership check
+    const res = await request(filteredApp).put('/1').send({ test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01' });
+    expect(res.status).toBe(403);
   });
 });
 
@@ -830,6 +868,12 @@ describe('DELETE /:id (delete test result)', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(app).delete('/1');
     expect(res.status).toBe(500);
+  });
+
+  it('returns 403 when a scoped user tries to delete another patient\'s test result', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ pdf_file_path: null, patient_id: 99 }] });
+    const res = await request(filteredApp).delete('/1');
+    expect(res.status).toBe(403);
   });
 });
 

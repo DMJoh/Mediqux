@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
+const { countRows } = require('../utils/counts');
+const { localeCompare } = require('../utils/sort');
 
 // Get all institutions with associated doctors count
 router.get('/', async (req, res) => {
@@ -200,12 +202,12 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
     
     // Check if institution has associated doctors
-    const associationsResult = await client.query(`
-      SELECT COUNT(*) as count FROM doctor_institutions WHERE institution_id = $1
-    `, [id]);
-    
-    const associationsCount = Number.parseInt(associationsResult.rows[0].count);
-    
+    const associationsCount = await countRows(
+      client,
+      'SELECT COUNT(*) as count FROM doctor_institutions WHERE institution_id = $1',
+      [id]
+    );
+
     if (associationsCount > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({
@@ -257,7 +259,7 @@ router.get('/types/available', async (req, res) => {
     // Add common institution types
     const commonTypes = ['Hospital', 'Clinic', 'Laboratory', 'Pharmacy', 'Diagnostic Center', 'Nursing Home'];
     const existingTypes = result.rows.map(row => row.type);
-    const allTypes = [...new Set([...commonTypes, ...existingTypes])].sort((a, b) => a.localeCompare(b));
+    const allTypes = [...new Set([...commonTypes, ...existingTypes])].sort(localeCompare);
     
     res.json({
       success: true,

@@ -147,7 +147,9 @@ describe('PUT /medications/:id', () => {
 
 describe('DELETE /medications/:id', () => {
   it('returns 400 when medication is in use', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ prescription_count: '2', patient_medication_count: '1' }] });
+    db.query
+      .mockResolvedValueOnce({ rows: [{ count: '2' }] })  // prescription count
+      .mockResolvedValueOnce({ rows: [{ count: '1' }] }); // patient_medication count
     const res = await request(app).delete('/1');
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/referenced/i);
@@ -155,16 +157,18 @@ describe('DELETE /medications/:id', () => {
 
   it('returns 404 when not found', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [] })   // usageCheck: not in any relation
-      .mockResolvedValueOnce({ rows: [] });  // DELETE → not found
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // prescription count: none
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // patient_medication count: none
+      .mockResolvedValueOnce({ rows: [] });               // DELETE → not found
     const res = await request(app).delete('/999');
     expect(res.status).toBe(404);
   });
 
   it('returns 200 on successful deletion', async () => {
     db.query
-      .mockResolvedValueOnce({ rows: [{ prescription_count: '0', patient_medication_count: '0' }] }) // not in use
-      .mockResolvedValueOnce({ rows: [{ name: 'Aspirin' }] });  // DELETE RETURNING
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] })       // prescription count: none
+      .mockResolvedValueOnce({ rows: [{ count: '0' }] })       // patient_medication count: none
+      .mockResolvedValueOnce({ rows: [{ name: 'Aspirin' }] }); // DELETE RETURNING
     const res = await request(app).delete('/1');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

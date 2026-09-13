@@ -12,7 +12,8 @@ const {
   requireRole,
   requireAdmin,
   addPatientFilter,
-  buildPatientFilter,
+  patientFilterClause,
+  patientFilterAllows,
 } = require('../../src/middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -56,11 +57,12 @@ describe('authenticateToken', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('returns 403 for an expired token', async () => {
+  it('returns 403 with expired:true for an expired token', async () => {
     const expired = jwt.sign({ userId: 1, username: 'test', role: 'user' }, JWT_SECRET, { expiresIn: '-1s' });
     const { req, res, next } = mockHttp({ authorization: `Bearer ${expired}` });
     await authenticateToken(req, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Token expired', expired: true });
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -83,7 +85,7 @@ describe('authenticateToken', () => {
   it('returns 401 when user exists but is_active is false', async () => {
     const token = jwt.sign({ userId: 2, username: 'inactive', role: 'user' }, JWT_SECRET);
     const { req, res, next } = mockHttp({ authorization: `Bearer ${token}` });
-    db.query.mockResolvedValue({ rows: [{ id: 2, is_active: false, patient_id: null }] });
+    db.query.mockResolvedValue({ rows: [{ id: 2, is_active: false, patient_ids: [] }] });
     await authenticateToken(req, res, next);
     expect(res.status).toHaveBeenCalledWith(401);
   });
@@ -91,10 +93,10 @@ describe('authenticateToken', () => {
   it('populates req.user and calls next() for a valid active user', async () => {
     const token = jwt.sign({ userId: 1, username: 'admin', role: 'admin' }, JWT_SECRET);
     const { req, res, next } = mockHttp({ authorization: `Bearer ${token}` });
-    db.query.mockResolvedValue({ rows: [{ id: 1, username: 'admin', role: 'admin', is_active: true, patient_id: 5 }] });
+    db.query.mockResolvedValue({ rows: [{ id: 1, username: 'admin', role: 'admin', is_active: true, patient_ids: [5] }] });
     await authenticateToken(req, res, next);
     expect(next).toHaveBeenCalled();
-    expect(req.user).toEqual({ id: 1, username: 'admin', role: 'admin', patientId: 5 });
+    expect(req.user).toEqual({ id: 1, username: 'admin', role: 'admin', patientIds: [5] });
   });
 
   it('returns 403 when DB throws an unexpected error', async () => {
@@ -106,13 +108,13 @@ describe('authenticateToken', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('sets patientId to null when DB row has null patient_id', async () => {
+  it('sets patientIds to an empty array when the user has no linked patients', async () => {
     const token = jwt.sign({ userId: 3, username: 'user3', role: 'user' }, JWT_SECRET);
     const { req, res, next } = mockHttp({ authorization: `Bearer ${token}` });
-    db.query.mockResolvedValue({ rows: [{ id: 3, is_active: true, patient_id: null }] });
+    db.query.mockResolvedValue({ rows: [{ id: 3, is_active: true, patient_ids: [] }] });
     await authenticateToken(req, res, next);
     expect(next).toHaveBeenCalled();
-    expect(req.user.patientId).toBeNull();
+    expect(req.user.patientIds).toEqual([]);
   });
 });
 
@@ -176,62 +178,85 @@ describe('requireAdmin', () => {
 describe('addPatientFilter', () => {
   it('sets patientFilter to null for admin users (sees all data)', () => {
     const { req, res, next } = mockHttp();
-    req.user = { id: 1, role: 'admin', patientId: null };
+    req.user = { id: 1, role: 'admin', patientIds: [] };
     addPatientFilter(req, res, next);
     expect(req.patientFilter).toBeNull();
     expect(next).toHaveBeenCalled();
   });
 
-  it('sets patientFilter to the user patientId for non-admin with linked patient', () => {
+  it('sets patientFilter to the patientIds array for non-admin with linked patients', () => {
     const { req, res, next } = mockHttp();
-    req.user = { id: 2, role: 'user', patientId: 42 };
+    req.user = { id: 2, role: 'user', patientIds: [42, 7] };
     addPatientFilter(req, res, next);
-    expect(req.patientFilter).toBe(42);
+    expect(req.patientFilter).toEqual([42, 7]);
     expect(next).toHaveBeenCalled();
   });
 
-  it('sets patientFilter to "none" for non-admin with no linked patient', () => {
+  it('sets patientFilter to "none" for non-admin with no linked patients', () => {
     const { req, res, next } = mockHttp();
-    req.user = { id: 3, role: 'user', patientId: null };
+    req.user = { id: 3, role: 'user', patientIds: [] };
     addPatientFilter(req, res, next);
     expect(req.patientFilter).toBe('none');
     expect(next).toHaveBeenCalled();
   });
+
+  it('returns 401 when req.user is unset (middleware-ordering guard)', () => {
+    const { req, res, next } = mockHttp();
+    addPatientFilter(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Authentication required' });
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
-// ─── buildPatientFilter ───────────────────────────────────────────────────────
+// ─── patientFilterClause ──────────────────────────────────────────────────────
 
-describe('buildPatientFilter', () => {
-  it('returns empty clause when patientFilter is null (admin)', () => {
-    const req = { patientFilter: null };
-    const result = buildPatientFilter(req);
-    expect(result).toEqual({ whereClause: '', params: [] });
+describe('patientFilterClause', () => {
+  it('returns an unrestricted clause and leaves params untouched when patientFilter is null (admin)', () => {
+    const params = [];
+    const result = patientFilterClause(null, 'patient_id', params);
+    expect(result).toBe('1=1');
+    expect(params).toEqual([]);
   });
 
-  it('returns IS NULL clause when patientFilter is "none"', () => {
-    const req = { patientFilter: 'none' };
-    const result = buildPatientFilter(req, 'patient_id');
-    expect(result.whereClause).toContain('IS NULL');
-    expect(result.params).toEqual([]);
+  it('returns a never-matching clause and leaves params untouched when patientFilter is "none"', () => {
+    const params = [];
+    const result = patientFilterClause('none', 'patient_id', params);
+    expect(result).toBe('1=0');
+    expect(params).toEqual([]);
   });
 
-  it('returns equality clause with patient ID param', () => {
-    const req = { patientFilter: 7 };
-    const result = buildPatientFilter(req, 'patient_id');
-    expect(result.whereClause).toContain('patient_id');
-    expect(result.params).toEqual([7]);
+  it('pushes the id array onto params and returns an ANY(...) clause for a scoped filter', () => {
+    const params = [];
+    const result = patientFilterClause([1, 2, 3], 'p.patient_id', params);
+    expect(result).toBe('p.patient_id = ANY($1::uuid[])');
+    expect(params).toEqual([[1, 2, 3]]);
   });
 
-  it('prepends alias to column when alias is provided', () => {
-    const req = { patientFilter: 3 };
-    const result = buildPatientFilter(req, 'patient_id', 'tr');
-    expect(result.whereClause).toContain('tr.patient_id');
-    expect(result.params).toEqual([3]);
+  it('indexes the placeholder after any params already pushed by the caller', () => {
+    const params = ['existing'];
+    const result = patientFilterClause([1], 'patient_id', params);
+    expect(result).toBe('patient_id = ANY($2::uuid[])');
+    expect(params).toEqual(['existing', [1]]);
+  });
+});
+
+// ─── patientFilterAllows ──────────────────────────────────────────────────────
+
+describe('patientFilterAllows', () => {
+  it('allows any patient id when patientFilter is null (admin)', () => {
+    expect(patientFilterAllows(null, 'anything')).toBe(true);
   });
 
-  it('returns IS NULL with alias when patientFilter is "none" and alias given', () => {
-    const req = { patientFilter: 'none' };
-    const result = buildPatientFilter(req, 'patient_id', 'p');
-    expect(result.whereClause).toContain('p.patient_id IS NULL');
+  it('denies every patient id when patientFilter is "none"', () => {
+    expect(patientFilterAllows('none', 'anything')).toBe(false);
+  });
+
+  it('allows a patient id present in the scoped array', () => {
+    expect(patientFilterAllows(['a', 'b'], 'a')).toBe(true);
+  });
+
+  it('denies a patient id not present in the scoped array', () => {
+    expect(patientFilterAllows(['a', 'b'], 'c')).toBe(false);
   });
 });

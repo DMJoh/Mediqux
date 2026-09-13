@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 // Get upcoming appointments (for dashboard) - must be before /:id route
 router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
@@ -10,12 +10,8 @@ router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: [] });
     }
 
-    let whereClause = "WHERE a.appointment_date >= NOW() AND a.status = 'scheduled'";
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause += ' AND a.patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE a.appointment_date >= NOW() AND a.status = 'scheduled' AND ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -55,12 +51,8 @@ router.get('/stats/summary', addPatientFilter, async (req, res) => {
       return res.json({ success: true, data: { total_appointments: 0, upcoming: 0, completed: 0, cancelled: 0, today: 0 } });
     }
 
-    let whereClause = '';
     const queryParams = [];
-    if (req.patientFilter) {
-      whereClause = 'WHERE patient_id = $1';
-      queryParams.push(req.patientFilter);
-    }
+    const whereClause = `WHERE ${patientFilterClause(req.patientFilter, 'patient_id', queryParams)}`;
 
     const result = await db.query(`
       SELECT
@@ -121,23 +113,18 @@ router.get('/', addPatientFilter, async (req, res) => {
       WHERE 1=1
     `;
     
-    const queryParams = [];
-    let paramIndex = 1;
-    
-    // Apply RBAC patient filtering first
-    if (req.patientFilter && req.patientFilter !== 'none') {
-      query += ` AND a.patient_id = $${paramIndex}`;
-      queryParams.push(req.patientFilter);
-      paramIndex++;
-    } else if (req.patientFilter === 'none') {
-      // User has no patient access
+    if (req.patientFilter === 'none') {
       return res.json({
         success: true,
         data: [],
         count: 0
       });
     }
-    
+
+    const queryParams = [];
+    query += ` AND ${patientFilterClause(req.patientFilter, 'a.patient_id', queryParams)}`;
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (status) {
       query += ` AND a.status = $${paramIndex}`;
@@ -182,10 +169,10 @@ router.get('/', addPatientFilter, async (req, res) => {
 });
 
 // Get single appointment by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const result = await db.query(`
       SELECT 
         a.*,
@@ -205,13 +192,13 @@ router.get('/:id', async (req, res) => {
       WHERE a.id = $1
     `, [id]);
     
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || !patientFilterAllows(req.patientFilter, result.rows[0].patient_id)) {
       return res.status(404).json({
         success: false,
         error: 'Appointment not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]
@@ -226,7 +213,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create new appointment
-router.post('/', async (req, res) => {
+router.post('/', addPatientFilter, async (req, res) => {
   try {
     const {
       patient_id,
@@ -238,7 +225,7 @@ router.post('/', async (req, res) => {
       notes,
       diagnosis
     } = req.body;
-    
+
     // Basic validation
     if (!patient_id || !appointment_date) {
       return res.status(400).json({
@@ -246,7 +233,11 @@ router.post('/', async (req, res) => {
         error: 'Patient and appointment date are required'
       });
     }
-    
+
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     // Validate appointment date is not in the past (unless creating past appointment)
     const appointmentDateTime = new Date(appointment_date);
     const now = new Date();
@@ -290,7 +281,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update appointment
-router.put('/:id', async (req, res) => {
+router.put('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -303,7 +294,23 @@ router.put('/:id', async (req, res) => {
       notes,
       diagnosis
     } = req.body;
-    
+
+    if (req.patientFilter === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const existing = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Appointment not found'
+      });
+    }
+
+    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     const result = await db.query(`
       UPDATE appointments SET
         patient_id = $1,
@@ -351,16 +358,35 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete appointment
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const linked = await db.query(
-      'SELECT COUNT(*) AS count FROM test_results WHERE appointment_id = $1',
-      [id]
-    );
+    if (req.patientFilter === 'none') {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
 
-    if (Number.parseInt(linked.rows[0].count) > 0) {
+    // Ownership check and linked-test-results check collapsed into one
+    // round trip (previously two separate queries).
+    const existing = await db.query(`
+      SELECT a.patient_id, COUNT(tr.id) AS linked_count
+      FROM appointments a
+      LEFT JOIN test_results tr ON tr.appointment_id = a.id
+      WHERE a.id = $1
+      GROUP BY a.patient_id
+    `, [id]);
+    if (existing.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Appointment not found'
+      });
+    }
+
+    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    if (Number.parseInt(existing.rows[0].linked_count, 10) > 0) {
       return res.status(409).json({
         success: false,
         error: 'Cannot delete appointment: it has linked test results. Remove the test results first.'

@@ -13,12 +13,18 @@ function createApp(router, userOverrides = {}) {
   const app = express();
   app.use(express.json());
 
+  // Accept either a single `patientId` (legacy single-patient shape, still
+  // used by most test files) or a `patientIds` array (the real multi-patient
+  // shape `req.user`/`req.patientFilter` carry in production).
+  const { patientId, patientIds, ...rest } = userOverrides;
+  const resolvedPatientIds = patientIds ?? (patientId != null ? [patientId] : []);
+
   const defaultUser = {
     id: 1,
     username: 'testadmin',
     role: 'admin',
-    patientId: null,
-    ...userOverrides,
+    ...rest,
+    patientIds: resolvedPatientIds,
   };
 
   // Inject auth state directly — no real JWT needed in unit tests
@@ -26,7 +32,7 @@ function createApp(router, userOverrides = {}) {
     req.user = defaultUser;
     req.patientFilter = defaultUser.role === 'admin'
       ? null
-      : (defaultUser.patientId || 'none');
+      : (defaultUser.patientIds.length > 0 ? defaultUser.patientIds : 'none');
     next();
   });
 

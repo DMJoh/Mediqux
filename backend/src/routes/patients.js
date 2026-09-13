@@ -1,41 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
-const { addPatientFilter } = require('../middleware/auth');
+const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
 // Get all patients (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
-    let query = `
-      SELECT 
-        id, 
-        first_name, 
-        last_name, 
-        date_of_birth, 
-        gender, 
-        phone, 
-        email,
-        created_at
-      FROM patients 
-    `;
-    let params = [];
-    
-    // Apply patient filtering based on user role
-    if (req.patientFilter && req.patientFilter !== 'none') {
-      query += ` WHERE id = $1`;
-      params = [req.patientFilter];
-    } else if (req.patientFilter === 'none') {
-      // User has no patient access
-      return res.json({
-        success: true,
-        data: [],
-        count: 0
-      });
-    }
-    
-    query += ` ORDER BY last_name, first_name`;
-    
-    const result = await db.query(query, params);
+    const params = [];
+    const where = patientFilterClause(req.patientFilter, 'id', params);
+
+    const result = await db.query(
+      `SELECT id, first_name, last_name, date_of_birth, gender, phone, email, created_at
+       FROM patients
+       WHERE ${where}
+       ORDER BY last_name, first_name`,
+      params,
+    );
     
     res.json({
       success: true,
@@ -52,20 +32,28 @@ router.get('/', addPatientFilter, async (req, res) => {
 });
 
 // Get single patient by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!patientFilterAllows(req.patientFilter, id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient not found'
+      });
+    }
+
     const result = await db.query(`
       SELECT * FROM patients WHERE id = $1
     `, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'Patient not found'
       });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]
@@ -116,10 +104,10 @@ router.post('/', async (req, res) => {
     const newPatient = result.rows[0];
 
     // Auto-link the new patient to the user's account if they are non-admin and have no patient linked yet
-    if (req.user.role !== 'admin' && !req.user.patientId) {
+    if (req.user.role !== 'admin' && req.user.patientIds.length === 0) {
       await db.query(
-        'UPDATE users SET patient_id = $1 WHERE id = $2',
-        [newPatient.id, req.user.id]
+        'INSERT INTO user_patient_access (user_id, patient_id) VALUES ($1, $2)',
+        [req.user.id, newPatient.id]
       );
     }
 
@@ -138,7 +126,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update patient
-router.put('/:id', async (req, res) => {
+router.put('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -152,7 +140,14 @@ router.put('/:id', async (req, res) => {
       emergency_contact_name,
       emergency_contact_phone
     } = req.body;
-    
+
+    if (!patientFilterAllows(req.patientFilter, id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient not found'
+      });
+    }
+
     const result = await db.query(`
       UPDATE patients SET
         first_name = $1,
@@ -194,10 +189,17 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete patient
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
+    if (!patientFilterAllows(req.patientFilter, id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Patient not found'
+      });
+    }
+
     const result = await db.query(`
       DELETE FROM patients WHERE id = $1 RETURNING id
     `, [id]);

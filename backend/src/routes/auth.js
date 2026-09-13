@@ -1,18 +1,31 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../database/db');
 const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const { signUserToken } = require('../utils/jwt');
 
 // Register new user
 router.post('/signup', async (req, res) => {
   try {
     const { username, email, password, firstName, lastName } = req.body;
+
+    // Self-service signup only exists to create the very first (admin)
+    // account on a fresh install. Once any account exists, further accounts
+    // are created by an admin via the Users page, which also handles patient
+    // access — an open signup endpoint that self-registers a "user"-role
+    // account was itself a precondition for a previously reported RBAC
+    // exploit, so this is closed rather than left reachable indefinitely.
+    const userCountResult = await db.query('SELECT COUNT(*) as count FROM users');
+    const isFirstUser = Number.parseInt(userCountResult.rows[0].count) === 0;
+
+    if (!isFirstUser) {
+      return res.status(403).json({
+        success: false,
+        error: 'Self-service signup is disabled. Ask an administrator to create your account.'
+      });
+    }
 
     // Check if user already exists
     const existingUser = await db.query(
@@ -30,11 +43,7 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
-
-    // Check if this is the first user - make them admin
-    const userCountResult = await db.query('SELECT COUNT(*) as count FROM users');
-    const isFirstUser = Number.parseInt(userCountResult.rows[0].count) === 0;
-    const userRole = isFirstUser ? 'admin' : 'user';
+    const userRole = 'admin';
 
     // Create user
     const result = await db.query(
@@ -47,15 +56,7 @@ router.post('/signup', async (req, res) => {
     const user = result.rows[0];
 
     // Create JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = signUserToken(user);
 
     res.status(201).json({
       success: true,
@@ -124,15 +125,7 @@ router.post('/login', async (req, res) => {
     );
 
     // Create JWT token
-    const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username, 
-        role: user.role 
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const token = signUserToken(user);
 
     // Log successful authentication
     logger.auth('User login successful', { 
@@ -161,6 +154,27 @@ router.post('/login', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to login'
+    });
+  }
+});
+
+// Issue a fresh token for the current user, provided their existing token
+// is still valid (enforced by authenticateToken, which also re-checks
+// is_active against the DB rather than trusting the token payload).
+// Intended for silent client-side renewal before the current token expires.
+router.post('/refresh', authenticateToken, async (req, res) => {
+  try {
+    const token = signUserToken(req.user);
+
+    res.json({
+      success: true,
+      data: { token }
+    });
+  } catch (error) {
+    logger.error('Token refresh failed', { error: error.message, stack: error.stack, userId: req.user.id });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to refresh token'
     });
   }
 });

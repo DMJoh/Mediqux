@@ -47,7 +47,7 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: 'user',
       validate: {
-        isIn: [['admin', 'user', 'doctor']]
+        isIn: [['admin', 'user']]
       }
     },
     patient_id: {

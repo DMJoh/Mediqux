@@ -1,19 +1,22 @@
-FROM nginx:alpine
+FROM node:24-alpine AS builder
+WORKDIR /app
 
-RUN apk add --no-cache bash gettext
+COPY package*.json ./
+RUN npm ci --no-fund --no-audit
 
-COPY nginx-template.conf /etc/nginx/conf.d/default.conf
+COPY . .
+RUN npm run build
 
-COPY *.html /usr/share/nginx/html/
-COPY css/ /usr/share/nginx/html/css/
-COPY js/ /usr/share/nginx/html/js/
+FROM caddy:alpine AS production
 
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+RUN addgroup -g 1000 -S mediqux && adduser -u 1000 -S mediqux -G mediqux
 
-EXPOSE 80
+COPY --from=builder /app/dist /usr/share/caddy
+COPY Caddyfile /etc/caddy/Caddyfile
+
+USER mediqux
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost/health || exit 1
-
-ENTRYPOINT ["/docker-entrypoint.sh"]
+  CMD wget -qO- http://localhost:8080 || exit 1
