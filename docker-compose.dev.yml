@@ -26,7 +26,7 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       DEBUG: ${DEBUG:-true}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
-      DB_HOST: postgres
+      DB_HOST: ${POSTGRES_HOST:-postgres}
       DB_PORT: ${POSTGRES_PORT:-5432}
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}
@@ -36,6 +36,7 @@ services:
       UPLOAD_PATH: ${UPLOAD_PATH:-/app/uploads}
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -65,6 +66,11 @@ services:
       - backend
     networks:
       - mediqux_network_dev
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data_dev:
