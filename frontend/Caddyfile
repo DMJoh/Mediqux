@@ -1,4 +1,4 @@
-:80 {
+:8080 {
 	root * /usr/share/caddy
 	encode gzip
 
