@@ -5,7 +5,7 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - 2026-09-07
+## [2.0.0] - 2026-09-13
 
 Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
 
@@ -26,6 +26,7 @@ Your data is not at risk either way: the database and uploads volumes keep the s
 - `POST`/`PUT /api/users` now take `patientIds` (an array) instead of a single `patientId`. `GET /api/users` returns a `patients` array per user instead of flat `patient_id`/`patient_first_name`/`patient_last_name` fields.
 - The `doctor` role has been removed from the `users` table's role options. It never had any behavior different from `user`.
 - Self-service signup (`POST /api/auth/signup`) now only works for the very first account on an empty database. Once that account exists, it returns 403 — every additional account has to be created by an admin from the Users page. If you were relying on open self-registration for additional accounts, that path is gone; add those accounts via Users instead.
+- License changed from CC BY-NC-SA 4.0 to AGPLv3. Still free to use, modify, and self-host; the difference is that running a modified version as a network service now requires making that version's source available to its users, and commercial use is no longer blanket-prohibited the way it was under the old license.
 
 ### ✨ Added
 
@@ -34,11 +35,14 @@ Your data is not at risk either way: the database and uploads volumes keep the s
 - The patient detail page now shows that patient's own appointments, prescriptions, lab reports, diagnostic studies, and active medications in one place, instead of needing a separate search on each page.
 - New Settings page with a selectable accent color (Aurora, Teal, Sunset).
 - The sidebar now shows a real backend connectivity indicator. Previously it was a hardcoded "online" label with no actual health check behind it.
+- Form validation errors now show inline as soon as you leave a field (or pick a value in a dropdown), instead of staying silent until a failed save attempt.
+- `POSTGRES_HOST` can be set to point the backend at an external PostgreSQL instance instead of the bundled container.
 
 ### 🔒 Security
 
 - Fixed several endpoints (`patients`, `appointments`, `prescriptions`, and a few `test-results` routes) that would return any record by ID with no ownership check, regardless of a scoped account's actual patient access.
 - The same ownership check was also missing on the write side: creating, editing, or deleting an appointment, prescription, or test result didn't verify the record belonged to a patient the account has access to. Fixed across `appointments`, `prescriptions`, and `test-results`, with an audit of `patients`' own edit/delete routes too.
+- The frontend container now runs as a non-root user. It previously ran as root only because Caddy was bound to the privileged port 80; moved to 8080 internally so no elevated privileges are needed at all.
 
 ### 🐛 Bug Fixes
 

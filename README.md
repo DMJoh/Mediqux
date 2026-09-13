@@ -146,7 +146,7 @@ Fork, branch, make your change, open a PR. Issues and suggestions are welcome ev
 
 ## Acknowledgements
 
-Built on [Node.js](https://nodejs.org/), [Express](https://expressjs.com/), [PostgreSQL](https://www.postgresql.org/), [React](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/), [Radix UI](https://www.radix-ui.com/), [Caddy](https://caddyserver.com/), and [Docker](https://www.docker.com/).
+Built on [Node.js](https://nodejs.org/), [Express](https://expressjs.com/), [PostgreSQL](https://www.postgresql.org/), [React](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/), [TanStack Query](https://tanstack.com/query/), [Radix UI](https://www.radix-ui.com/), [Caddy](https://caddyserver.com/), and [Docker](https://www.docker.com/).
 
 ## License
 
