@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2026-09-13
 
-Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler. This release has breaking changes for existing deployments, listed below.
+> ⚠️ **This release has breaking changes for existing deployments.** Read "Breaking Changes" and "Upgrading from 1.x" below before you pull the new images.
+
+Major release. The frontend has been completely rewritten, patient access is no longer limited to one patient per account, and deployment is simpler.
 
 ### Upgrading from 1.x
 
