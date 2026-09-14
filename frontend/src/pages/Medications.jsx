@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Pill, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Pill, Plus, Search } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { useToast } from '../components/ui/Toast'
 import { MedicationFormDialog } from '../components/medications/MedicationFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('medications', '/medications')
@@ -153,26 +154,7 @@ export default function Medications() {
                       {usageCount(m)} use{usageCount(m) === 1 ? '' : 's'}
                     </div>
                   </button>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(m)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestDelete(m)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions onEdit={() => setEditTarget(m)} onDelete={() => requestDelete(m)} />
                 </div>
               ))}
             </div>
@@ -214,12 +196,7 @@ export default function Medications() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(m)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => requestDelete(m)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(m)} onDelete={() => requestDelete(m)} />
                         </div>
                       </td>
                     </tr>

@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Building2, Plus, Pencil, Trash2, Search, Globe } from 'lucide-react'
+import { Building2, Plus, Search, Globe } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { useToast } from '../components/ui/Toast'
 import { InstitutionFormDialog } from '../components/institutions/InstitutionFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('institutions', '/institutions')
@@ -161,20 +162,7 @@ export default function Institutions() {
                       )}
                     </div>
                   </div>
-                  <div className="relative z-10 flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={() => setEditTarget(i)}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={() => requestDelete(i)}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions className="relative z-10 flex shrink-0 gap-1" onEdit={() => setEditTarget(i)} onDelete={() => requestDelete(i)} />
                 </div>
               ))}
             </div>
@@ -229,12 +217,7 @@ export default function Institutions() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(i)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => requestDelete(i)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(i)} onDelete={() => requestDelete(i)} />
                         </div>
                       </td>
                     </tr>

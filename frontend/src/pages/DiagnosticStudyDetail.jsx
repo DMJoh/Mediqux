@@ -10,6 +10,7 @@ import { DiagnosticStudyFormDialog } from '../components/diagnostic-studies/Diag
 import { IconButton, Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PhysicianLink } from '../components/ui/PhysicianLink'
 
 const { useOne, useUpdate, useDelete } = createResourceHooks('diagnostic-studies', '/diagnostic-studies')
 
@@ -84,13 +85,7 @@ export default function DiagnosticStudyDetail() {
   const samePerformer = study.performing_physician && study.ordering_physician && study.performing_physician.id === study.ordering_physician.id
   let performingPhysicianDisplay = 'Not specified'
   if (study.performing_physician) {
-    performingPhysicianDisplay = samePerformer ? (
-      'Same as ordering physician'
-    ) : (
-      <Link to={`/doctors/${study.performing_physician.id}`} className="text-glow-b hover:underline">
-        Dr. {study.performing_physician.first_name} {study.performing_physician.last_name}
-      </Link>
-    )
+    performingPhysicianDisplay = samePerformer ? 'Same as ordering physician' : <PhysicianLink doctor={study.performing_physician} />
   }
 
   return (
@@ -124,13 +119,7 @@ export default function DiagnosticStudyDetail() {
 
           <dt className="font-semibold text-muted">Ordering physician</dt>
           <dd className="col-span-2">
-            {study.ordering_physician ? (
-              <Link to={`/doctors/${study.ordering_physician.id}`} className="text-glow-b hover:underline">
-                Dr. {study.ordering_physician.first_name} {study.ordering_physician.last_name}
-              </Link>
-            ) : (
-              'Not specified'
-            )}
+            <PhysicianLink doctor={study.ordering_physician} />
           </dd>
 
           <dt className="font-semibold text-muted">Performing physician</dt>
