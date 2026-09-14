@@ -20,6 +20,12 @@ Patients, doctors, appointments, prescriptions, lab reports, and diagnostic stud
 
 > All data stays on hardware you control. No cloud dependency, no external API calls, no telemetry.
 
+<p align="center">
+  <img src="screenshots/mediqux-walkthrough.gif" alt="Mediqux walkthrough" />
+</p>
+
+More [screens](SCREENSHOTS.md).
+
 ## Features
 
 - **Patient records**: contact details, history, and every related appointment, prescription, lab report, and diagnostic study in one view.
