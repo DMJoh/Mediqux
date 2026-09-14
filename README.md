@@ -20,7 +20,9 @@ Patients, doctors, appointments, prescriptions, lab reports, and diagnostic stud
 
 > All data stays on hardware you control. No cloud dependency, no external API calls, no telemetry.
 
-![Mediqux walkthrough](screenshots/mediqux-walkthrough.gif)
+<p align="center">
+  <img src="screenshots/mediqux-walkthrough.gif" alt="Mediqux walkthrough" />
+</p>
 
 More screens in [SCREENSHOTS.md](SCREENSHOTS.md).
 

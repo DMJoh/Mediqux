@@ -1,6 +1,8 @@
 # Screenshots
 
-![Mediqux walkthrough](screenshots/mediqux-walkthrough.gif)
+<p align="center">
+  <img src="screenshots/mediqux-walkthrough.gif" alt="Mediqux walkthrough" />
+</p>
 
 Logging in, the dashboard, and a patient's detail page (with appointments, prescriptions, and lab reports aggregated in one place).
 
