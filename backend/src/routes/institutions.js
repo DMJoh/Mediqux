@@ -94,7 +94,7 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Institution name is required'
@@ -143,7 +143,7 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Institution name is required'

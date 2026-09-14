@@ -199,7 +199,7 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Condition name is required'
@@ -220,7 +220,7 @@ router.post('/', async (req, res) => {
     }
     
     // Check for duplicate ICD codes if provided
-    if (icd_code && icd_code.trim()) {
+    if (icd_code?.trim()) {
       const existingICD = await db.query(
         'SELECT id FROM medical_conditions WHERE LOWER(icd_code) = LOWER($1)',
         [icd_code.trim()]
@@ -274,7 +274,7 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Condition name is required'
@@ -295,7 +295,7 @@ router.put('/:id', async (req, res) => {
     }
     
     // Check for duplicate ICD codes if provided (excluding current record)
-    if (icd_code && icd_code.trim()) {
+    if (icd_code?.trim()) {
       const existingICD = await db.query(
         'SELECT id FROM medical_conditions WHERE LOWER(icd_code) = LOWER($1) AND id != $2',
         [icd_code.trim(), id]

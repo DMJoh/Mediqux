@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
+const path = require('node:path');
+const fs = require('node:fs').promises;
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
@@ -82,7 +82,7 @@ router.post('/panels', async (req, res) => {
   try {
     const { name, description, category = 'Blood', parameters = [] } = req.body;
     
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Panel name is required' 
@@ -115,7 +115,7 @@ router.post('/panels', async (req, res) => {
       
       if (parameters && parameters.length > 0) {
         for (const param of parameters) {
-          if (param.parameter_name && param.parameter_name.trim()) {
+          if (param.parameter_name?.trim()) {
             await db.query(
               `INSERT INTO lab_panel_parameters 
                (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
@@ -180,7 +180,7 @@ router.put('/panels/:id', async (req, res) => {
     const panelId = req.params.id;
     const { name, description, category } = req.body;
     
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Panel name is required' 
@@ -289,7 +289,7 @@ router.post('/panels/:id/parameters', async (req, res) => {
       aliases 
     } = req.body;
     
-    if (!parameter_name || !parameter_name.trim()) {
+    if (!parameter_name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Parameter name is required' 
@@ -363,7 +363,7 @@ router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
       aliases 
     } = req.body;
     
-    if (!parameter_name || !parameter_name.trim()) {
+    if (!parameter_name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Parameter name is required' 
@@ -781,7 +781,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     console.error('Error uploading lab report:', error);
     
     // Clean up uploaded file on error
-    if (req.file && req.file.path) {
+    if (req.file?.path) {
       await safeUnlinkUpload(req.file.path);
     }
     
@@ -1243,7 +1243,7 @@ router.get('/:id/download', authenticateToken, addPatientFilter, async (req, res
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Stream the file
-    const fileStream = require('fs').createReadStream(pdf_file_path);
+    const fileStream = require('node:fs').createReadStream(pdf_file_path);
     fileStream.pipe(res);
     
   } catch (error) {
@@ -1284,7 +1284,7 @@ router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) =>
     const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
 
     // Check if file exists
-    if (!require('fs').existsSync(pdf_file_path)) {
+    if (!require('node:fs').existsSync(pdf_file_path)) {
       return res.status(404).json({
         success: false,
         error: 'PDF file not found on server'
@@ -1299,7 +1299,7 @@ router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) =>
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     
     // Stream the file
-    const fileStream = require('fs').createReadStream(pdf_file_path);
+    const fileStream = require('node:fs').createReadStream(pdf_file_path);
     fileStream.pipe(res);
     
   } catch (error) {
