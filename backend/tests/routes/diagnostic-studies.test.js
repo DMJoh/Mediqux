@@ -4,7 +4,15 @@ const createApp = require('../helpers/createApp');
 jest.mock('../../src/database/db', () => ({ query: jest.fn(), getClient: jest.fn() }));
 jest.mock('multer', () => {
   const multer = () => ({
-    single: () => (req, res, next) => next(),
+    // Tests opt into a simulated uploaded file by sending { __withFile: true }
+    // in the JSON body (already parsed by express.json() before this runs).
+    single: () => (req, res, next) => {
+      if (req.body && req.body.__withFile) {
+        delete req.body.__withFile;
+        req.file = { path: 'uploads/diagnostic-studies/mock.pdf', originalname: 'mock.pdf', mimetype: 'application/pdf' };
+      }
+      next();
+    },
   });
   multer.diskStorage = () => ({});
   return multer;
@@ -191,6 +199,14 @@ describe('POST /diagnostic-studies', () => {
     const res = await request(adminApp).post('/').send({ patient_id: 1, study_type: 'X-Ray', study_date: '2024-01-01' });
     expect(res.status).toBe(500);
   });
+
+  it('stores the attachment info when a file is uploaded', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5, study_type: 'X-Ray', attachment_original_name: 'mock.pdf' }] });
+    const res = await request(adminApp).post('/').send({ patient_id: 1, study_type: 'X-Ray', study_date: '2024-01-01', __withFile: true });
+    expect(res.status).toBe(201);
+    // attachment_path/original_name/mime_type are the 11th-13th bind params to the INSERT
+    expect(db.query.mock.calls[0][1].slice(10, 13)).toEqual(['uploads/diagnostic-studies/mock.pdf', 'mock.pdf', 'application/pdf']);
+  });
 });
 
 // ─── PUT /:id ─────────────────────────────────────────────────────────────
@@ -227,6 +243,19 @@ describe('PUT /diagnostic-studies/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).put('/1').send({});
     expect(res.status).toBe(500);
+  });
+
+  it('replaces the attachment and deletes the old file when a new one is uploaded', async () => {
+    const fsNode = require('node:fs');
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 1, attachment_path: 'uploads/diagnostic-studies/old.pdf', attachment_original_name: 'old.pdf', attachment_mime_type: 'application/pdf' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, study_type: 'MRI' }] }); // UPDATE
+    const res = await request(adminApp).put('/1').send({ study_type: 'MRI', study_date: '2024-01-01', patient_id: 1, __withFile: true });
+    expect(res.status).toBe(200);
+    expect(fsNode.promises.unlink).toHaveBeenCalled();
+    // attachment_path/original_name/mime_type are the 11th-13th bind params to the UPDATE
+    const updateParams = db.query.mock.calls[1][1];
+    expect(updateParams.slice(10, 13)).toEqual(['uploads/diagnostic-studies/mock.pdf', 'mock.pdf', 'application/pdf']);
   });
 });
 
