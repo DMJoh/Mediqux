@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { CalendarDays, Plus, Search, X } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { formatDate, formatTime } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { AppointmentFormDialog } from '../components/appointments/AppointmentFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('appointments', '/appointments')
@@ -181,26 +182,7 @@ export default function Appointments() {
                       </div>
                     )}
                   </button>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(a)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(a)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions onEdit={() => setEditTarget(a)} onDelete={() => setDeleteTarget(a)} />
                 </div>
               ))}
             </div>
@@ -245,14 +227,7 @@ export default function Appointments() {
                         <Badge tone={a.status}>{statusLabel(a.status)}</Badge>
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(a)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => setDeleteTarget(a)}>
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </div>
+                        <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(a)} onDelete={() => setDeleteTarget(a)} />
                       </td>
                     </tr>
                   ))}

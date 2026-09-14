@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { FileText, Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { FileText, Plus, Search, X } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { formatDate } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { PrescriptionFormDialog } from '../components/prescriptions/PrescriptionFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('prescriptions', '/prescriptions')
@@ -175,26 +176,7 @@ export default function Prescriptions() {
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(p.appointment_date)}</div>
                   </button>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(p)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(p)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions onEdit={() => setEditTarget(p)} onDelete={() => setDeleteTarget(p)} />
                 </div>
               ))}
             </div>
@@ -229,12 +211,7 @@ export default function Prescriptions() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(p)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => setDeleteTarget(p)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(p)} onDelete={() => setDeleteTarget(p)} />
                         </div>
                       </td>
                     </tr>

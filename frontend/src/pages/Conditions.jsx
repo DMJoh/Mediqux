@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ClipboardList, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { ClipboardList, Plus, Search } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { useToast } from '../components/ui/Toast'
 import { ConditionFormDialog } from '../components/conditions/ConditionFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('conditions', '/conditions')
@@ -155,26 +156,7 @@ export default function Conditions() {
                       </span>
                     </div>
                   </button>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(c)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestDelete(c)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions onEdit={() => setEditTarget(c)} onDelete={() => requestDelete(c)} />
                 </div>
               ))}
             </div>
@@ -210,12 +192,7 @@ export default function Conditions() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(c)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => requestDelete(c)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(c)} onDelete={() => requestDelete(c)} />
                         </div>
                       </td>
                     </tr>

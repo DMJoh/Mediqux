@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FlaskConical, Plus, Pencil, Trash2, Search, FileText, X } from 'lucide-react'
+import { FlaskConical, Plus, Search, FileText, X } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { LabReportFormDialog } from '../components/lab-reports/LabReportFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('lab-reports', '/test-results')
@@ -220,26 +221,7 @@ export default function LabReports() {
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(r.test_date)}</div>
                   </button>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(r)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(r)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions onEdit={() => setEditTarget(r)} onDelete={() => setDeleteTarget(r)} />
                 </div>
               ))}
             </div>
@@ -283,12 +265,7 @@ export default function LabReports() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex justify-end gap-1">
-                            <IconButton label="Edit" onClick={() => setEditTarget(r)}>
-                              <Pencil size={14} />
-                            </IconButton>
-                            <IconButton label="Delete" onClick={() => setDeleteTarget(r)}>
-                              <Trash2 size={14} />
-                            </IconButton>
+                            <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(r)} onDelete={() => setDeleteTarget(r)} />
                           </div>
                         </td>
                       </tr>
