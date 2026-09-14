@@ -133,20 +133,14 @@ export default function Institutions() {
           <>
             <div className="divide-y divide-glass-border sm:hidden">
               {filtered.map((i) => (
-                <div
-                  key={i.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/institutions/${i.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/institutions/${i.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
-                >
-                  <div className="min-w-0 flex-1">
+                <div key={i.id} className="relative flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/institutions/${i.id}`)}
+                    aria-label={`View ${i.name}`}
+                    className="absolute inset-0 z-0"
+                  />
+                  <div className="pointer-events-none relative z-10 min-w-0 flex-1">
                     <div className="truncate font-semibold text-text">{i.name}</div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       {i.type && <Badge>{i.type}</Badge>}
@@ -156,33 +150,27 @@ export default function Institutions() {
                     </div>
                     <div className="mt-1.5 flex flex-col gap-0.5 text-xs">
                       {i.phone && (
-                        <a href={`tel:${i.phone}`} onClick={(e) => e.stopPropagation()} className="w-fit text-glow-b">
+                        <a href={`tel:${i.phone}`} className="pointer-events-auto relative w-fit text-glow-b">
                           {i.phone}
                         </a>
                       )}
                       {i.email && (
-                        <a href={`mailto:${i.email}`} onClick={(e) => e.stopPropagation()} className="w-fit truncate text-glow-b">
+                        <a href={`mailto:${i.email}`} className="pointer-events-auto relative w-fit truncate text-glow-b">
                           {i.email}
                         </a>
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="relative z-10 flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(i)
-                      }}
+                      onClick={() => setEditTarget(i)}
                     >
                       <Pencil size={14} />
                     </IconButton>
                     <IconButton
                       label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestDelete(i)
-                      }}
+                      onClick={() => requestDelete(i)}
                     >
                       <Trash2 size={14} />
                     </IconButton>

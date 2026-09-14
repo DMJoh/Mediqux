@@ -157,18 +157,13 @@ export default function Appointments() {
               {filtered.map((a) => (
                 <div
                   key={a.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/appointments/${a.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/appointments/${a.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/appointments/${a.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono text-sm font-semibold text-text">{formatDate(a.appointment_date)}</span>
                       <span className="font-mono text-xs text-muted">{formatTime(a.appointment_date)}</span>
@@ -185,7 +180,7 @@ export default function Appointments() {
                         Dr. {a.doctor_first_name} {a.doctor_last_name}
                       </div>
                     )}
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

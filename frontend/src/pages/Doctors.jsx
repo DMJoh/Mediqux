@@ -12,6 +12,12 @@ import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('doctors', '/doctors')
 
+function institutionSummary(d) {
+  const list = d.institutions ?? []
+  if (!list.length) return 'No institutions assigned'
+  return list.map((i) => i.name).join(', ')
+}
+
 export default function Doctors() {
   const navigate = useNavigate()
   const { data: doctors, isLoading } = useList()
@@ -81,12 +87,6 @@ export default function Doctors() {
     }
   }
 
-  function institutionSummary(d) {
-    const list = d.institutions ?? []
-    if (!list.length) return 'No institutions assigned'
-    return list.map((i) => i.name).join(', ')
-  }
-
   return (
     <div>
       <div className="glass mb-4 flex flex-wrap items-center gap-3 rounded-[16px] p-3">
@@ -126,20 +126,14 @@ export default function Doctors() {
           <>
             <div className="divide-y divide-glass-border sm:hidden">
               {filtered.map((d) => (
-                <div
-                  key={d.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/doctors/${d.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/doctors/${d.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
-                >
-                  <div className="min-w-0 flex-1">
+                <div key={d.id} className="relative flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/doctors/${d.id}`)}
+                    aria-label={`View Dr. ${d.first_name} ${d.last_name}`}
+                    className="absolute inset-0 z-0"
+                  />
+                  <div className="pointer-events-none relative z-10 min-w-0 flex-1">
                     <div className="truncate font-semibold text-text">
                       Dr. {d.first_name} {d.last_name}
                     </div>
@@ -149,33 +143,27 @@ export default function Doctors() {
                     </div>
                     <div className="mt-1.5 flex flex-col gap-0.5 text-xs">
                       {d.phone && (
-                        <a href={`tel:${d.phone}`} onClick={(e) => e.stopPropagation()} className="w-fit text-glow-b">
+                        <a href={`tel:${d.phone}`} className="pointer-events-auto relative w-fit text-glow-b">
                           {d.phone}
                         </a>
                       )}
                       {d.email && (
-                        <a href={`mailto:${d.email}`} onClick={(e) => e.stopPropagation()} className="w-fit truncate text-glow-b">
+                        <a href={`mailto:${d.email}`} className="pointer-events-auto relative w-fit truncate text-glow-b">
                           {d.email}
                         </a>
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="relative z-10 flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(d)
-                      }}
+                      onClick={() => setEditTarget(d)}
                     >
                       <Pencil size={14} />
                     </IconButton>
                     <IconButton
                       label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(d)
-                      }}
+                      onClick={() => setDeleteTarget(d)}
                     >
                       <Trash2 size={14} />
                     </IconButton>
