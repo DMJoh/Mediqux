@@ -24,7 +24,7 @@ Patients, doctors, appointments, prescriptions, lab reports, and diagnostic stud
   <img src="screenshots/mediqux-walkthrough.gif" alt="Mediqux walkthrough" />
 </p>
 
-More screens in [SCREENSHOTS.md](SCREENSHOTS.md).
+More [screens](SCREENSHOTS.md).
 
 ## Features
 
