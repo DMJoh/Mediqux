@@ -181,7 +181,8 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : report ? 'Update report' : 'Save report'
+  let submitLabel = report ? 'Update report' : 'Save report'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit lab report' : 'Add lab report'} size="lg">

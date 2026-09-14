@@ -69,7 +69,8 @@ export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, savin
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : patient ? 'Update patient' : 'Save patient'
+  let submitLabel = patient ? 'Update patient' : 'Save patient'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={patient ? 'Edit patient' : 'Add new patient'}>

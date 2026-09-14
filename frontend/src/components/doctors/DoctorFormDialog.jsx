@@ -56,7 +56,8 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
     return { value: i.id, label: `${i.name}${typeSuffix}` }
   })
 
-  const submitLabel = saving ? 'Saving…' : doctor ? 'Update doctor' : 'Save doctor'
+  let submitLabel = doctor ? 'Update doctor' : 'Save doctor'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={doctor ? 'Edit doctor' : 'Add new doctor'}>

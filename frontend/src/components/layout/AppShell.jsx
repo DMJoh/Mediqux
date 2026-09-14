@@ -90,6 +90,23 @@ function SidebarNav({ collapsed, isAdmin, closeSidebar }) {
   )
 }
 
+function CollapseToggle({ collapsed, onToggle }) {
+  const label = collapsed ? 'Expand menu' : 'Collapse menu'
+  const Icon = collapsed ? ChevronsRight : ChevronsLeft
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={label}
+      aria-label={label}
+      className={`hidden lg:flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[10px] text-sm font-medium text-muted hover:text-white ${collapsed ? 'lg:justify-center' : ''}`}
+    >
+      <Icon size={15} className="shrink-0 opacity-80" />
+      <span className={collapsed ? 'lg:hidden' : ''}>Collapse menu</span>
+    </button>
+  )
+}
+
 function navClass(collapsed) {
   return ({ isActive }) =>
     [
@@ -199,16 +216,7 @@ export default function AppShell() {
 
           <div className="flex-1" />
 
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand menu' : 'Collapse menu'}
-            aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
-            className={`hidden lg:flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[10px] text-sm font-medium text-muted hover:text-white ${collapsed ? 'lg:justify-center' : ''}`}
-          >
-            {collapsed ? <ChevronsRight size={15} className="shrink-0 opacity-80" /> : <ChevronsLeft size={15} className="shrink-0 opacity-80" />}
-            <span className={collapsed ? 'lg:hidden' : ''}>Collapse menu</span>
-          </button>
+          <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} />
 
           <div className="border-t border-glass-border pt-3">
             <div className={`flex items-center gap-1.5 px-1.5 pb-2 ${collapsed ? 'lg:justify-center' : ''}`} title={isOnline ? undefined : "Can't reach the server"}>

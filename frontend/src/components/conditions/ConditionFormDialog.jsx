@@ -55,7 +55,8 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : condition ? 'Update condition' : 'Save condition'
+  let submitLabel = condition ? 'Update condition' : 'Save condition'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={condition ? 'Edit condition' : 'Add medical condition'}>

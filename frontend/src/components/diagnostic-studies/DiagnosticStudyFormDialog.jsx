@@ -106,7 +106,8 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
     onSubmit(formData)
   }
 
-  const submitLabel = saving ? 'Saving…' : study ? 'Update study' : 'Save study'
+  let submitLabel = study ? 'Update study' : 'Save study'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={study ? 'Edit diagnostic study' : 'Add diagnostic study'} size="lg">

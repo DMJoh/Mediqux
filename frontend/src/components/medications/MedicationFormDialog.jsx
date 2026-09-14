@@ -141,7 +141,8 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : medication ? 'Update medication' : 'Save medication'
+  let submitLabel = medication ? 'Update medication' : 'Save medication'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={medication ? 'Edit medication' : 'Add medication'}>
