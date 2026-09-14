@@ -70,6 +70,8 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
     onSubmit(payload)
   }
 
+  const submitLabel = saving ? 'Saving…' : user ? 'Update user' : 'Save user'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={user ? 'Edit user' : 'Add user'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -170,7 +172,7 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : user ? 'Update user' : 'Save user'}
+            {submitLabel}
           </Button>
         </div>
       </form>

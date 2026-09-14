@@ -71,6 +71,8 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
     })
   }
 
+  const submitLabel = saving ? 'Saving…' : appointment ? 'Update appointment' : 'Save appointment'
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={appointment ? 'Edit appointment' : 'Schedule appointment'}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -164,7 +166,7 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : appointment ? 'Update appointment' : 'Save appointment'}
+            {submitLabel}
           </Button>
         </div>
       </form>

@@ -25,21 +25,21 @@ function toForm(condition) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.name.trim()) next.name = 'Condition name is required'
+  if (f.icd_code.trim() && !ICD_REGEX.test(f.icd_code.trim())) {
+    next.icd_code = 'ICD code should look like A12 or A12.34'
+  }
+  return next
+}
+
 /** Shared add/edit form for medical conditions — used from the list page (add) and the detail page (edit).
  * The backend doesn't validate ICD-code format (or reject an odd severity string) — it only enforces
  * that name/icd_code are unique. The format check here is a client-side data-quality nicety, not a
  * server requirement, and duplicate-name/code errors just surface through the normal error toast. */
 export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(condition))
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.name.trim()) next.name = 'Condition name is required'
-    if (f.icd_code.trim() && !ICD_REGEX.test(f.icd_code.trim())) {
-      next.icd_code = 'ICD code should look like A12 or A12.34'
-    }
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
@@ -54,6 +54,8 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
       severity: form.severity || null,
     })
   }
+
+  const submitLabel = saving ? 'Saving…' : condition ? 'Update condition' : 'Save condition'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={condition ? 'Edit condition' : 'Add medical condition'}>
@@ -109,7 +111,7 @@ export function ConditionFormDialog({ open, onOpenChange, condition, onSubmit, s
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : condition ? 'Update condition' : 'Save condition'}
+            {submitLabel}
           </Button>
         </div>
       </form>
