@@ -158,18 +158,13 @@ export default function Prescriptions() {
               {filtered.map((p) => (
                 <div
                   key={p.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/prescriptions/${p.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/prescriptions/${p.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/prescriptions/${p.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{p.medication_name}</div>
                     <div className="mt-1 truncate text-sm text-muted">
                       {p.patient_first_name} {p.patient_last_name}
@@ -179,7 +174,7 @@ export default function Prescriptions() {
                       <span className="text-xs text-muted">{p.dosage} · {p.frequency}</span>
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(p.appointment_date)}</div>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

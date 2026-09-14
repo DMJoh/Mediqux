@@ -28,7 +28,7 @@ function toForm(medication) {
     generic_name: medication.generic_name || '',
     dosage_forms: medication.dosage_forms || [],
     strengths: medication.strengths || [],
-    active_ingredients: (medication.active_ingredients || []).map((i) => ({ name: i.name || '', dosage: i.dosage || '' })),
+    active_ingredients: (medication.active_ingredients || []).map((i) => ({ _key: crypto.randomUUID(), name: i.name || '', dosage: i.dosage || '' })),
     manufacturer: medication.manufacturer || '',
     description: medication.description || '',
   }
@@ -90,7 +90,7 @@ function IngredientsInput({ value, onChange }) {
   return (
     <div className="flex flex-col gap-2">
       {value.map((ing, i) => (
-        <div key={i} className="flex gap-2">
+        <div key={ing._key} className="flex gap-2">
           <TextInput
             placeholder="Ingredient name"
             value={ing.name}
@@ -108,22 +108,22 @@ function IngredientsInput({ value, onChange }) {
           </IconButton>
         </div>
       ))}
-      <Button type="button" variant="ghost" onClick={() => onChange([...value, { name: '', dosage: '' }])} className="self-start">
+      <Button type="button" variant="ghost" onClick={() => onChange([...value, { _key: crypto.randomUUID(), name: '', dosage: '' }])} className="self-start">
         <Plus size={14} /> Add ingredient
       </Button>
     </div>
   )
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.name.trim()) next.name = 'Medication name is required'
+  return next
+}
+
 /** Shared add/edit form for medications — used from the list page (add) and the detail page (edit). */
 export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(medication))
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.name.trim()) next.name = 'Medication name is required'
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
@@ -140,6 +140,8 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
       description: form.description.trim() || null,
     })
   }
+
+  const submitLabel = saving ? 'Saving…' : medication ? 'Update medication' : 'Save medication'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={medication ? 'Edit medication' : 'Add medication'}>
@@ -188,7 +190,7 @@ export function MedicationFormDialog({ open, onOpenChange, medication, onSubmit,
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : medication ? 'Update medication' : 'Save medication'}
+            {submitLabel}
           </Button>
         </div>
       </form>

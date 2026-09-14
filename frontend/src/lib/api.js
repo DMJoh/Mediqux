@@ -128,7 +128,7 @@ async function fetchBlob(path) {
   if (!response.ok) throw new ApiError(`Request failed (${response.status})`, response.status)
 
   const disposition = response.headers.get('Content-Disposition') || ''
-  const match = disposition.match(/filename="(.+)"/)
+  const match = /filename="(.+)"/.exec(disposition)
   return { blob: await response.blob(), filename: match?.[1] || 'lab-report.pdf' }
 }
 

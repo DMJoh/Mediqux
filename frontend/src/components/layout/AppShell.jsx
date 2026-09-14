@@ -55,6 +55,41 @@ const RECORD_ITEMS = [
   { to: '/diagnostic-studies', label: 'Diagnostic Studies', icon: Activity },
 ]
 
+function SidebarNav({ collapsed, isAdmin, closeSidebar }) {
+  return (
+    <nav className="flex flex-col gap-0.5" aria-label="Primary">
+      {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        <NavLink key={to} to={to} end={end} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
+          <Icon size={15} className="shrink-0 opacity-80" />
+          <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
+        </NavLink>
+      ))}
+
+      <div className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+        Records
+      </div>
+      {RECORD_ITEMS.map(({ to, label, icon: Icon }) => (
+        <NavLink key={to} to={to} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
+          <Icon size={14} className="shrink-0 opacity-80" />
+          <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
+        </NavLink>
+      ))}
+
+      {isAdmin && (
+        <>
+          <div className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+            Admin
+          </div>
+          <NavLink to="/users" onClick={closeSidebar} title="Users" className={navClass(collapsed)}>
+            <Users size={15} className="shrink-0 opacity-80" />
+            <span className={collapsed ? 'lg:hidden' : ''}>Users</span>
+          </NavLink>
+        </>
+      )}
+    </nav>
+  )
+}
+
 function navClass(collapsed) {
   return ({ isActive }) =>
     [
@@ -160,40 +195,7 @@ export default function AppShell() {
             </button>
           </div>
 
-          <nav className="flex flex-col gap-0.5" aria-label="Primary">
-            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-              <NavLink key={to} to={to} end={end} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
-                <Icon size={15} className="shrink-0 opacity-80" />
-                <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
-              </NavLink>
-            ))}
-
-            <div
-              className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}
-            >
-              Records
-            </div>
-            {RECORD_ITEMS.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
-                <Icon size={14} className="shrink-0 opacity-80" />
-                <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
-              </NavLink>
-            ))}
-
-            {isAdmin && (
-              <>
-                <div
-                  className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}
-                >
-                  Admin
-                </div>
-                <NavLink to="/users" onClick={closeSidebar} title="Users" className={navClass(collapsed)}>
-                  <Users size={15} className="shrink-0 opacity-80" />
-                  <span className={collapsed ? 'lg:hidden' : ''}>Users</span>
-                </NavLink>
-              </>
-            )}
-          </nav>
+          <SidebarNav collapsed={collapsed} isAdmin={isAdmin} closeSidebar={closeSidebar} />
 
           <div className="flex-1" />
 

@@ -136,18 +136,13 @@ export default function Conditions() {
               {filtered.map((c) => (
                 <div
                   key={c.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/conditions/${c.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/conditions/${c.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/conditions/${c.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{c.name}</div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       {c.category && <Badge>{c.category}</Badge>}
@@ -159,7 +154,7 @@ export default function Conditions() {
                         {usageCount(c)} usage{usageCount(c) === 1 ? '' : 's'}
                       </span>
                     </div>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

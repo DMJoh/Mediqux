@@ -47,6 +47,7 @@ function AppointmentsChart({ buckets }) {
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
   const areaPath = `${linePath} L${w} ${h} L0 ${h} Z`
   const total = buckets.reduce((sum, b) => sum + b.count, 0)
+  const monthlySummary = buckets.map((b) => `${b.label} ${b.count}`).join(', ')
 
   return (
     <div ref={wrapRef} className="px-5 pt-4 pb-3.5">
@@ -62,7 +63,7 @@ function AppointmentsChart({ buckets }) {
         width="100%"
         height={h}
         role="img"
-        aria-label={`Appointments per month: ${buckets.map((b) => `${b.label} ${b.count}`).join(', ')}`}
+        aria-label={`Appointments per month: ${monthlySummary}`}
         className="mt-1"
       >
         <defs>
@@ -123,7 +124,8 @@ function AppointmentsChart({ buckets }) {
 
 export default function Dashboard() {
   const { user } = useAuth()
-  usePageHeader({ title: 'Dashboard', subtitle: `Welcome back${user?.firstName ? `, ${user.firstName}` : ''}` })
+  const nameGreeting = user?.firstName ? `, ${user.firstName}` : ''
+  usePageHeader({ title: 'Dashboard', subtitle: `Welcome back${nameGreeting}` })
   const { data: patients } = usePatients()
   const { data: doctors } = useDoctors()
   const { data: upcoming } = useUpcomingAppointments()

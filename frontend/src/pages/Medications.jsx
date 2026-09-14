@@ -135,18 +135,13 @@ export default function Medications() {
               {filtered.map((m) => (
                 <div
                   key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/medications/${m.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/medications/${m.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/medications/${m.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{m.name}</div>
                     {m.generic_name && <div className="text-xs text-muted">{m.generic_name}</div>}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -157,7 +152,7 @@ export default function Medications() {
                     <div className="mt-1.5 text-xs text-muted">
                       {usageCount(m)} use{usageCount(m) === 1 ? '' : 's'}
                     </div>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

@@ -156,18 +156,13 @@ export default function DiagnosticStudies() {
               {filtered.map((s) => (
                 <div
                   key={s.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/diagnostic-studies/${s.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/diagnostic-studies/${s.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/diagnostic-studies/${s.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">
                       {s.patient_first_name} {s.patient_last_name}
                     </div>
@@ -177,7 +172,7 @@ export default function DiagnosticStudies() {
                       {s.attachment_path && <Paperclip size={13} className="text-muted" />}
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(s.study_date)}</div>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

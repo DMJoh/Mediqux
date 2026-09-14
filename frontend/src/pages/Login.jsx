@@ -55,6 +55,10 @@ export default function Login() {
     return <Navigate to={destination} replace />
   }
 
+  let subtitle = 'Sign in to your records'
+  if (checkingSetup) subtitle = 'Loading…'
+  else if (needsSetup) subtitle = 'Create your admin account'
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-bg text-text flex items-center justify-center p-6">
       <div
@@ -75,7 +79,7 @@ export default function Login() {
           <div>
             <h1 className="font-display text-xl font-bold tracking-tight">Mediqux</h1>
             <p className="mt-1 text-sm text-muted">
-              {checkingSetup ? 'Loading…' : needsSetup ? 'Create your admin account' : 'Sign in to your records'}
+              {subtitle}
             </p>
           </div>
         </div>

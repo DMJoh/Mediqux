@@ -39,6 +39,7 @@ function toFields(report) {
 function toLabValues(report) {
   if (!report) return []
   return (report.lab_values ?? []).map((v) => ({
+    _key: v.id ?? crypto.randomUUID(),
     parameter_name: v.parameter_name || '',
     value: v.value ?? '',
     unit: v.unit || '',
@@ -103,6 +104,15 @@ function LabValueRow({ row, onChange, onRemove, suggestions }) {
   )
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.patient_id) next.patient_id = 'Please select a patient'
+  if (!f.test_name.trim()) next.test_name = 'Test name is required'
+  if (!f.test_type) next.test_type = 'Please select a test type'
+  if (!f.test_date) next.test_date = 'Please select a test date'
+  return next
+}
+
 /** Shared add/edit form for lab reports — used from the list page (add + edit) and the
  * detail page (edit). Editing never shows the PDF field: PUT /test-results/:id has no
  * way to attach or replace a file, only /test-results/upload (create-time only) does. */
@@ -122,15 +132,6 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
     () => (appointments ?? []).filter((a) => a.patient_id === fields.patient_id).sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date)),
     [appointments, fields.patient_id],
   )
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.patient_id) next.patient_id = 'Please select a patient'
-    if (!f.test_name.trim()) next.test_name = 'Test name is required'
-    if (!f.test_type) next.test_type = 'Please select a test type'
-    if (!f.test_date) next.test_date = 'Please select a test date'
-    return next
-  }
 
   const { errors: fieldErrors, touch, guardSubmit } = useFieldValidation(fields, computeErrors)
   const errors = { ...fieldErrors, file: fileError }
@@ -179,6 +180,8 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
       file,
     })
   }
+
+  const submitLabel = saving ? 'Saving…' : report ? 'Update report' : 'Save report'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={report ? 'Edit lab report' : 'Add lab report'} size="lg">
@@ -310,7 +313,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
           <div className="flex flex-col gap-2">
             {labValues.map((row, i) => (
               <LabValueRow
-                key={i}
+                key={row._key}
                 row={row}
                 suggestions={suggestions}
                 onChange={(next) => setLabValues((rows) => rows.map((r, idx) => (idx === i ? next : r)))}
@@ -320,7 +323,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setLabValues((rows) => [...rows, { parameter_name: '', value: '', unit: '', reference_range: '', status: 'Normal' }])}
+              onClick={() => setLabValues((rows) => [...rows, { _key: crypto.randomUUID(), parameter_name: '', value: '', unit: '', reference_range: '', status: 'Normal' }])}
               className="self-start"
             >
               + Add value
@@ -333,7 +336,7 @@ export function LabReportFormDialog({ open, onOpenChange, report, reports, onSub
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : report ? 'Update report' : 'Save report'}
+            {submitLabel}
           </Button>
         </div>
       </form>
