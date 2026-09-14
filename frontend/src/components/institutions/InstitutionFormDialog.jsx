@@ -49,7 +49,8 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : institution ? 'Update institution' : 'Save institution'
+  let submitLabel = institution ? 'Update institution' : 'Save institution'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={institution ? 'Edit institution' : 'Add new institution'}>

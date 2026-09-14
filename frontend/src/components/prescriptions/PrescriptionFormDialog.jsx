@@ -77,7 +77,8 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : prescription ? 'Update prescription' : 'Save prescription'
+  let submitLabel = prescription ? 'Update prescription' : 'Save prescription'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={prescription ? 'Edit prescription' : 'Add prescription'}>

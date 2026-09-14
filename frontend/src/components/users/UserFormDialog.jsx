@@ -70,7 +70,8 @@ export function UserFormDialog({ open, onOpenChange, user, onSubmit, saving }) {
     onSubmit(payload)
   }
 
-  const submitLabel = saving ? 'Saving…' : user ? 'Update user' : 'Save user'
+  let submitLabel = user ? 'Update user' : 'Save user'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={user ? 'Edit user' : 'Add user'}>

@@ -71,7 +71,8 @@ export function AppointmentFormDialog({ open, onOpenChange, appointment, onSubmi
     })
   }
 
-  const submitLabel = saving ? 'Saving…' : appointment ? 'Update appointment' : 'Save appointment'
+  let submitLabel = appointment ? 'Update appointment' : 'Save appointment'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={appointment ? 'Edit appointment' : 'Schedule appointment'}>
