@@ -23,6 +23,16 @@ function abnormalCount(report) {
   return (report.lab_values ?? []).filter((v) => v.status?.toLowerCase() !== 'normal').length
 }
 
+function keyValues(report) {
+  const values = report.lab_values ?? []
+  const shown = values.slice(0, 2).map((v) => {
+    const unitSuffix = v.unit ? ` ${v.unit}` : ''
+    return `${v.parameter_name}: ${v.value}${unitSuffix}`
+  })
+  const rest = values.length - shown.length
+  return { shown, rest }
+}
+
 export default function LabReports() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -141,13 +151,6 @@ export default function LabReports() {
     }
   }
 
-  function keyValues(report) {
-    const values = report.lab_values ?? []
-    const shown = values.slice(0, 2).map((v) => `${v.parameter_name}: ${v.value}${v.unit ? ` ${v.unit}` : ''}`)
-    const rest = values.length - shown.length
-    return { shown, rest }
-  }
-
   const adding = createReport.isPending || uploadReport.isPending || attachLabValues.isPending
 
   return (
@@ -199,18 +202,13 @@ export default function LabReports() {
               {filtered.map((r) => (
                 <div
                   key={r.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/lab-reports/${r.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/lab-reports/${r.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/lab-reports/${r.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{r.test_name}</div>
                     <div className="mt-1 truncate text-sm text-muted">
                       {r.patient_first_name} {r.patient_last_name}
@@ -221,7 +219,7 @@ export default function LabReports() {
                       {r.pdf_file_path && <FileText size={13} className="text-muted" />}
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(r.test_date)}</div>
-                  </div>
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <IconButton
                       label="Edit"

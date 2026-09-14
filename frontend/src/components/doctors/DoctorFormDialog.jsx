@@ -21,19 +21,19 @@ function toForm(doctor) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.first_name.trim()) next.first_name = 'First name is required'
+  if (!f.last_name.trim()) next.last_name = 'Last name is required'
+  if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
+  if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+  return next
+}
+
 /** Shared add/edit form for doctors — used from the list page (add) and the detail page (edit). */
 export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(doctor))
   const { data: availableInstitutions } = useAvailableInstitutions()
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.first_name.trim()) next.first_name = 'First name is required'
-    if (!f.last_name.trim()) next.last_name = 'Last name is required'
-    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
-    if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
@@ -51,10 +51,12 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
     })
   }
 
-  const institutionOptions = (availableInstitutions ?? []).map((i) => ({
-    value: i.id,
-    label: `${i.name}${i.type ? ` (${i.type})` : ''}`,
-  }))
+  const institutionOptions = (availableInstitutions ?? []).map((i) => {
+    const typeSuffix = i.type ? ` (${i.type})` : ''
+    return { value: i.id, label: `${i.name}${typeSuffix}` }
+  })
+
+  const submitLabel = saving ? 'Saving…' : doctor ? 'Update doctor' : 'Save doctor'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={doctor ? 'Edit doctor' : 'Add new doctor'}>
@@ -129,7 +131,7 @@ export function DoctorFormDialog({ open, onOpenChange, doctor, onSubmit, saving 
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : doctor ? 'Update doctor' : 'Save doctor'}
+            {submitLabel}
           </Button>
         </div>
       </form>

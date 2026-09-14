@@ -113,7 +113,7 @@ export default function MedicationDetail() {
             {(medication.active_ingredients ?? []).length ? (
               <ul className="flex flex-col gap-0.5">
                 {medication.active_ingredients.map((ing, i) => (
-                  <li key={i}>
+                  <li key={`${ing.name}-${ing.dosage}-${i}`}>
                     {ing.name}
                     {ing.dosage ? ` - ${ing.dosage}` : ''}
                   </li>
