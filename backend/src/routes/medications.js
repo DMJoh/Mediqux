@@ -3,14 +3,22 @@ const router = express.Router();
 const db = require('../database/db');
 const { countRows } = require('../utils/counts');
 const { localeCompare } = require('../utils/sort');
+const { addPatientFilter, patientFilterClause } = require('../middleware/auth');
 
 // Get all medications with usage statistics
-router.get('/', async (req, res) => {
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { search, dosage_form, manufacturer } = req.query;
-    
+    const queryParams = [];
+    // Scopes prescription_count/patient_medication_count to patients the caller
+    // can see — prescriptions link to a patient via appointments, so the check
+    // has to reach through that join rather than compare a column on prescriptions
+    // directly (see GET /:id for the same pattern applied to recent_prescriptions).
+    const prescPatientClause = patientFilterClause(req.patientFilter, 'ap.patient_id', queryParams);
+    const pmPatientClause = patientFilterClause(req.patientFilter, 'pm.patient_id', queryParams);
+
     let query = `
-      SELECT 
+      SELECT
         m.id,
         m.name,
         m.generic_name,
@@ -24,13 +32,13 @@ router.get('/', async (req, res) => {
         COUNT(DISTINCT pm.id) as patient_medication_count
       FROM medications m
       LEFT JOIN prescriptions p ON m.id = p.medication_id
-      LEFT JOIN patient_medications pm ON m.id = pm.medication_id
+        AND EXISTS (SELECT 1 FROM appointments ap WHERE ap.id = p.appointment_id AND ${prescPatientClause})
+      LEFT JOIN patient_medications pm ON m.id = pm.medication_id AND ${pmPatientClause}
       WHERE 1=1
     `;
-    
-    const queryParams = [];
-    let paramIndex = 1;
-    
+
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (search) {
       query += ` AND (m.name ILIKE $${paramIndex} OR m.generic_name ILIKE $${paramIndex} OR m.manufacturer ILIKE $${paramIndex})`;
@@ -72,17 +80,23 @@ router.get('/', async (req, res) => {
 });
 
 // Get single medication by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const params = [id];
+    // Scopes both counts and recent_prescriptions (dosage/frequency/duration)
+    // to patients the caller can see — without this a non-admin account could
+    // read another patient's prescription details via a medication lookup.
+    const prescPatientClause = patientFilterClause(req.patientFilter, 'ap.patient_id', params);
+    const pmPatientClause = patientFilterClause(req.patientFilter, 'pm.patient_id', params);
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         m.*,
         COUNT(DISTINCT p.id) as prescription_count,
         COUNT(DISTINCT pm.id) as patient_medication_count,
         ARRAY_AGG(
-          CASE WHEN p.id IS NOT NULL 
+          CASE WHEN p.id IS NOT NULL
           THEN json_build_object(
             'prescription_id', p.id,
             'appointment_id', p.appointment_id,
@@ -94,11 +108,12 @@ router.get('/:id', async (req, res) => {
         ) FILTER (WHERE p.id IS NOT NULL) as recent_prescriptions
       FROM medications m
       LEFT JOIN prescriptions p ON m.id = p.medication_id
-      LEFT JOIN patient_medications pm ON m.id = pm.medication_id
+        AND EXISTS (SELECT 1 FROM appointments ap WHERE ap.id = p.appointment_id AND ${prescPatientClause})
+      LEFT JOIN patient_medications pm ON m.id = pm.medication_id AND ${pmPatientClause}
       WHERE m.id = $1
       GROUP BY m.id
       LIMIT 1
-    `, [id]);
+    `, params);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
