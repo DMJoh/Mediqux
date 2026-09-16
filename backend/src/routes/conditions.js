@@ -85,12 +85,17 @@ router.get('/stats/summary', async (req, res) => {
 });
 
 // Get all medical conditions with usage statistics
-router.get('/', async (req, res) => {
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { category, search } = req.query;
-    
+    const queryParams = [];
+    // Scopes usage_count to patients the caller can see — same fuzzy
+    // diagnosis-text join as GET /:id, same GHSA-37f5-3f8c-qxww leak if
+    // left unscoped (here as a cross-patient count rather than full detail).
+    const patientClause = patientFilterClause(req.patientFilter, 'a.patient_id', queryParams);
+
     let query = `
-      SELECT 
+      SELECT
         mc.id,
         mc.name,
         mc.description,
@@ -100,13 +105,13 @@ router.get('/', async (req, res) => {
         mc.created_at,
         COUNT(DISTINCT a.id) as usage_count
       FROM medical_conditions mc
-      LEFT JOIN appointments a ON mc.name ILIKE '%' || a.diagnosis || '%' OR a.diagnosis ILIKE '%' || mc.name || '%'
+      LEFT JOIN appointments a ON (mc.name ILIKE '%' || a.diagnosis || '%' OR a.diagnosis ILIKE '%' || mc.name || '%')
+        AND ${patientClause}
       WHERE 1=1
     `;
-    
-    const queryParams = [];
-    let paramIndex = 1;
-    
+
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (category) {
       query += ` AND mc.category = $${paramIndex}`;
@@ -358,17 +363,22 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete medical condition
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Check if condition is referenced in appointments
+
+    // Check if condition is referenced in appointments — scoped to patients
+    // the caller can see, so a non-admin can't have a delete blocked (and
+    // the appointment count disclosed) by another patient's data they have
+    // no access to. Same reasoning as GET / and GET /:id above.
+    const params = [id];
+    const patientClause = patientFilterClause(req.patientFilter, 'a.patient_id', params);
     const usageCount = await countRows(db, `
       SELECT COUNT(*) as count
       FROM appointments a
       JOIN medical_conditions mc ON (a.diagnosis ILIKE '%' || mc.name || '%')
-      WHERE mc.id = $1
-    `, [id]);
+      WHERE mc.id = $1 AND ${patientClause}
+    `, params);
 
     if (usageCount > 0) {
       return res.status(400).json({
