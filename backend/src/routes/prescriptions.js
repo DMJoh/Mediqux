@@ -20,8 +20,15 @@ async function checkAppointmentAccess(appointmentId, patientFilter) {
 }
 
 // Looks up a prescription's owning patient (via its appointment) and whether
-// the caller may act on it — shared by PUT and DELETE.
+// the caller may act on it — shared by PUT and DELETE. Denies a
+// zero-patient-access caller before querying at all, so the response is a
+// uniform 403 regardless of whether prescriptionId exists — otherwise such a
+// caller could tell existing ids (403) apart from nonexistent ones (404).
 async function checkPrescriptionAccess(prescriptionId, patientFilter) {
+  if (patientFilter === 'none') {
+    return { error: { status: 403, message: 'Access denied' } };
+  }
+
   const result = await db.query(
     `SELECT a.patient_id FROM prescriptions pr
      JOIN appointments a ON pr.appointment_id = a.id
@@ -390,14 +397,19 @@ router.put('/:id', addPatientFilter, async (req, res) => {
     try {
       await client.query('BEGIN');
 
+      // Also syncs patient_id — if this PUT reassigned the prescription to a
+      // different (still caller-accessible) patient's appointment, the
+      // existing patient_medications row must move with it, or it's left
+      // showing this medication/status under the prescription's old patient.
       const ownRow = await client.query(`
         UPDATE patient_medications SET
-          medication_id = $1,
-          status = $2,
+          patient_id = $1,
+          medication_id = $2,
+          status = $3,
           updated_at = CURRENT_TIMESTAMP
-        WHERE prescription_id = $3
+        WHERE prescription_id = $4
         RETURNING id
-      `, [medication_id, status, id]);
+      `, [patientId, medication_id, status, id]);
 
       if (ownRow.rows.length === 0) {
         const candidate = await client.query(`

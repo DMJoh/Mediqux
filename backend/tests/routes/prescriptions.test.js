@@ -238,6 +238,28 @@ describe('PUT /prescriptions/:id', () => {
     expect(mockClient.release).toHaveBeenCalled();
   });
 
+  // A caller with access to both patients reassigns this prescription from
+  // patient 5's appointment onto patient 7's. Without syncing patient_id on
+  // the own-row branch, the row would keep patient_id: 5 while its
+  // medication_id/status reflect the new prescription — showing patient 5
+  // stale/wrong data that actually belongs to patient 7.
+  it('syncs patient_id on its own patient_medications row when reassigned to a different patient', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })          // ownership check: current patient
+      .mockResolvedValueOnce({ rows: [{ patient_id: 7 }] })          // new appointment_id belongs to patient 7
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] }); // UPDATE prescription
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })          // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 9 }] }) // own patient_medications row found and updated
+      .mockResolvedValueOnce({ rows: [] });         // COMMIT
+    const res = await request(adminApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(200);
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE patient_medications SET'),
+      expect.arrayContaining([7, validUpdate.medication_id, 'active', '1'])
+    );
+  });
+
   it('reverting status to active still updates its own patient_medications row (not skipped)', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
@@ -250,8 +272,8 @@ describe('PUT /prescriptions/:id', () => {
     const res = await request(adminApp).put('/1').send({ ...validUpdate, status: 'active' });
     expect(res.status).toBe(200);
     expect(mockClient.query).toHaveBeenCalledWith(
-      expect.stringContaining('WHERE prescription_id = $3'),
-      expect.arrayContaining([validUpdate.medication_id, 'active', '1'])
+      expect.stringContaining('WHERE prescription_id = $4'),
+      expect.arrayContaining([5, validUpdate.medication_id, 'active', '1'])
     );
   });
 
@@ -319,6 +341,15 @@ describe('PUT /prescriptions/:id', () => {
     expect(res.status).toBe(403);
   });
 
+  // A user with zero patient access must get a uniform 403 with no DB call
+  // at all — otherwise 404-vs-403 (existent vs nonexistent id) becomes an
+  // existence oracle for such a caller.
+  it('returns 403 with no DB query for a user with no patient access', async () => {
+    const res = await request(noneApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
   // A scoped user owns this prescription (their own patient), but tries to
   // reassign it onto another patient's appointment via the request body —
   // without validating the new appointment_id, this would let them plant
@@ -369,6 +400,12 @@ describe('DELETE /prescriptions/:id', () => {
     db.query.mockResolvedValueOnce({ rows: [{ patient_id: OTHER_UUID }] }); // ownership check
     const res = await request(filteredApp).delete('/1');
     expect(res.status).toBe(403);
+  });
+
+  it('returns 403 with no DB query for a user with no patient access', async () => {
+    const res = await request(noneApp).delete('/1');
+    expect(res.status).toBe(403);
+    expect(db.query).not.toHaveBeenCalled();
   });
 });
 
