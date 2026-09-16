@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../database/db');
 const { countRows } = require('../utils/counts');
 const { localeCompare } = require('../utils/sort');
+const { addPatientFilter, patientFilterClause } = require('../middleware/auth');
 
 // Get condition categories for dropdown - must be before /:id route
 router.get('/categories/list', async (req, res) => {
@@ -141,16 +142,22 @@ router.get('/', async (req, res) => {
 });
 
 // Get single medical condition by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const params = [id];
+    // Scopes both usage_count and recent_appointments to patients the caller
+    // can actually see — the fuzzy diagnosis-text match below has no other
+    // ownership check, so without this a non-admin account could read any
+    // other patient's name, appointment date, and diagnosis (GHSA-37f5-3f8c-qxww).
+    const patientClause = patientFilterClause(req.patientFilter, 'a.patient_id', params);
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         mc.*,
         COUNT(DISTINCT a.id) as usage_count,
         ARRAY_AGG(
-          CASE WHEN a.id IS NOT NULL 
+          CASE WHEN a.id IS NOT NULL
           THEN json_build_object(
             'appointment_id', a.id,
             'patient_name', p.first_name || ' ' || p.last_name,
@@ -160,12 +167,13 @@ router.get('/:id', async (req, res) => {
           ELSE NULL END
         ) FILTER (WHERE a.id IS NOT NULL) as recent_appointments
       FROM medical_conditions mc
-      LEFT JOIN appointments a ON mc.name ILIKE '%' || a.diagnosis || '%' OR a.diagnosis ILIKE '%' || mc.name || '%'
+      LEFT JOIN appointments a ON (mc.name ILIKE '%' || a.diagnosis || '%' OR a.diagnosis ILIKE '%' || mc.name || '%')
+        AND ${patientClause}
       LEFT JOIN patients p ON a.patient_id = p.id
       WHERE mc.id = $1
       GROUP BY mc.id
       LIMIT 1
-    `, [id]);
+    `, params);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
