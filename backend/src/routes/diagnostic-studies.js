@@ -241,6 +241,13 @@ router.put('/:id', upload.single('attachment'), addPatientFilter, async (req, re
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
+    // Also validate the new patient_id itself — without this, a caller could
+    // reassign a study they own onto a patient they don't have access to,
+    // planting attacker-controlled findings/conclusion into that patient's record.
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
     let attachment_path = existing.rows[0].attachment_path;
     let attachment_original_name = existing.rows[0].attachment_original_name;
     let attachment_mime_type = existing.rows[0].attachment_mime_type;
