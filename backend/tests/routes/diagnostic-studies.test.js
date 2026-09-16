@@ -239,6 +239,17 @@ describe('PUT /diagnostic-studies/:id', () => {
     expect(res.body.success).toBe(true);
   });
 
+  // filteredApp owns this study (patient_id: 5), but tries to reassign it onto
+  // another patient via the request body's patient_id — without validating
+  // the new value, this would let them plant attacker-controlled
+  // findings/conclusion into that patient's record.
+  it('returns 403 when a scoped user tries to reassign their study onto another patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 5, attachment_path: null }] }); // ownership check
+    const res = await request(filteredApp).put('/1').send({ study_type: 'MRI', study_date: '2024-01-01', patient_id: 99 });
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).put('/1').send({});

@@ -226,8 +226,8 @@ describe('PUT /prescriptions/:id', () => {
   it('returns 200 on successful update', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })         // ownership check
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] }) // UPDATE prescription
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });        // get appointment
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })         // new appointment_id access check
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] }); // UPDATE prescription
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })    // BEGIN
       .mockResolvedValueOnce({ rows: [{ id: 9 }] }) // own patient_medications row found and updated
@@ -241,8 +241,8 @@ describe('PUT /prescriptions/:id', () => {
   it('reverting status to active still updates its own patient_medications row (not skipped)', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] });
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 9 }] })
@@ -258,8 +258,8 @@ describe('PUT /prescriptions/:id', () => {
   it('claims an unclaimed legacy patient_medications row when this prescription has none of its own', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] });
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })          // BEGIN
       .mockResolvedValueOnce({ rows: [] })          // no own row yet
@@ -278,8 +278,8 @@ describe('PUT /prescriptions/:id', () => {
   it('inserts a new patient_medications row when neither an own row nor a legacy row exists (e.g. seeded prescriptions)', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] });
     mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // BEGIN
       .mockResolvedValueOnce({ rows: [] }) // no own row
@@ -297,8 +297,8 @@ describe('PUT /prescriptions/:id', () => {
   it('returns 500 and rolls back the patient_medications transaction when it fails', async () => {
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] })
-      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] });
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...validUpdate }] });
     mockClient.query
       .mockResolvedValueOnce({ rows: [] })              // BEGIN
       .mockRejectedValueOnce(new Error('DB error'));    // own-row UPDATE throws
@@ -317,6 +317,27 @@ describe('PUT /prescriptions/:id', () => {
     db.query.mockResolvedValueOnce({ rows: [{ patient_id: OTHER_UUID }] }); // ownership check
     const res = await request(filteredApp).put('/1').send(validUpdate);
     expect(res.status).toBe(403);
+  });
+
+  // A scoped user owns this prescription (their own patient), but tries to
+  // reassign it onto another patient's appointment via the request body —
+  // without validating the new appointment_id, this would let them plant
+  // attacker-controlled dosage/frequency/duration into that patient's record.
+  it('returns 403 when a scoped user tries to reassign a prescription onto another patient\'s appointment', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: PATIENT_UUID }] }) // ownership check: caller owns this prescription
+      .mockResolvedValueOnce({ rows: [{ patient_id: OTHER_UUID }] });  // new appointment_id belongs to another patient
+    const res = await request(filteredApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns 400 when the new appointment_id does not exist', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: PATIENT_UUID }] }) // ownership check
+      .mockResolvedValueOnce({ rows: [] });                            // new appointment_id not found
+    const res = await request(filteredApp).put('/1').send(validUpdate);
+    expect(res.status).toBe(400);
   });
 });
 
