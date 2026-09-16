@@ -5,17 +5,24 @@ const { countRows } = require('../utils/counts');
 const { localeCompare } = require('../utils/sort');
 const { addPatientFilter, patientFilterClause } = require('../middleware/auth');
 
+// Scopes the prescriptions/patient_medications joins below to patients the
+// caller can see — prescriptions link to a patient via appointments, so the
+// check has to reach through that join rather than compare a column on
+// prescriptions directly. Shared by GET / and GET /:id so a future fix to
+// this scoping only needs to change one place.
+function medicationPatientJoinClauses(patientFilter, params) {
+  return {
+    prescPatientClause: patientFilterClause(patientFilter, 'ap.patient_id', params),
+    pmPatientClause: patientFilterClause(patientFilter, 'pm.patient_id', params),
+  };
+}
+
 // Get all medications with usage statistics
 router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { search, dosage_form, manufacturer } = req.query;
     const queryParams = [];
-    // Scopes prescription_count/patient_medication_count to patients the caller
-    // can see — prescriptions link to a patient via appointments, so the check
-    // has to reach through that join rather than compare a column on prescriptions
-    // directly (see GET /:id for the same pattern applied to recent_prescriptions).
-    const prescPatientClause = patientFilterClause(req.patientFilter, 'ap.patient_id', queryParams);
-    const pmPatientClause = patientFilterClause(req.patientFilter, 'pm.patient_id', queryParams);
+    const { prescPatientClause, pmPatientClause } = medicationPatientJoinClauses(req.patientFilter, queryParams);
 
     let query = `
       SELECT
@@ -84,11 +91,7 @@ router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
     const params = [id];
-    // Scopes both counts and recent_prescriptions (dosage/frequency/duration)
-    // to patients the caller can see — without this a non-admin account could
-    // read another patient's prescription details via a medication lookup.
-    const prescPatientClause = patientFilterClause(req.patientFilter, 'ap.patient_id', params);
-    const pmPatientClause = patientFilterClause(req.patientFilter, 'pm.patient_id', params);
+    const { prescPatientClause, pmPatientClause } = medicationPatientJoinClauses(req.patientFilter, params);
 
     const result = await db.query(`
       SELECT
