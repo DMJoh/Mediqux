@@ -320,6 +320,7 @@ router.get('/:id/view', addPatientFilter, async (req, res) => {
         ds.attachment_original_name,
         ds.study_type,
         ds.study_date,
+        ds.patient_id,
         p.first_name,
         p.last_name
       FROM diagnostic_studies ds
@@ -331,7 +332,11 @@ router.get('/:id/view', addPatientFilter, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Study or attachment not found' });
     }
 
-    const { attachment_path, attachment_mime_type, attachment_original_name, study_type, study_date, first_name, last_name } = result.rows[0];
+    const { attachment_path, attachment_mime_type, attachment_original_name, study_type, study_date, patient_id, first_name, last_name } = result.rows[0];
+
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
+      return res.status(404).json({ success: false, error: 'Study or attachment not found' });
+    }
 
     if (!fsSync.existsSync(attachment_path)) {
       return res.status(404).json({ success: false, error: 'Attachment file not found on server' });

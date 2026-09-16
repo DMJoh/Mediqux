@@ -348,4 +348,31 @@ describe('GET /diagnostic-studies/:id/view', () => {
     const res = await request(adminApp).get('/1/view');
     expect(res.status).toBe(500);
   });
+
+  // addPatientFilter was applied to this route but never actually checked, so
+  // any authenticated user could stream another patient's attachment by id.
+  it("returns 404 (not 200) when the study belongs to a patient the caller can't access", async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 9, first_name: 'John', last_name: 'Doe' }] });
+    const res = await request(filteredApp).get('/1/view');
+    expect(res.status).toBe(404);
+    expect(fsSync.createReadStream).not.toHaveBeenCalled();
+  });
+
+  it('streams the file for a user scoped to the owning patient', async () => {
+    const { PassThrough } = require('stream');
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 5, first_name: 'John', last_name: 'Doe' }] });
+    fsSync.existsSync.mockReturnValue(true);
+    const mockStream = new PassThrough();
+    fsSync.createReadStream.mockReturnValue(mockStream);
+    const resPromise = request(filteredApp).get('/1/view');
+    mockStream.end();
+    const res = await resPromise;
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 404 for a user with no patient access', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 5, first_name: 'John', last_name: 'Doe' }] });
+    const res = await request(noneApp).get('/1/view');
+    expect(res.status).toBe(404);
+  });
 });
