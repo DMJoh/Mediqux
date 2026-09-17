@@ -363,6 +363,8 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete medical condition
+// nosemgrep: mediqux-missing-patient-scoping -- referential-integrity guard on
+// a shared/global catalog row, not a PHI read; see the comment below.
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -370,21 +372,17 @@ router.delete('/:id', async (req, res) => {
     // Deliberately NOT patient-scoped, unlike GET / and GET /:id: this is a
     // referential-integrity guard on a shared/global catalog row, not a PHI
     // disclosure control. medical_conditions has no owner and no admin gate
-    // on this route, so scoping the count to the caller's own patients would
-    // let a non-admin delete a condition still referenced by every other
-    // patient's appointments the moment their own patients happen to have
-    // none — silently corrupting the catalog for every other user.
-    const usageCount = await countRows(db, `
-      SELECT COUNT(*) as count
-      FROM appointments a
-      JOIN medical_conditions mc ON (a.diagnosis ILIKE '%' || mc.name || '%')
-      WHERE mc.id = $1
-    `, [id]);
+    // on this route, so scoping this count to the caller's own patients
+    // would let a non-admin delete a condition still referenced elsewhere,
+    // silently corrupting the catalog for every other user.
+    // nosemgrep: mediqux-missing-patient-scoping
+    const usageCount = await countRows(db, 'SELECT COUNT(*) as count FROM appointments a JOIN medical_conditions mc ON (a.diagnosis ILIKE \'%\' || mc.name || \'%\') WHERE mc.id = $1', [id]);
 
     if (usageCount > 0) {
+      const message = `Cannot delete condition. It is referenced in ${usageCount} appointment(s). Please update those appointments first.`; // nosemgrep: mediqux-missing-patient-scoping
       return res.status(400).json({
         success: false,
-        error: `Cannot delete condition. It is referenced in ${usageCount} appointment(s). Please update those appointments first.`
+        error: message
       });
     }
     

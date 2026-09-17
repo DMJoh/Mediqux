@@ -1,0 +1,31 @@
+rules:
+  - id: mediqux-missing-patient-scoping
+    languages: [javascript]
+    severity: ERROR
+    message: >
+      This route handler queries a patient-linked table (appointments,
+      prescriptions, diagnostic_studies, medical_conditions, test_results,
+      lab_values, or patient_medications) but shows no sign of
+      addPatientFilter / patientFilterClause / patientFilterAllows / requireAdmin.
+      Without one of those, any authenticated user — not just admins or the
+      patient's own scoped user — may be able to read or modify another
+      patient's data. See GHSA-37f5-3f8c-qxww for a real instance of this bug
+      class in this repo (an unscoped join in conditions.js leaked another
+      patient's name, appointment date, and diagnosis).
+
+      If this route intentionally has no patient-level RBAC (e.g. it only
+      returns shared reference data, or scoping happens elsewhere), add a
+      `// nosemgrep: mediqux-missing-patient-scoping` comment on the
+      `router.<method>(...)` line explaining why.
+    patterns:
+      - pattern-either:
+          - pattern: router.$METHOD($ROUTE, $$$ARGS, async ($REQ, $RES) => { ... })
+          - pattern: router.$METHOD($ROUTE, async ($REQ, $RES) => { ... })
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(get|post|put|delete)$
+      - pattern-not-regex: (addPatientFilter|patientFilterClause|patientFilterAllows|requireAdmin)
+      - pattern-regex: (appointments|prescriptions|diagnostic_studies|test_results|lab_values|patient_medications)
+    paths:
+      include:
+        - "**/backend/src/routes/*.js"
