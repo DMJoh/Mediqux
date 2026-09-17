@@ -1,0 +1,38 @@
+rules:
+  - id: mediqux-missing-reassignment-check
+    languages: [javascript]
+    severity: ERROR
+    message: >
+      This PUT handler writes patient_id or appointment_id into an UPDATE,
+      but doesn't appear to validate that the caller can access the NEW
+      value — only checking the record's existing owner isn't enough, since
+      the caller could reassign it onto a patient/appointment they have no
+      access to (planting attacker-controlled data into that other record).
+      Every reassignable PUT in this codebase validates the new foreign key
+      with patientFilterAllows(req.patientFilter, patient_id) or
+      checkAppointmentAccess(appointment_id, req.patientFilter) before
+      writing it — see appointments.js, diagnostic-studies.js, and
+      prescriptions.js's PUT routes, which each had exactly this gap found
+      and fixed.
+
+      If this route intentionally doesn't need this check (the field isn't
+      actually reassignable from user input, or access is validated some
+      other way), add a
+      `// nosemgrep: semgrep.mediqux-missing-reassignment-check` comment on
+      the same line as the UPDATE call explaining why.
+    patterns:
+      - pattern-either:
+          - pattern: router.put($ROUTE, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.put($ROUTE, $MW, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.put($ROUTE, $MW1, $MW2, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.put($ROUTE, $MW1, $MW2, $MW3, async ($REQ, $RES) => { $...BODY })
+      - metavariable-pattern:
+          metavariable: $...BODY
+          patterns:
+            - pattern-either:
+                - pattern-regex: 'SET[\s\S]*?\bpatient_id\s*=\s*\$'
+                - pattern-regex: 'SET[\s\S]*?\bappointment_id\s*=\s*\$'
+      - pattern-not-regex: 'patientFilterAllows\(\s*[\w.]+\s*,\s*patient_id\s*\)|\w*AppointmentAccess\('
+    paths:
+      include:
+        - "**/backend/src/routes/*.js"

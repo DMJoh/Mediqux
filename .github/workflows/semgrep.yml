@@ -35,6 +35,7 @@ jobs:
         run: |
           semgrep scan \
             --config .semgrep/patient-scoping.yml \
+            --config .semgrep/reassignment-check.yml \
             --config p/security-audit \
             --config p/owasp-top-ten \
             --config p/secrets \
