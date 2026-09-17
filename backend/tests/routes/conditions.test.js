@@ -2,16 +2,22 @@ const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
 jest.mock('../../src/database/db', () => ({ query: jest.fn() }));
-jest.mock('../../src/middleware/auth', () => ({
-  authenticateToken: (req, res, next) => next(),
-  addPatientFilter: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    authenticateToken: (req, res, next) => next(),
+    addPatientFilter: (req, res, next) => next(), // patientFilter is pre-set by createApp
+    requireAdmin: (req, res, next) => next(),
+    buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
+  };
+});
 
 const db = require('../../src/database/db');
 const conditionsRouter = require('../../src/routes/conditions');
 const app = createApp(conditionsRouter);
+const filteredApp = createApp(conditionsRouter, { role: 'user', patientId: 5 });
+const noneApp = createApp(conditionsRouter, { role: 'user', patientId: null });
 
 beforeEach(() => db.query.mockReset());
 
@@ -101,6 +107,36 @@ describe('GET /conditions/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(app).get('/1');
     expect(res.status).toBe(500);
+  });
+
+  // GHSA-37f5-3f8c-qxww: the fuzzy diagnosis-text join powering
+  // recent_appointments/usage_count had no ownership check at all, so any
+  // authenticated user could read another patient's name, appointment date,
+  // and diagnosis via a condition lookup. These assert the join is actually
+  // scoped to the caller's accessible patients, not just that the route
+  // still returns 200 (a mocked DB can't itself prove the filter works).
+  it('scopes the appointments join to the caller\'s patient for a non-admin user', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Hypertension' }] });
+    await request(filteredApp).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/a\.patient_id = ANY\(\$2::uuid\[\]\)/);
+    expect(params).toEqual(['1', [5]]);
+  });
+
+  it('excludes all appointments for a user with no patient access', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Hypertension' }] });
+    await request(noneApp).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/1=0/);
+    expect(params).toEqual(['1']);
+  });
+
+  it('leaves the join unrestricted for an admin', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Hypertension' }] });
+    await request(app).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/1=1/);
+    expect(params).toEqual(['1']);
   });
 });
 
