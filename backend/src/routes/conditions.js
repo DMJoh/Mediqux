@@ -363,22 +363,23 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete medical condition
-router.delete('/:id', addPatientFilter, async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check if condition is referenced in appointments — scoped to patients
-    // the caller can see, so a non-admin can't have a delete blocked (and
-    // the appointment count disclosed) by another patient's data they have
-    // no access to. Same reasoning as GET / and GET /:id above.
-    const params = [id];
-    const patientClause = patientFilterClause(req.patientFilter, 'a.patient_id', params);
+    // Deliberately NOT patient-scoped, unlike GET / and GET /:id: this is a
+    // referential-integrity guard on a shared/global catalog row, not a PHI
+    // disclosure control. medical_conditions has no owner and no admin gate
+    // on this route, so scoping the count to the caller's own patients would
+    // let a non-admin delete a condition still referenced by every other
+    // patient's appointments the moment their own patients happen to have
+    // none — silently corrupting the catalog for every other user.
     const usageCount = await countRows(db, `
       SELECT COUNT(*) as count
       FROM appointments a
       JOIN medical_conditions mc ON (a.diagnosis ILIKE '%' || mc.name || '%')
-      WHERE mc.id = $1 AND ${patientClause}
-    `, params);
+      WHERE mc.id = $1
+    `, [id]);
 
     if (usageCount > 0) {
       return res.status(400).json({

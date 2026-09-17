@@ -290,24 +290,18 @@ describe('DELETE /conditions/:id', () => {
     expect(res.status).toBe(500);
   });
 
-  // The usage-count guard shares the same fuzzy join as GET / and GET /:id —
-  // a non-admin shouldn't have a delete blocked (and an appointment count
-  // disclosed) by another patient's data they can't otherwise see.
-  it('scopes the usage-count guard to the caller\'s patient for a non-admin user', async () => {
-    db.query.mockResolvedValueOnce({ rows: [{ count: '0' }] }); // not in use, within scope
-    await request(filteredApp).delete('/1');
+  // medical_conditions is a shared/global catalog with no admin gate on this
+  // route — the usage-count guard must stay unscoped (unlike GET / and
+  // GET /:id, which scope for PHI disclosure). Scoping it would let a
+  // non-admin whose own patients have zero matching appointments delete a
+  // condition still referenced by every other patient's appointments,
+  // silently corrupting the catalog for everyone else.
+  it("blocks deletion for a non-admin even when only another patient's appointment references the condition", async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ count: '1' }] });
+    const res = await request(filteredApp).delete('/1');
+    expect(res.status).toBe(400);
     const [sql, params] = db.query.mock.calls[0];
-    expect(sql).toMatch(/a\.patient_id = ANY\(\$2::uuid\[\]\)/);
-    expect(params).toEqual(['1', [5]]);
-  });
-
-  it('leaves the usage-count guard unrestricted for an admin', async () => {
-    db.query
-      .mockResolvedValueOnce({ rows: [{ count: '0' }] })
-      .mockResolvedValueOnce({ rows: [{ name: 'Hypertension' }] });
-    await request(app).delete('/1');
-    const [sql, params] = db.query.mock.calls[0];
-    expect(sql).toMatch(/1=1/);
+    expect(sql).not.toMatch(/patient_id/);
     expect(params).toEqual(['1']);
   });
 });
