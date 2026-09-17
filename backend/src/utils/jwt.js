@@ -1,6 +1,14 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+// No insecure fallback here on purpose — mirrors db.js's DB_USER/DB_PASSWORD
+// check. A missing JWT_SECRET used to silently fall back to a hardcoded
+// string baked into this file, letting anyone who's read the source forge
+// a valid admin token against any instance that forgot to set it.
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 // Signs a session token for a user. Used identically by signup, login, and

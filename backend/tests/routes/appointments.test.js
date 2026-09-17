@@ -275,11 +275,24 @@ describe('PUT /appointments/:id', () => {
   });
 
   it('allows a scoped user to update their own linked patient\'s appointment', async () => {
+    const ownBody = { ...updateBody, patient_id: '00000000-0000-0000-0000-000000000005' };
     db.query
       .mockResolvedValueOnce({ rows: [{ patient_id: '00000000-0000-0000-0000-000000000005' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, ...updateBody }] });
-    const res = await request(filteredApp).put('/1').send(updateBody);
+      .mockResolvedValueOnce({ rows: [{ id: 1, ...ownBody }] });
+    const res = await request(filteredApp).put('/1').send(ownBody);
     expect(res.status).toBe(200);
+  });
+
+  // A scoped user owns this appointment (their own patient), but tries to
+  // reassign it onto another patient via the request body's patient_id —
+  // without validating the new value, this would let them plant
+  // attacker-controlled notes/diagnosis into that patient's record.
+  it('returns 403 when a scoped user tries to reassign their appointment onto another patient', async () => {
+    const reassignBody = { ...updateBody, patient_id: '00000000-0000-0000-0000-000000000099' };
+    db.query.mockResolvedValueOnce({ rows: [{ patient_id: '00000000-0000-0000-0000-000000000005' }] }); // ownership check
+    const res = await request(filteredApp).put('/1').send(reassignBody);
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
   });
 });
 

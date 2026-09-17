@@ -311,6 +311,13 @@ router.put('/:id', addPatientFilter, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
+    // Also validate the new patient_id itself — without this, a caller could
+    // reassign an appointment they own onto a patient they don't have access
+    // to, planting attacker-controlled notes/diagnosis into that patient's record.
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
     const result = await db.query(`
       UPDATE appointments SET
         patient_id = $1,

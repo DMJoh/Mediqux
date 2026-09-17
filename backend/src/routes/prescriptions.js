@@ -5,6 +5,45 @@ const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Looks up an appointment's owning patient and whether the caller may act on
+// it — shared by POST (new prescription) and PUT (reassignment) so both
+// enforce the same check on whichever appointment_id ends up in the row.
+async function checkAppointmentAccess(appointmentId, patientFilter) {
+  const result = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
+  if (result.rows.length === 0) {
+    return { error: { status: 400, message: 'Appointment not found' } };
+  }
+  if (!patientFilterAllows(patientFilter, result.rows[0].patient_id)) {
+    return { error: { status: 403, message: 'Access denied' } };
+  }
+  return { patientId: result.rows[0].patient_id };
+}
+
+// Looks up a prescription's owning patient (via its appointment) and whether
+// the caller may act on it — shared by PUT and DELETE. Denies a
+// zero-patient-access caller before querying at all, so the response is a
+// uniform 403 regardless of whether prescriptionId exists — otherwise such a
+// caller could tell existing ids (403) apart from nonexistent ones (404).
+async function checkPrescriptionAccess(prescriptionId, patientFilter) {
+  if (patientFilter === 'none') {
+    return { error: { status: 403, message: 'Access denied' } };
+  }
+
+  const result = await db.query(
+    `SELECT a.patient_id FROM prescriptions pr
+     JOIN appointments a ON pr.appointment_id = a.id
+     WHERE pr.id = $1`,
+    [prescriptionId]
+  );
+  if (result.rows.length === 0) {
+    return { error: { status: 404, message: 'Prescription not found' } };
+  }
+  if (!patientFilterAllows(patientFilter, result.rows[0].patient_id)) {
+    return { error: { status: 403, message: 'Access denied' } };
+  }
+  return { patientId: result.rows[0].patient_id };
+}
+
 // Get all prescriptions with detailed information (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
@@ -207,24 +246,10 @@ router.post('/', addPatientFilter, async (req, res) => {
       });
     }
 
-    // Verify appointment exists
-    const appointmentCheck = await db.query(
-      'SELECT id, patient_id FROM appointments WHERE id = $1',
-      [appointment_id]
-    );
-
-    if (appointmentCheck.rows.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Appointment not found'
-      });
-    }
-
-    if (!patientFilterAllows(req.patientFilter, appointmentCheck.rows[0].patient_id)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied'
-      });
+    // Verify appointment exists and the caller can access its patient
+    const appointmentAccess = await checkAppointmentAccess(appointment_id, req.patientFilter);
+    if (appointmentAccess.error) {
+      return res.status(appointmentAccess.error.status).json({ success: false, error: appointmentAccess.error.message });
     }
 
     // Verify medication exists
@@ -254,7 +279,7 @@ router.post('/', addPatientFilter, async (req, res) => {
       `, [appointment_id, medication_id, dosage, frequency, duration, instructions || null]);
       
       const prescription = prescriptionResult.rows[0];
-      const patientId = appointmentCheck.rows[0].patient_id;
+      const patientId = appointmentAccess.patientId;
 
       // Every new prescription gets its own patient_medications status row,
       // linked by prescription_id — this is what lets two separate
@@ -310,25 +335,18 @@ router.put('/:id', addPatientFilter, async (req, res) => {
       });
     }
 
-    if (req.patientFilter === 'none') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    const existingAccess = await checkPrescriptionAccess(id, req.patientFilter);
+    if (existingAccess.error) {
+      return res.status(existingAccess.error.status).json({ success: false, error: existingAccess.error.message });
     }
 
-    const existing = await db.query(
-      `SELECT a.patient_id FROM prescriptions pr
-       JOIN appointments a ON pr.appointment_id = a.id
-       WHERE pr.id = $1`,
-      [id]
-    );
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Prescription not found'
-      });
-    }
-
-    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    // Also validate the new appointment_id itself — without this, a caller
+    // could reassign a prescription they own onto another patient's
+    // appointment, planting attacker-controlled dosage/frequency/duration
+    // into that patient's medication record.
+    const newAppointmentAccess = await checkAppointmentAccess(appointment_id, req.patientFilter);
+    if (newAppointmentAccess.error) {
+      return res.status(newAppointmentAccess.error.status).json({ success: false, error: newAppointmentAccess.error.message });
     }
 
     const result = await db.query(`
@@ -373,61 +391,63 @@ router.put('/:id', addPatientFilter, async (req, res) => {
     //     line of defense against two concurrent requests for the exact same
     //     prescription both reaching this branch (the unique partial index
     //     on prescription_id makes that conflict detectable).
-    const appointmentResult = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointment_id]);
-    if (appointmentResult.rows.length > 0) {
-      const patientId = appointmentResult.rows[0].patient_id;
-      const client = await db.getClient();
+    const patientId = newAppointmentAccess.patientId;
+    const client = await db.getClient();
 
-      try {
-        await client.query('BEGIN');
+    try {
+      await client.query('BEGIN');
 
-        const ownRow = await client.query(`
-          UPDATE patient_medications SET
-            medication_id = $1,
-            status = $2,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE prescription_id = $3
-          RETURNING id
-        `, [medication_id, status, id]);
+      // Also syncs patient_id — if this PUT reassigned the prescription to a
+      // different (still caller-accessible) patient's appointment, the
+      // existing patient_medications row must move with it, or it's left
+      // showing this medication/status under the prescription's old patient.
+      const ownRow = await client.query(`
+        UPDATE patient_medications SET
+          patient_id = $1,
+          medication_id = $2,
+          status = $3,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE prescription_id = $4
+        RETURNING id
+      `, [patientId, medication_id, status, id]);
 
-        if (ownRow.rows.length === 0) {
-          const candidate = await client.query(`
-            SELECT id FROM patient_medications
-            WHERE patient_id = $1 AND medication_id = $2 AND prescription_id IS NULL
-            ORDER BY created_at
-            LIMIT 1
-            FOR UPDATE
-          `, [patientId, medication_id]);
+      if (ownRow.rows.length === 0) {
+        const candidate = await client.query(`
+          SELECT id FROM patient_medications
+          WHERE patient_id = $1 AND medication_id = $2 AND prescription_id IS NULL
+          ORDER BY created_at
+          LIMIT 1
+          FOR UPDATE
+        `, [patientId, medication_id]);
 
-          if (candidate.rows.length > 0) {
-            await client.query(`
-              UPDATE patient_medications SET
-                prescription_id = $1,
-                status = $2,
-                updated_at = CURRENT_TIMESTAMP
-              WHERE id = $3
-            `, [id, status, candidate.rows[0].id]);
-          } else {
-            await client.query(`
-              INSERT INTO patient_medications (patient_id, medication_id, prescription_id, status, start_date)
-              VALUES ($1, $2, $3, $4, CURRENT_DATE)
-              ON CONFLICT (prescription_id) DO UPDATE SET
-                medication_id = EXCLUDED.medication_id,
-                status = EXCLUDED.status,
-                updated_at = CURRENT_TIMESTAMP
-            `, [patientId, medication_id, id, status]);
-          }
+        if (candidate.rows.length > 0) {
+          await client.query(`
+            UPDATE patient_medications SET
+              prescription_id = $1,
+              status = $2,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE id = $3
+          `, [id, status, candidate.rows[0].id]);
+        } else {
+          await client.query(`
+            INSERT INTO patient_medications (patient_id, medication_id, prescription_id, status, start_date)
+            VALUES ($1, $2, $3, $4, CURRENT_DATE)
+            ON CONFLICT (prescription_id) DO UPDATE SET
+              medication_id = EXCLUDED.medication_id,
+              status = EXCLUDED.status,
+              updated_at = CURRENT_TIMESTAMP
+          `, [patientId, medication_id, id, status]);
         }
-
-        await client.query('COMMIT');
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
       }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0],
@@ -447,25 +467,9 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.patientFilter === 'none') {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    const existing = await db.query(
-      `SELECT a.patient_id FROM prescriptions pr
-       JOIN appointments a ON pr.appointment_id = a.id
-       WHERE pr.id = $1`,
-      [id]
-    );
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Prescription not found'
-      });
-    }
-
-    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    const existingAccess = await checkPrescriptionAccess(id, req.patientFilter);
+    if (existingAccess.error) {
+      return res.status(existingAccess.error.status).json({ success: false, error: existingAccess.error.message });
     }
 
     const result = await db.query(`

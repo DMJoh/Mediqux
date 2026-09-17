@@ -74,32 +74,9 @@ app.use('/api/auth', authLimiter, authRoutes);
 // reaches this middleware.
 app.use(apiLimiter);
 
-// System database connectivity check (enhanced with Sequelize)
-app.get('/api/system/database', async (req, res) => {
-  try {
-    // Test Sequelize connection
-    await sequelize.authenticate();
-    const [results] = await sequelize.query('SELECT NOW() as current_time, version() as postgres_version');
-    
-    res.json({
-      success: true,
-      message: 'Database connection successful (Sequelize)',
-      orm: 'Sequelize',
-      data: results[0]
-    });
-  } catch (error) {
-    logger.error('Database test failed', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      error: 'Database connection failed',
-      details: error.message
-    });
-  }
-});
-
 // Protected routes (authentication required)
 const usersRoutes = require('./src/routes/users');
-const { authenticateToken } = require('./src/middleware/auth');
+const { authenticateToken, requireAdmin } = require('./src/middleware/auth');
 const patientRoutes = require('./src/routes/patients');
 const doctorRoutes = require('./src/routes/doctors');
 const institutionRoutes = require('./src/routes/institutions');
@@ -120,6 +97,31 @@ app.use('/api/medications', authenticateToken, medicationRoutes);
 app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
 app.use('/api/test-results', authenticateToken, testResultRoutes);
 app.use('/api/diagnostic-studies', authenticateToken, diagnosticStudiesRoutes);
+
+// System database connectivity check (enhanced with Sequelize) — admin-only:
+// it echoes the raw Postgres version and driver error text on failure, which
+// shouldn't be handed to an unauthenticated caller.
+app.get('/api/system/database', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // Test Sequelize connection
+    await sequelize.authenticate();
+    const [results] = await sequelize.query('SELECT NOW() as current_time, version() as postgres_version');
+
+    res.json({
+      success: true,
+      message: 'Database connection successful (Sequelize)',
+      orm: 'Sequelize',
+      data: results[0]
+    });
+  } catch (error) {
+    logger.error('Database test failed', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      success: false,
+      error: 'Database connection failed',
+      details: error.message
+    });
+  }
+});
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
