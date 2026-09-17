@@ -375,8 +375,7 @@ router.delete('/:id', async (req, res) => {
     // on this route, so scoping this count to the caller's own patients
     // would let a non-admin delete a condition still referenced elsewhere,
     // silently corrupting the catalog for every other user.
-    // nosemgrep: semgrep.mediqux-missing-patient-scoping
-    const usageCount = await countRows(db, 'SELECT COUNT(*) as count FROM appointments a JOIN medical_conditions mc ON (a.diagnosis ILIKE \'%\' || mc.name || \'%\') WHERE mc.id = $1', [id]);
+    const usageCount = await countRows(db, 'SELECT COUNT(*) as count FROM appointments a JOIN medical_conditions mc ON (a.diagnosis ILIKE \'%\' || mc.name || \'%\') WHERE mc.id = $1', [id]); // nosemgrep: semgrep.mediqux-missing-patient-scoping
 
     if (usageCount > 0) {
       const message = `Cannot delete condition. It is referenced in ${usageCount} appointment(s). Please update those appointments first.`; // nosemgrep: semgrep.mediqux-missing-patient-scoping
