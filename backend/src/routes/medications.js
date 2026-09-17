@@ -296,7 +296,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // Delete medication
-// nosemgrep: mediqux-missing-patient-scoping -- referential-integrity guard on
+// nosemgrep: semgrep.mediqux-missing-patient-scoping -- referential-integrity guard on
 // a shared/global catalog row (medications), not a PHI read: it only checks
 // whether the medication is referenced anywhere, same reasoning as
 // conditions.js's DELETE guard.
@@ -307,12 +307,12 @@ router.delete('/:id', async (req, res) => {
     // Check if this medication is still in use anywhere in the system
     const prescriptionCount = await countRows(
       db,
-      'SELECT COUNT(*) as count FROM prescriptions WHERE medication_id = $1', // nosemgrep: mediqux-missing-patient-scoping
+      'SELECT COUNT(*) as count FROM prescriptions WHERE medication_id = $1', // nosemgrep: semgrep.mediqux-missing-patient-scoping
       [id]
     );
     const patientMedicationCount = await countRows(
       db,
-      'SELECT COUNT(*) as count FROM patient_medications WHERE medication_id = $1', // nosemgrep: mediqux-missing-patient-scoping
+      'SELECT COUNT(*) as count FROM patient_medications WHERE medication_id = $1', // nosemgrep: semgrep.mediqux-missing-patient-scoping
       [id]
     );
 
