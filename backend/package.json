@@ -16,21 +16,22 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "pg": "^8.23.0",
-    "cors": "^2.8.6",
-    "multer": "^2.3.0",
-    "dotenv": "^17.4.2",
     "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
-    "sequelize": "^6.37.8",
-    "sequelize-cli": "^6.6.5",
+    "multer": "^2.3.0",
+    "pg": "^8.23.0",
     "pg-hstore": "^2.3.4",
-    "express-rate-limit": "^8.7.0"
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14",
     "jest": "^30.5.1",
+    "nodemon": "^3.1.14",
     "supertest": "^7.0.0"
   },
   "engines": {
