@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 require('dotenv').config({ quiet: true });
 
 const rateLimit = require('express-rate-limit');
@@ -38,10 +39,26 @@ const PORT = process.env.PORT || 3000;
 // every new user has to stop and think about.
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 
-// CORS Configuration - Allow all origins
-// Security is handled by JWT authentication layer
+// helmet() alone (no custom CSP): this is a JSON API plus a handful of
+// file-view/download routes, not an HTML-rendering app, so the default CSP
+// would have nothing to actually restrict — but the rest of the default
+// header set (X-Content-Type-Options: nosniff in particular) matters here,
+// since diagnostic-study/lab-report attachments are served inline with a
+// caller-supplied mime type at upload time.
+app.use(helmet());
+
+// The frontend never makes a cross-origin request to this backend — Caddy
+// proxies /api same-origin in production, and Vite's dev proxy does the same
+// in dev (see frontend/src/lib/api.js's getApiBaseUrl). So the previous
+// `origin: true` (reflect every Origin) wasn't serving any real browser use
+// case for this app, only widening the surface for a browser-based client on
+// some other origin to make credentialed requests here. Default is now no
+// cross-origin browser access at all; CORS_ORIGIN lets an admin explicitly
+// allow one or more origins (comma-separated) for a use case that needs it
+// (a separate dashboard, a mobile web wrapper on its own origin, etc).
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: true,
   exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
 }));
