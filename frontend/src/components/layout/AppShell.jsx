@@ -142,6 +142,7 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
   const isOnline = useConnectionStatus()
+  const [version, setVersion] = useState(null)
   const closeSidebar = () => setSidebarOpen(false)
 
   // Covers the idle case (no other requests firing to passively update the status) —
@@ -151,6 +152,12 @@ export default function AppShell() {
       api.get('/health').catch(() => {})
     }, IDLE_HEALTH_CHECK_MS)
     return () => clearInterval(interval)
+  }, [])
+
+  // One-off fetch just for the version string shown in the sidebar footer —
+  // separate from the interval above, which only cares about online/offline.
+  useEffect(() => {
+    api.get('/health').then((res) => setVersion(res.version)).catch(() => {})
   }, [])
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -231,6 +238,14 @@ export default function AppShell() {
                 {isOnline ? 'System online' : 'System offline'}
               </span>
             </div>
+            {version && (
+              // Only real semver-ish versions get a "v" prefix — the bare "dev"
+              // fallback (no APP_VERSION build-arg, e.g. docker-compose.dev.yml)
+              // would otherwise render as the slightly odd "vdev".
+              <div className={`px-1.5 pb-2 font-mono text-[0.62rem] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+                {/^\d/.test(version) ? `v${version}` : version}
+              </div>
+            )}
           </div>
         </aside>
 
