@@ -56,6 +56,17 @@ jobs:
           type=semver,pattern={{major}}
           type=raw,value=latest,enable=${{ github.event.release.target_commitish == 'main' }}
 
+    - name: Determine app version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "release" ]; then
+          echo "value=${{ steps.meta-backend.outputs.version }}" >> "$GITHUB_OUTPUT"
+        else
+          BASE=$(jq -r '.version' backend/package.json)
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "value=${BASE}-dev.${SHA}" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build and push Frontend Docker image
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
@@ -77,12 +88,16 @@ jobs:
         tags: ${{ steps.meta-backend.outputs.tags }}
         labels: ${{ steps.meta-backend.outputs.labels }}
         platforms: linux/amd64,linux/arm64
+        build-args: |
+          APP_VERSION=${{ steps.version.outputs.value }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
     - name: Generate build summary
       run: |
         echo "## Docker Images Built and Pushed 🐳" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**App version baked into the backend image**: \`${{ steps.version.outputs.value }}\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Frontend Image" >> $GITHUB_STEP_SUMMARY
         echo "- **Registry**: ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY

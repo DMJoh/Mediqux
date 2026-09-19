@@ -142,8 +142,17 @@ app.get('/api/system/database', authenticateToken, requireAdmin, async (req, res
 
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'Server running',
+    // APP_VERSION is baked into the image at build time from the GitHub
+    // Release tag, or a -dev.<sha> suffix for develop-branch builds (see
+    // backend/Dockerfile + .github/workflows/docker-build.yml) — this is the
+    // real, immutable-per-image version. Its Dockerfile default ("dev")
+    // covers any Docker build with no explicit build-arg, docker-compose.dev.yml
+    // included, so package.json's version — a rough in-development indicator,
+    // not what actually shipped — is only ever seen running outside Docker
+    // entirely (e.g. `node server.js` directly on a bare host).
+    version: process.env.APP_VERSION || require('./package.json').version,
     timestamp: new Date(),
     nodeVersion: process.version,
     uptime: process.uptime(),
