@@ -4,6 +4,19 @@ const db = require('../database/db');
 const { countRows } = require('../utils/counts');
 const { localeCompare } = require('../utils/sort');
 
+// Trims the optional text fields shared by POST and PUT, collapsing blanks
+// to null so the DB stores NULL rather than an empty string.
+function normalizeInstitutionFields({ name, type, address, phone, email, website }) {
+  return {
+    name: name.trim(),
+    type: type?.trim() || null,
+    address: address?.trim() || null,
+    phone: phone?.trim() || null,
+    email: email?.trim() || null,
+    website: website?.trim() || null,
+  };
+}
+
 // Get all institutions with associated doctors count
 router.get('/', async (req, res) => {
   try {
@@ -101,19 +114,13 @@ router.post('/', async (req, res) => {
       });
     }
     
+    const f = normalizeInstitutionFields({ name, type, address, phone, email, website });
     const result = await db.query(`
       INSERT INTO institutions (
         name, type, address, phone, email, website
       ) VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
-    `, [
-      name.trim(), 
-      type?.trim() || null, 
-      address?.trim() || null, 
-      phone?.trim() || null, 
-      email?.trim() || null, 
-      website?.trim() || null
-    ]);
+    `, [f.name, f.type, f.address, f.phone, f.email, f.website]);
     
     res.status(201).json({
       success: true,
@@ -150,6 +157,7 @@ router.put('/:id', async (req, res) => {
       });
     }
     
+    const f = normalizeInstitutionFields({ name, type, address, phone, email, website });
     const result = await db.query(`
       UPDATE institutions SET
         name = $1,
@@ -161,15 +169,7 @@ router.put('/:id', async (req, res) => {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $7
       RETURNING *
-    `, [
-      name.trim(), 
-      type?.trim() || null, 
-      address?.trim() || null, 
-      phone?.trim() || null, 
-      email?.trim() || null, 
-      website?.trim() || null, 
-      id
-    ]);
+    `, [f.name, f.type, f.address, f.phone, f.email, f.website, id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({

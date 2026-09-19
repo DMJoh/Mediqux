@@ -6,6 +6,20 @@ const logger = require('../utils/logger');
 const { authenticateToken } = require('../middleware/auth');
 const { signUserToken } = require('../utils/jwt');
 
+// Shapes a DB user row into the public {id, username, email, firstName,
+// lastName, role} form — shared by signup and login, which both hand back
+// the freshly authenticated user alongside a fresh token.
+function toPublicUser(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    role: user.role
+  };
+}
+
 // Register new user
 router.post('/signup', async (req, res) => {
   try {
@@ -61,17 +75,7 @@ router.post('/signup', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'User created successfully',
-      data: {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role
-        },
-        token
-      }
+      data: { user: toPublicUser(user), token }
     });
   } catch (error) {
     logger.error('User signup failed', { error: error.message, stack: error.stack });
@@ -137,17 +141,7 @@ router.post('/login', async (req, res) => {
     res.json({
       success: true,
       message: 'Login successful',
-      data: {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          role: user.role
-        },
-        token
-      }
+      data: { user: toPublicUser(user), token }
     });
   } catch (error) {
     logger.error('User login failed', { error: error.message, stack: error.stack });

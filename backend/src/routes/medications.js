@@ -17,6 +17,25 @@ function medicationPatientJoinClauses(patientFilter, params) {
   };
 }
 
+// True if another medication already has this name (case-insensitive) —
+// shared by POST and PUT, which differ only in whether the current record
+// (excludeId) is excluded from the check.
+async function medicationNameTaken(name, excludeId) {
+  const result = excludeId === undefined
+    ? await db.query('SELECT id FROM medications WHERE LOWER(name) = LOWER($1)', [name])
+    : await db.query('SELECT id FROM medications WHERE LOWER(name) = LOWER($1) AND id != $2', [name, excludeId]);
+  return result.rows.length > 0;
+}
+
+// Normalizes the array-shaped fields shared by POST and PUT.
+function processMedicationArrays({ dosage_forms, strengths, active_ingredients }) {
+  return {
+    dosageForms: Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [],
+    strengths: Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [],
+    ingredients: Array.isArray(active_ingredients) ? active_ingredients : [],
+  };
+}
+
 // Get all medications with usage statistics
 router.get('/', addPatientFilter, async (req, res) => {
   try {
@@ -160,25 +179,15 @@ router.post('/', async (req, res) => {
     }
     
     // Check for duplicate medication names
-    const existingMedication = await db.query(
-      'SELECT id FROM medications WHERE LOWER(name) = LOWER($1)',
-      [name.trim()]
-    );
-    
-    if (existingMedication.rows.length > 0) {
+    if (await medicationNameTaken(name.trim())) {
       return res.status(400).json({
         success: false,
         error: 'A medication with this name already exists'
       });
     }
-    
-    
-    // Process arrays
-    const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
-    const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
-    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
-    
-    
+
+    const { dosageForms, strengths: processedStrengths, ingredients } = processMedicationArrays({ dosage_forms, strengths, active_ingredients });
+
     const result = await db.query(`
       INSERT INTO medications (
         name, generic_name, dosage_forms, strengths, active_ingredients, manufacturer, description
@@ -187,9 +196,9 @@ router.post('/', async (req, res) => {
     `, [
       name.trim(),
       generic_name?.trim() || null,
-      processedDosageForms,
+      dosageForms,
       processedStrengths,
-      JSON.stringify(processedIngredients),
+      JSON.stringify(ingredients),
       manufacturer?.trim() || null,
       description?.trim() || null
     ]);
@@ -231,26 +240,15 @@ router.put('/:id', async (req, res) => {
     }
     
     // Check for duplicate medication names (excluding current record)
-    const existingMedication = await db.query(
-      'SELECT id FROM medications WHERE LOWER(name) = LOWER($1) AND id != $2',
-      [name.trim(), id]
-    );
-    
-    if (existingMedication.rows.length > 0) {
+    if (await medicationNameTaken(name.trim(), id)) {
       return res.status(400).json({
         success: false,
         error: 'A medication with this name already exists'
       });
     }
-    
-    // Debug incoming data for update
-    
-    // Process arrays
-    const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
-    const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
-    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
-    
-    
+
+    const { dosageForms, strengths: processedStrengths, ingredients } = processMedicationArrays({ dosage_forms, strengths, active_ingredients });
+
     const result = await db.query(`
       UPDATE medications SET
         name = $1,
@@ -266,9 +264,9 @@ router.put('/:id', async (req, res) => {
     `, [
       name.trim(),
       generic_name?.trim() || null,
-      processedDosageForms,
+      dosageForms,
       processedStrengths,
-      JSON.stringify(processedIngredients),
+      JSON.stringify(ingredients),
       manufacturer?.trim() || null,
       description?.trim() || null,
       id
