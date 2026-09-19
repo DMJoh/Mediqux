@@ -10,6 +10,7 @@ import { LabReportFormDialog } from '../components/lab-reports/LabReportFormDial
 import { IconButton, Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { PhysicianLink } from '../components/ui/PhysicianLink'
 
 const { useOne, useList, useUpdate, useDelete } = createResourceHooks('lab-reports', '/test-results')
 
@@ -161,13 +162,7 @@ export default function LabReportDetail() {
 
           <dt className="font-semibold text-muted">Performed by</dt>
           <dd className="col-span-2">
-            {report.performed_by ? (
-              <Link to={`/doctors/${report.performed_by.id}`} className="text-glow-b hover:underline">
-                Dr. {report.performed_by.first_name} {report.performed_by.last_name}
-              </Link>
-            ) : (
-              'Not specified'
-            )}
+            <PhysicianLink doctor={report.performed_by} />
           </dd>
 
           {report.pdf_file_path && (

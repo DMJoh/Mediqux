@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Users, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Users, Plus, Search } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { formatDate } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { PatientFormDialog } from '../components/patients/PatientFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('patients', '/patients')
@@ -127,60 +128,33 @@ export default function Patients() {
                 pattern. Same data, laid out for a thumb instead of a cursor. */}
             <div className="divide-y divide-glass-border sm:hidden">
               {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/patients/${p.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/patients/${p.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
-                >
-                  <div className="min-w-0 flex-1">
+                <div key={p.id} className="relative flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/patients/${p.id}`)}
+                    aria-label={`View ${p.first_name} ${p.last_name}`}
+                    className="absolute inset-0 z-0"
+                  />
+                  <div className="pointer-events-none relative z-10 min-w-0 flex-1">
                     <div className="truncate font-semibold text-text">{p.first_name} {p.last_name}</div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                       {p.gender && <Badge tone={genderTone(p.gender)}>{p.gender}</Badge>}
                       <span className="text-xs text-muted">{formatDate(p.date_of_birth) ?? 'DOB not specified'}</span>
                     </div>
-                    {/* Phone/email stop the click from bubbling up to the row, so tapping
-                        them dials/emails instead of also navigating to the detail page. */}
                     <div className="mt-1.5 flex flex-col gap-0.5 text-xs">
                       {p.phone && (
-                        <a href={`tel:${p.phone}`} onClick={(e) => e.stopPropagation()} className="w-fit text-glow-b">
+                        <a href={`tel:${p.phone}`} className="pointer-events-auto relative w-fit text-glow-b">
                           {p.phone}
                         </a>
                       )}
                       {p.email && (
-                        <a href={`mailto:${p.email}`} onClick={(e) => e.stopPropagation()} className="w-fit truncate text-glow-b">
+                        <a href={`mailto:${p.email}`} className="pointer-events-auto relative w-fit truncate text-glow-b">
                           {p.email}
                         </a>
                       )}
                     </div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(p)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(p)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <RowActions className="relative z-10 flex shrink-0 gap-1" onEdit={() => setEditTarget(p)} onDelete={() => setDeleteTarget(p)} />
                 </div>
               ))}
             </div>
@@ -227,12 +201,7 @@ export default function Patients() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(p)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => setDeleteTarget(p)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(p)} onDelete={() => setDeleteTarget(p)} />
                         </div>
                       </td>
                     </tr>

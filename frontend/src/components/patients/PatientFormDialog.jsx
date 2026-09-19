@@ -32,6 +32,17 @@ function toForm(patient) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.first_name.trim()) next.first_name = 'First name is required'
+  if (!f.last_name.trim()) next.last_name = 'Last name is required'
+  if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
+  if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+  if (!isValidPhone(f.emergency_contact_phone.trim()))
+    next.emergency_contact_phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+  return next
+}
+
 /**
  * Shared add/edit form for patients — used from the list page (add) and the patient detail page (edit).
  * Render with `key={open ? patient?.id ?? 'add' : 'closed'}` at the call site so the form remounts
@@ -39,17 +50,6 @@ function toForm(patient) {
  */
 export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(patient))
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.first_name.trim()) next.first_name = 'First name is required'
-    if (!f.last_name.trim()) next.last_name = 'Last name is required'
-    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
-    if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    if (!isValidPhone(f.emergency_contact_phone.trim()))
-      next.emergency_contact_phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
@@ -68,6 +68,9 @@ export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, savin
       emergency_contact_phone: form.emergency_contact_phone.trim() || null,
     })
   }
+
+  let submitLabel = patient ? 'Update patient' : 'Save patient'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={patient ? 'Edit patient' : 'Add new patient'}>
@@ -162,7 +165,7 @@ export function PatientFormDialog({ open, onOpenChange, patient, onSubmit, savin
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : patient ? 'Update patient' : 'Save patient'}
+            {submitLabel}
           </Button>
         </div>
       </form>

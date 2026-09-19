@@ -35,6 +35,16 @@ function toForm(prescription) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.appointment_id) next.appointment_id = 'Please select an appointment'
+  if (!f.medication_id) next.medication_id = 'Please select a medication'
+  if (!f.dosage.trim()) next.dosage = 'Dosage is required'
+  if (!f.frequency) next.frequency = 'Please select a frequency'
+  if (!f.duration.trim()) next.duration = 'Duration is required'
+  return next
+}
+
 /** Shared add/edit form for prescriptions — used from the list page (add) and the detail
  * page (edit). Prescriptions link to a patient/doctor only via appointment_id (no direct
  * patient_id/doctor_id column), so the appointment picker is the primary "who is this
@@ -51,16 +61,6 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
 
   const selectedAppointment = (appointments ?? []).find((a) => a.id === form.appointment_id)
 
-  function computeErrors(f) {
-    const next = {}
-    if (!f.appointment_id) next.appointment_id = 'Please select an appointment'
-    if (!f.medication_id) next.medication_id = 'Please select a medication'
-    if (!f.dosage.trim()) next.dosage = 'Dosage is required'
-    if (!f.frequency) next.frequency = 'Please select a frequency'
-    if (!f.duration.trim()) next.duration = 'Duration is required'
-    return next
-  }
-
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
   function handleSubmit(e) {
@@ -76,6 +76,9 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
       status: form.status,
     })
   }
+
+  let submitLabel = prescription ? 'Update prescription' : 'Save prescription'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={prescription ? 'Edit prescription' : 'Add prescription'}>
@@ -196,7 +199,7 @@ export function PrescriptionFormDialog({ open, onOpenChange, prescription, onSub
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : prescription ? 'Update prescription' : 'Save prescription'}
+            {submitLabel}
           </Button>
         </div>
       </form>

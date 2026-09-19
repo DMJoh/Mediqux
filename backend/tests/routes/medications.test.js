@@ -2,16 +2,22 @@ const request = require('supertest');
 const createApp = require('../helpers/createApp');
 
 jest.mock('../../src/database/db', () => ({ query: jest.fn() }));
-jest.mock('../../src/middleware/auth', () => ({
-  authenticateToken: (req, res, next) => next(),
-  addPatientFilter: (req, res, next) => next(),
-  requireAdmin: (req, res, next) => next(),
-  buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
-}));
+jest.mock('../../src/middleware/auth', () => {
+  const actual = jest.requireActual('../../src/middleware/auth');
+  return {
+    ...actual,
+    authenticateToken: (req, res, next) => next(),
+    addPatientFilter: (req, res, next) => next(), // patientFilter is pre-set by createApp
+    requireAdmin: (req, res, next) => next(),
+    buildPatientFilter: jest.fn().mockReturnValue({ whereClause: '', params: [] }),
+  };
+});
 
 const db = require('../../src/database/db');
 const medicationsRouter = require('../../src/routes/medications');
 const app = createApp(medicationsRouter);
+const filteredApp = createApp(medicationsRouter, { role: 'user', patientId: 5 });
+const noneApp = createApp(medicationsRouter, { role: 'user', patientId: null });
 
 beforeEach(() => db.query.mockReset());
 
@@ -66,6 +72,35 @@ describe('GET /medications/:id', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(app).get('/1');
     expect(res.status).toBe(500);
+  });
+
+  // recent_prescriptions (dosage/frequency/duration) and both usage counts had
+  // no ownership check at all, so any authenticated user could read another
+  // patient's prescription details via a medication lookup. These assert the
+  // joins are actually scoped, not just that the route still returns 200.
+  it("scopes the prescriptions/patient_medications joins to the caller's patient for a non-admin user", async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Aspirin' }] });
+    await request(filteredApp).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/ap\.patient_id = ANY\(\$2::uuid\[\]\)/);
+    expect(sql).toMatch(/pm\.patient_id = ANY\(\$3::uuid\[\]\)/);
+    expect(params).toEqual(['1', [5], [5]]);
+  });
+
+  it('excludes all prescriptions/patient_medications for a user with no patient access', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Aspirin' }] });
+    await request(noneApp).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/1=0/);
+    expect(params).toEqual(['1']);
+  });
+
+  it('leaves the joins unrestricted for an admin', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, name: 'Aspirin' }] });
+    await request(app).get('/1');
+    const [sql, params] = db.query.mock.calls[0];
+    expect(sql).toMatch(/1=1/);
+    expect(params).toEqual(['1']);
   });
 });
 

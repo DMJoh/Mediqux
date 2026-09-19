@@ -4,7 +4,15 @@ const createApp = require('../helpers/createApp');
 jest.mock('../../src/database/db', () => ({ query: jest.fn(), getClient: jest.fn() }));
 jest.mock('multer', () => {
   const multer = () => ({
-    single: () => (req, res, next) => next(),
+    // Tests opt into a simulated uploaded file by sending { __withFile: true }
+    // in the JSON body (already parsed by express.json() before this runs).
+    single: () => (req, res, next) => {
+      if (req.body && req.body.__withFile) {
+        delete req.body.__withFile;
+        req.file = { path: 'uploads/diagnostic-studies/mock.pdf', originalname: 'mock.pdf', mimetype: 'application/pdf' };
+      }
+      next();
+    },
   });
   multer.diskStorage = () => ({});
   return multer;
@@ -191,6 +199,14 @@ describe('POST /diagnostic-studies', () => {
     const res = await request(adminApp).post('/').send({ patient_id: 1, study_type: 'X-Ray', study_date: '2024-01-01' });
     expect(res.status).toBe(500);
   });
+
+  it('stores the attachment info when a file is uploaded', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5, study_type: 'X-Ray', attachment_original_name: 'mock.pdf' }] });
+    const res = await request(adminApp).post('/').send({ patient_id: 1, study_type: 'X-Ray', study_date: '2024-01-01', __withFile: true });
+    expect(res.status).toBe(201);
+    // attachment_path/original_name/mime_type are the 11th-13th bind params to the INSERT
+    expect(db.query.mock.calls[0][1].slice(10, 13)).toEqual(['uploads/diagnostic-studies/mock.pdf', 'mock.pdf', 'application/pdf']);
+  });
 });
 
 // ─── PUT /:id ─────────────────────────────────────────────────────────────
@@ -223,10 +239,34 @@ describe('PUT /diagnostic-studies/:id', () => {
     expect(res.body.success).toBe(true);
   });
 
+  // filteredApp owns this study (patient_id: 5), but tries to reassign it onto
+  // another patient via the request body's patient_id — without validating
+  // the new value, this would let them plant attacker-controlled
+  // findings/conclusion into that patient's record.
+  it('returns 403 when a scoped user tries to reassign their study onto another patient', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 5, attachment_path: null }] }); // ownership check
+    const res = await request(filteredApp).put('/1').send({ study_type: 'MRI', study_date: '2024-01-01', patient_id: 99 });
+    expect(res.status).toBe(403);
+    expect(db.query).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 500 when DB throws', async () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).put('/1').send({});
     expect(res.status).toBe(500);
+  });
+
+  it('replaces the attachment and deletes the old file when a new one is uploaded', async () => {
+    const fsNode = require('node:fs');
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 1, patient_id: 1, attachment_path: 'uploads/diagnostic-studies/old.pdf', attachment_original_name: 'old.pdf', attachment_mime_type: 'application/pdf' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, study_type: 'MRI' }] }); // UPDATE
+    const res = await request(adminApp).put('/1').send({ study_type: 'MRI', study_date: '2024-01-01', patient_id: 1, __withFile: true });
+    expect(res.status).toBe(200);
+    expect(fsNode.promises.unlink).toHaveBeenCalled();
+    // attachment_path/original_name/mime_type are the 11th-13th bind params to the UPDATE
+    const updateParams = db.query.mock.calls[1][1];
+    expect(updateParams.slice(10, 13)).toEqual(['uploads/diagnostic-studies/mock.pdf', 'mock.pdf', 'application/pdf']);
   });
 });
 
@@ -318,5 +358,32 @@ describe('GET /diagnostic-studies/:id/view', () => {
     db.query.mockRejectedValue(new Error('DB error'));
     const res = await request(adminApp).get('/1/view');
     expect(res.status).toBe(500);
+  });
+
+  // addPatientFilter was applied to this route but never actually checked, so
+  // any authenticated user could stream another patient's attachment by id.
+  it("returns 404 (not 200) when the study belongs to a patient the caller can't access", async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 9, first_name: 'John', last_name: 'Doe' }] });
+    const res = await request(filteredApp).get('/1/view');
+    expect(res.status).toBe(404);
+    expect(fsSync.createReadStream).not.toHaveBeenCalled();
+  });
+
+  it('streams the file for a user scoped to the owning patient', async () => {
+    const { PassThrough } = require('stream');
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 5, first_name: 'John', last_name: 'Doe' }] });
+    fsSync.existsSync.mockReturnValue(true);
+    const mockStream = new PassThrough();
+    fsSync.createReadStream.mockReturnValue(mockStream);
+    const resPromise = request(filteredApp).get('/1/view');
+    mockStream.end();
+    const res = await resPromise;
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 404 for a user with no patient access', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ attachment_path: '/uploads/study.pdf', attachment_mime_type: 'application/pdf', attachment_original_name: 'study.pdf', study_type: 'X-Ray', study_date: '2024-01-01', patient_id: 5, first_name: 'John', last_name: 'Doe' }] });
+    const res = await request(noneApp).get('/1/view');
+    expect(res.status).toBe(404);
   });
 });

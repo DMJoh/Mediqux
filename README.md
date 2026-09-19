@@ -114,7 +114,8 @@ docker compose logs -f backend
 
 # Health
 curl http://localhost:8080/api/health
-curl http://localhost:8080/api/system/database
+# /api/system/database is admin-only — needs an admin's bearer token:
+curl -H "Authorization: Bearer <admin-token>" http://localhost:8080/api/system/database
 
 # Update
 docker compose pull && docker compose up -d

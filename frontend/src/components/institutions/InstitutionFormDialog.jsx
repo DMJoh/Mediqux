@@ -21,18 +21,18 @@ function toForm(institution) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.name.trim()) next.name = 'Institution name is required'
+  if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
+  if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
+  if (!isValidWebsite(f.website.trim())) next.website = 'Website must start with http:// or https://'
+  return next
+}
+
 /** Shared add/edit form for institutions — used from the list page (add) and the detail page (edit). */
 export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmit, saving }) {
   const [form, setForm] = useState(() => toForm(institution))
-
-  function computeErrors(f) {
-    const next = {}
-    if (!f.name.trim()) next.name = 'Institution name is required'
-    if (!isValidEmail(f.email.trim())) next.email = 'Please enter a valid email address'
-    if (!isValidPhone(f.phone.trim())) next.phone = 'Phone number can only contain numbers, +, spaces, and hyphens'
-    if (!isValidWebsite(f.website.trim())) next.website = 'Website must start with http:// or https://'
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation(form, computeErrors)
 
@@ -48,6 +48,9 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
       website: form.website.trim() || null,
     })
   }
+
+  let submitLabel = institution ? 'Update institution' : 'Save institution'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={institution ? 'Edit institution' : 'Add new institution'}>
@@ -116,7 +119,7 @@ export function InstitutionFormDialog({ open, onOpenChange, institution, onSubmi
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : institution ? 'Update institution' : 'Save institution'}
+            {submitLabel}
           </Button>
         </div>
       </form>

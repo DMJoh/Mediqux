@@ -55,6 +55,58 @@ const RECORD_ITEMS = [
   { to: '/diagnostic-studies', label: 'Diagnostic Studies', icon: Activity },
 ]
 
+function SidebarNav({ collapsed, isAdmin, closeSidebar }) {
+  return (
+    <nav className="flex flex-col gap-0.5" aria-label="Primary">
+      {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
+        <NavLink key={to} to={to} end={end} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
+          <Icon size={15} className="shrink-0 opacity-80" />
+          <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
+        </NavLink>
+      ))}
+
+      <div className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+        Records
+      </div>
+      {RECORD_ITEMS.map(({ to, label, icon: Icon }) => (
+        <NavLink key={to} to={to} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
+          <Icon size={14} className="shrink-0 opacity-80" />
+          <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
+        </NavLink>
+      ))}
+
+      {isAdmin && (
+        <>
+          <div className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+            Admin
+          </div>
+          <NavLink to="/users" onClick={closeSidebar} title="Users" className={navClass(collapsed)}>
+            <Users size={15} className="shrink-0 opacity-80" />
+            <span className={collapsed ? 'lg:hidden' : ''}>Users</span>
+          </NavLink>
+        </>
+      )}
+    </nav>
+  )
+}
+
+function CollapseToggle({ collapsed, onToggle }) {
+  const label = collapsed ? 'Expand menu' : 'Collapse menu'
+  const Icon = collapsed ? ChevronsRight : ChevronsLeft
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={label}
+      aria-label={label}
+      className={`hidden lg:flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[10px] text-sm font-medium text-muted hover:text-white ${collapsed ? 'lg:justify-center' : ''}`}
+    >
+      <Icon size={15} className="shrink-0 opacity-80" />
+      <span className={collapsed ? 'lg:hidden' : ''}>Collapse menu</span>
+    </button>
+  )
+}
+
 function navClass(collapsed) {
   return ({ isActive }) =>
     [
@@ -90,6 +142,7 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true')
   const isOnline = useConnectionStatus()
+  const [version, setVersion] = useState(null)
   const closeSidebar = () => setSidebarOpen(false)
 
   // Covers the idle case (no other requests firing to passively update the status) —
@@ -99,6 +152,12 @@ export default function AppShell() {
       api.get('/health').catch(() => {})
     }, IDLE_HEALTH_CHECK_MS)
     return () => clearInterval(interval)
+  }, [])
+
+  // One-off fetch just for the version string shown in the sidebar footer —
+  // separate from the interval above, which only cares about online/offline.
+  useEffect(() => {
+    api.get('/health').then((res) => setVersion(res.version)).catch(() => {})
   }, [])
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -160,53 +219,11 @@ export default function AppShell() {
             </button>
           </div>
 
-          <nav className="flex flex-col gap-0.5" aria-label="Primary">
-            {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
-              <NavLink key={to} to={to} end={end} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
-                <Icon size={15} className="shrink-0 opacity-80" />
-                <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
-              </NavLink>
-            ))}
-
-            <div
-              className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}
-            >
-              Records
-            </div>
-            {RECORD_ITEMS.map(({ to, label, icon: Icon }) => (
-              <NavLink key={to} to={to} onClick={closeSidebar} title={label} className={navClass(collapsed)}>
-                <Icon size={14} className="shrink-0 opacity-80" />
-                <span className={collapsed ? 'lg:hidden' : ''}>{label}</span>
-              </NavLink>
-            ))}
-
-            {isAdmin && (
-              <>
-                <div
-                  className={`px-2.5 pt-3.5 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.09em] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}
-                >
-                  Admin
-                </div>
-                <NavLink to="/users" onClick={closeSidebar} title="Users" className={navClass(collapsed)}>
-                  <Users size={15} className="shrink-0 opacity-80" />
-                  <span className={collapsed ? 'lg:hidden' : ''}>Users</span>
-                </NavLink>
-              </>
-            )}
-          </nav>
+          <SidebarNav collapsed={collapsed} isAdmin={isAdmin} closeSidebar={closeSidebar} />
 
           <div className="flex-1" />
 
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand menu' : 'Collapse menu'}
-            aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
-            className={`hidden lg:flex items-center gap-2.5 w-full px-2.5 py-2 rounded-[10px] text-sm font-medium text-muted hover:text-white ${collapsed ? 'lg:justify-center' : ''}`}
-          >
-            {collapsed ? <ChevronsRight size={15} className="shrink-0 opacity-80" /> : <ChevronsLeft size={15} className="shrink-0 opacity-80" />}
-            <span className={collapsed ? 'lg:hidden' : ''}>Collapse menu</span>
-          </button>
+          <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} />
 
           <div className="border-t border-glass-border pt-3">
             <div className={`flex items-center gap-1.5 px-1.5 pb-2 ${collapsed ? 'lg:justify-center' : ''}`} title={isOnline ? undefined : "Can't reach the server"}>
@@ -221,6 +238,14 @@ export default function AppShell() {
                 {isOnline ? 'System online' : 'System offline'}
               </span>
             </div>
+            {version && (
+              // Only real semver-ish versions get a "v" prefix — the bare "dev"
+              // fallback (no APP_VERSION build-arg, e.g. docker-compose.dev.yml)
+              // would otherwise render as the slightly odd "vdev".
+              <div className={`px-1.5 pb-2 font-mono text-[0.62rem] text-muted-2 ${collapsed ? 'lg:hidden' : ''}`}>
+                {/^\d/.test(version) ? `v${version}` : version}
+              </div>
+            )}
           </div>
         </aside>
 

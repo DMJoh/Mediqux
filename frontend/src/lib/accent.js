@@ -18,9 +18,9 @@ export function getStoredAccent() {
 
 export function applyAccent(id) {
   if (id === DEFAULT_ACCENT) {
-    document.documentElement.removeAttribute('data-accent')
+    delete document.documentElement.dataset.accent
   } else {
-    document.documentElement.setAttribute('data-accent', id)
+    document.documentElement.dataset.accent = id
   }
 }
 

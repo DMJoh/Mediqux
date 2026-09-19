@@ -15,5 +15,10 @@
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "SAMEORIGIN"
 		Referrer-Policy "no-referrer-when-downgrade"
+		# The built bundle has no inline scripts/styles and loads nothing from
+		# any other origin (confirmed by inspecting dist/index.html and the
+		# built CSS — no external fonts/CDN, no data: URIs), so a plain
+		# same-origin default is safe here.
+		Content-Security-Policy "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
 	}
 }

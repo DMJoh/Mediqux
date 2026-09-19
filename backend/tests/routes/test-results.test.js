@@ -13,7 +13,17 @@ jest.mock('fs', () => ({
   createReadStream: jest.fn(),
 }));
 jest.mock('multer', () => {
-  const m = () => ({ single: () => (req, res, next) => next() });
+  const m = () => ({
+    single: () => (req, res, next) => {
+      // Tests opt into a simulated uploaded file by sending { __withFile: true }
+      // in the JSON body (already parsed by express.json() before this runs).
+      if (req.body && req.body.__withFile) {
+        delete req.body.__withFile;
+        req.file = { path: 'uploads/lab-reports/mock.pdf', originalname: 'mock.pdf', mimetype: 'application/pdf' };
+      }
+      next();
+    },
+  });
   m.diskStorage = () => ({});
   return m;
 });
@@ -687,6 +697,27 @@ describe('POST / (create test result)', () => {
     expect(res.status).toBe(403);
     expect(db.query).not.toHaveBeenCalled();
   });
+
+  // Without this check, a caller could attach any appointment_id to a test
+  // result for a patient they DO own, and a later read of it (which joins
+  // appointments for appointment_date/appointment_type) would leak another
+  // patient's appointment details.
+  it("returns 403 when the appointment_id belongs to a patient the caller can't access", async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] })              // patient check (patient_id: 5, accessible)
+      .mockResolvedValueOnce({ rows: [{ patient_id: 99 }] });    // appointment belongs to patient 99
+    const res = await request(filteredApp).post('/').send({ ...validBody, appointment_id: 'apt-1' });
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when the appointment_id does not exist', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] }) // patient check
+      .mockResolvedValueOnce({ rows: [] });          // appointment not found
+    const res = await request(filteredApp).post('/').send({ ...validBody, appointment_id: 'apt-missing' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/appointment not found/i);
+  });
 });
 
 // ─── POST /:id/lab-values ─────────────────────────────────────────────────
@@ -821,6 +852,21 @@ describe('PUT /:id (update test result)', () => {
     const res = await request(filteredApp).put('/1').send({ test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01' });
     expect(res.status).toBe(403);
   });
+
+  // A scoped user owns this test result (patient 5), but tries to attach
+  // another patient's appointment_id via the request body — without
+  // validating the new value, this would let them plant a cross-patient
+  // appointment link, leaking that patient's appointment_date/type on
+  // later reads.
+  it('returns 403 when reassigning appointment_id to another patient\'s appointment', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })    // ownership check
+      .mockResolvedValueOnce({ rows: [{ patient_id: 99 }] });  // new appointment belongs to patient 99
+    const res = await request(filteredApp).put('/1').send({
+      test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01', appointment_id: 'apt-1',
+    });
+    expect(res.status).toBe(403);
+  });
 });
 
 // ─── DELETE /:id (delete test result) ─────────────────────────────────────
@@ -880,10 +926,42 @@ describe('DELETE /:id (delete test result)', () => {
 // ─── POST /upload ─────────────────────────────────────────────────────────
 
 describe('POST /upload', () => {
+  const uploadBody = { patientId: 5, testName: 'CBC', testType: 'blood', testDate: '2024-01-01', __withFile: true };
+
   it('returns 400 when required fields are missing (no file)', async () => {
     // multer is mocked to not attach req.file, so pdfFile will be undefined
     const res = await request(app).post('/upload').send({ patientId: 5, testName: 'CBC', testType: 'blood', testDate: '2024-01-01' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/required/i);
+  });
+
+  it('uploads successfully and returns 200 with the stored file info', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // patient exists
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })                    // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 10 }] })          // INSERT
+      .mockResolvedValueOnce({ rows: [] });                   // COMMIT
+    const res = await request(app).post('/upload').send(uploadBody);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.fileName).toBe('mock.pdf');
+    expect(mockClient.release).toHaveBeenCalled();
+  });
+
+  it('returns 403 and cleans up the uploaded file when the patient is outside caller\'s scope', async () => {
+    const res = await request(noneApp).post('/upload').send(uploadBody);
+    expect(res.status).toBe(403);
+    expect(fsModule.promises.unlink).toHaveBeenCalled();
+  });
+
+  it('rolls back, cleans up the file, and returns 500 when the insert fails', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 5 }] }); // patient exists
+    mockClient.query
+      .mockResolvedValueOnce({ rows: [] })                    // BEGIN
+      .mockRejectedValueOnce(new Error('Insert failed'));     // INSERT throws
+    const res = await request(app).post('/upload').send(uploadBody);
+    expect(res.status).toBe(500);
+    expect(mockClient.release).toHaveBeenCalled();
+    expect(fsModule.promises.unlink).toHaveBeenCalled();
   });
 });

@@ -3,14 +3,48 @@ const router = express.Router();
 const db = require('../database/db');
 const { countRows } = require('../utils/counts');
 const { localeCompare } = require('../utils/sort');
+const { addPatientFilter, patientFilterClause } = require('../middleware/auth');
+
+// Scopes the prescriptions/patient_medications joins below to patients the
+// caller can see — prescriptions link to a patient via appointments, so the
+// check has to reach through that join rather than compare a column on
+// prescriptions directly. Shared by GET / and GET /:id so a future fix to
+// this scoping only needs to change one place.
+function medicationPatientJoinClauses(patientFilter, params) {
+  return {
+    prescPatientClause: patientFilterClause(patientFilter, 'ap.patient_id', params),
+    pmPatientClause: patientFilterClause(patientFilter, 'pm.patient_id', params),
+  };
+}
+
+// True if another medication already has this name (case-insensitive) —
+// shared by POST and PUT, which differ only in whether the current record
+// (excludeId) is excluded from the check.
+async function medicationNameTaken(name, excludeId) {
+  const result = excludeId === undefined
+    ? await db.query('SELECT id FROM medications WHERE LOWER(name) = LOWER($1)', [name])
+    : await db.query('SELECT id FROM medications WHERE LOWER(name) = LOWER($1) AND id != $2', [name, excludeId]);
+  return result.rows.length > 0;
+}
+
+// Normalizes the array-shaped fields shared by POST and PUT.
+function processMedicationArrays({ dosage_forms, strengths, active_ingredients }) {
+  return {
+    dosageForms: Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [],
+    strengths: Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [],
+    ingredients: Array.isArray(active_ingredients) ? active_ingredients : [],
+  };
+}
 
 // Get all medications with usage statistics
-router.get('/', async (req, res) => {
+router.get('/', addPatientFilter, async (req, res) => {
   try {
     const { search, dosage_form, manufacturer } = req.query;
-    
+    const queryParams = [];
+    const { prescPatientClause, pmPatientClause } = medicationPatientJoinClauses(req.patientFilter, queryParams);
+
     let query = `
-      SELECT 
+      SELECT
         m.id,
         m.name,
         m.generic_name,
@@ -24,13 +58,13 @@ router.get('/', async (req, res) => {
         COUNT(DISTINCT pm.id) as patient_medication_count
       FROM medications m
       LEFT JOIN prescriptions p ON m.id = p.medication_id
-      LEFT JOIN patient_medications pm ON m.id = pm.medication_id
+        AND EXISTS (SELECT 1 FROM appointments ap WHERE ap.id = p.appointment_id AND ${prescPatientClause})
+      LEFT JOIN patient_medications pm ON m.id = pm.medication_id AND ${pmPatientClause}
       WHERE 1=1
     `;
-    
-    const queryParams = [];
-    let paramIndex = 1;
-    
+
+    let paramIndex = queryParams.length + 1;
+
     // Add filters if provided
     if (search) {
       query += ` AND (m.name ILIKE $${paramIndex} OR m.generic_name ILIKE $${paramIndex} OR m.manufacturer ILIKE $${paramIndex})`;
@@ -72,17 +106,19 @@ router.get('/', async (req, res) => {
 });
 
 // Get single medication by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const params = [id];
+    const { prescPatientClause, pmPatientClause } = medicationPatientJoinClauses(req.patientFilter, params);
+
     const result = await db.query(`
-      SELECT 
+      SELECT
         m.*,
         COUNT(DISTINCT p.id) as prescription_count,
         COUNT(DISTINCT pm.id) as patient_medication_count,
         ARRAY_AGG(
-          CASE WHEN p.id IS NOT NULL 
+          CASE WHEN p.id IS NOT NULL
           THEN json_build_object(
             'prescription_id', p.id,
             'appointment_id', p.appointment_id,
@@ -94,11 +130,12 @@ router.get('/:id', async (req, res) => {
         ) FILTER (WHERE p.id IS NOT NULL) as recent_prescriptions
       FROM medications m
       LEFT JOIN prescriptions p ON m.id = p.medication_id
-      LEFT JOIN patient_medications pm ON m.id = pm.medication_id
+        AND EXISTS (SELECT 1 FROM appointments ap WHERE ap.id = p.appointment_id AND ${prescPatientClause})
+      LEFT JOIN patient_medications pm ON m.id = pm.medication_id AND ${pmPatientClause}
       WHERE m.id = $1
       GROUP BY m.id
       LIMIT 1
-    `, [id]);
+    `, params);
     
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -134,7 +171,7 @@ router.post('/', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Medication name is required'
@@ -142,25 +179,15 @@ router.post('/', async (req, res) => {
     }
     
     // Check for duplicate medication names
-    const existingMedication = await db.query(
-      'SELECT id FROM medications WHERE LOWER(name) = LOWER($1)',
-      [name.trim()]
-    );
-    
-    if (existingMedication.rows.length > 0) {
+    if (await medicationNameTaken(name.trim())) {
       return res.status(400).json({
         success: false,
         error: 'A medication with this name already exists'
       });
     }
-    
-    
-    // Process arrays
-    const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
-    const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
-    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
-    
-    
+
+    const { dosageForms, strengths: processedStrengths, ingredients } = processMedicationArrays({ dosage_forms, strengths, active_ingredients });
+
     const result = await db.query(`
       INSERT INTO medications (
         name, generic_name, dosage_forms, strengths, active_ingredients, manufacturer, description
@@ -169,9 +196,9 @@ router.post('/', async (req, res) => {
     `, [
       name.trim(),
       generic_name?.trim() || null,
-      processedDosageForms,
+      dosageForms,
       processedStrengths,
-      JSON.stringify(processedIngredients),
+      JSON.stringify(ingredients),
       manufacturer?.trim() || null,
       description?.trim() || null
     ]);
@@ -205,7 +232,7 @@ router.put('/:id', async (req, res) => {
     } = req.body;
     
     // Basic validation
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({
         success: false,
         error: 'Medication name is required'
@@ -213,26 +240,15 @@ router.put('/:id', async (req, res) => {
     }
     
     // Check for duplicate medication names (excluding current record)
-    const existingMedication = await db.query(
-      'SELECT id FROM medications WHERE LOWER(name) = LOWER($1) AND id != $2',
-      [name.trim(), id]
-    );
-    
-    if (existingMedication.rows.length > 0) {
+    if (await medicationNameTaken(name.trim(), id)) {
       return res.status(400).json({
         success: false,
         error: 'A medication with this name already exists'
       });
     }
-    
-    // Debug incoming data for update
-    
-    // Process arrays
-    const processedDosageForms = Array.isArray(dosage_forms) ? dosage_forms.filter(f => f.trim()) : [];
-    const processedStrengths = Array.isArray(strengths) ? strengths.filter(s => s.trim()) : [];
-    const processedIngredients = Array.isArray(active_ingredients) ? active_ingredients : [];
-    
-    
+
+    const { dosageForms, strengths: processedStrengths, ingredients } = processMedicationArrays({ dosage_forms, strengths, active_ingredients });
+
     const result = await db.query(`
       UPDATE medications SET
         name = $1,
@@ -248,9 +264,9 @@ router.put('/:id', async (req, res) => {
     `, [
       name.trim(),
       generic_name?.trim() || null,
-      processedDosageForms,
+      dosageForms,
       processedStrengths,
-      JSON.stringify(processedIngredients),
+      JSON.stringify(ingredients),
       manufacturer?.trim() || null,
       description?.trim() || null,
       id
@@ -277,20 +293,22 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete medication
-router.delete('/:id', async (req, res) => {
+// Delete medication — referential-integrity guard on a shared/global catalog
+// row, not a PHI read: it only checks whether the medication is referenced
+// anywhere, same reasoning as conditions.js's DELETE guard.
+router.delete('/:id', async (req, res) => { // nosemgrep: semgrep.mediqux-missing-patient-scoping
   try {
     const { id } = req.params;
-    
-    // Check if medication is referenced in prescriptions or patient medications
+
+    // Check if this medication is still in use anywhere in the system
     const prescriptionCount = await countRows(
       db,
-      'SELECT COUNT(*) as count FROM prescriptions WHERE medication_id = $1',
+      'SELECT COUNT(*) as count FROM prescriptions WHERE medication_id = $1', // nosemgrep: semgrep.mediqux-missing-patient-scoping
       [id]
     );
     const patientMedicationCount = await countRows(
       db,
-      'SELECT COUNT(*) as count FROM patient_medications WHERE medication_id = $1',
+      'SELECT COUNT(*) as count FROM patient_medications WHERE medication_id = $1', // nosemgrep: semgrep.mediqux-missing-patient-scoping
       [id]
     );
 

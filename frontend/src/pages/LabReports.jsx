@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { FlaskConical, Plus, Pencil, Trash2, Search, FileText, X } from 'lucide-react'
+import { FlaskConical, Plus, Search, FileText, X } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { api } from '../lib/api'
 import { formatDate } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { LabReportFormDialog } from '../components/lab-reports/LabReportFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('lab-reports', '/test-results')
@@ -21,6 +22,16 @@ function isAbnormal(report) {
 
 function abnormalCount(report) {
   return (report.lab_values ?? []).filter((v) => v.status?.toLowerCase() !== 'normal').length
+}
+
+function keyValues(report) {
+  const values = report.lab_values ?? []
+  const shown = values.slice(0, 2).map((v) => {
+    const unitSuffix = v.unit ? ` ${v.unit}` : ''
+    return `${v.parameter_name}: ${v.value}${unitSuffix}`
+  })
+  const rest = values.length - shown.length
+  return { shown, rest }
 }
 
 export default function LabReports() {
@@ -141,13 +152,6 @@ export default function LabReports() {
     }
   }
 
-  function keyValues(report) {
-    const values = report.lab_values ?? []
-    const shown = values.slice(0, 2).map((v) => `${v.parameter_name}: ${v.value}${v.unit ? ` ${v.unit}` : ''}`)
-    const rest = values.length - shown.length
-    return { shown, rest }
-  }
-
   const adding = createReport.isPending || uploadReport.isPending || attachLabValues.isPending
 
   return (
@@ -199,18 +203,13 @@ export default function LabReports() {
               {filtered.map((r) => (
                 <div
                   key={r.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/lab-reports/${r.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/lab-reports/${r.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/lab-reports/${r.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{r.test_name}</div>
                     <div className="mt-1 truncate text-sm text-muted">
                       {r.patient_first_name} {r.patient_last_name}
@@ -221,27 +220,8 @@ export default function LabReports() {
                       {r.pdf_file_path && <FileText size={13} className="text-muted" />}
                     </div>
                     <div className="mt-1.5 font-mono text-xs text-muted">{formatDate(r.test_date)}</div>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(r)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(r)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  </button>
+                  <RowActions onEdit={() => setEditTarget(r)} onDelete={() => setDeleteTarget(r)} />
                 </div>
               ))}
             </div>
@@ -285,12 +265,7 @@ export default function LabReports() {
                         </td>
                         <td className="px-5 py-3">
                           <div className="flex justify-end gap-1">
-                            <IconButton label="Edit" onClick={() => setEditTarget(r)}>
-                              <Pencil size={14} />
-                            </IconButton>
-                            <IconButton label="Delete" onClick={() => setDeleteTarget(r)}>
-                              <Trash2 size={14} />
-                            </IconButton>
+                            <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(r)} onDelete={() => setDeleteTarget(r)} />
                           </div>
                         </td>
                       </tr>

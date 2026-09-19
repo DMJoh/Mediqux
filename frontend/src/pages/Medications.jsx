@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Pill, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Pill, Plus, Search } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { useToast } from '../components/ui/Toast'
 import { MedicationFormDialog } from '../components/medications/MedicationFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('medications', '/medications')
@@ -135,18 +136,13 @@ export default function Medications() {
               {filtered.map((m) => (
                 <div
                   key={m.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/medications/${m.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/medications/${m.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/medications/${m.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="truncate font-semibold text-text">{m.name}</div>
                     {m.generic_name && <div className="text-xs text-muted">{m.generic_name}</div>}
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -157,27 +153,8 @@ export default function Medications() {
                     <div className="mt-1.5 text-xs text-muted">
                       {usageCount(m)} use{usageCount(m) === 1 ? '' : 's'}
                     </div>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(m)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        requestDelete(m)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  </button>
+                  <RowActions onEdit={() => setEditTarget(m)} onDelete={() => requestDelete(m)} />
                 </div>
               ))}
             </div>
@@ -219,12 +196,7 @@ export default function Medications() {
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(m)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => requestDelete(m)}>
-                            <Trash2 size={14} />
-                          </IconButton>
+                          <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(m)} onDelete={() => requestDelete(m)} />
                         </div>
                       </td>
                     </tr>

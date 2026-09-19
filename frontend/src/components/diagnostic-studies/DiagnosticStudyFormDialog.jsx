@@ -7,7 +7,7 @@ import { Button } from '../ui/Button'
 
 const STUDY_TYPES = ['MRI', 'CT Scan', 'Echography', 'X-Ray', 'Ultrasound', 'PET Scan', 'Mammography', 'Endoscopy', 'Other']
 const MAX_FILE_BYTES = 20 * 1024 * 1024
-const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -44,6 +44,14 @@ function toFields(study) {
   }
 }
 
+function computeErrors(f) {
+  const next = {}
+  if (!f.patient_id) next.patient_id = 'Please select a patient'
+  if (!f.study_type) next.study_type = 'Please select a study type'
+  if (!f.study_date) next.study_date = 'Please select a study date'
+  return next
+}
+
 /** Shared add/edit form for diagnostic studies — used from the list page (add + edit) and
  * the detail page (edit). Unlike Lab Reports, both POST and PUT here always go through the
  * same multipart endpoint (upload.single('attachment') is unconditional server-side), so
@@ -56,20 +64,12 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
   const { data: doctors } = useDoctors()
   const { data: institutions } = useInstitutions()
 
-  function computeErrors(f) {
-    const next = {}
-    if (!f.patient_id) next.patient_id = 'Please select a patient'
-    if (!f.study_type) next.study_type = 'Please select a study type'
-    if (!f.study_date) next.study_date = 'Please select a study date'
-    return next
-  }
-
   const { errors: fieldErrors, touch, guardSubmit } = useFieldValidation(fields, computeErrors)
   const errors = { ...fieldErrors, file: fileError }
 
   function handleFileChange(e) {
     const picked = e.target.files?.[0] || null
-    if (picked && !ALLOWED_TYPES.includes(picked.type)) {
+    if (picked && !ALLOWED_TYPES.has(picked.type)) {
       setFileError('Only PDF, JPEG, PNG, or WEBP files are supported')
       e.target.value = ''
       setFile(null)
@@ -105,6 +105,9 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
 
     onSubmit(formData)
   }
+
+  let submitLabel = study ? 'Update study' : 'Save study'
+  if (saving) submitLabel = 'Saving…'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={study ? 'Edit diagnostic study' : 'Add diagnostic study'} size="lg">
@@ -253,7 +256,7 @@ export function DiagnosticStudyFormDialog({ open, onOpenChange, study, onSubmit,
             Cancel
           </Button>
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : study ? 'Update study' : 'Save study'}
+            {submitLabel}
           </Button>
         </div>
       </form>

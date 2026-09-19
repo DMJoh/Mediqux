@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, Plus, Pencil, Trash2, Search, X } from 'lucide-react'
+import { CalendarDays, Plus, Search, X } from 'lucide-react'
 import { createResourceHooks } from '../lib/resource'
 import { formatDate, formatTime } from '../lib/format'
 import { useToast } from '../components/ui/Toast'
 import { AppointmentFormDialog } from '../components/appointments/AppointmentFormDialog'
-import { Button, IconButton } from '../components/ui/Button'
+import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
+import { RowActions } from '../components/ui/RowActions'
 import { usePageHeader } from '../lib/pageHeader'
 
 const { useList, useCreate, useUpdate, useDelete } = createResourceHooks('appointments', '/appointments')
@@ -157,18 +158,13 @@ export default function Appointments() {
               {filtered.map((a) => (
                 <div
                   key={a.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/appointments/${a.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      navigate(`/appointments/${a.id}`)
-                    }
-                  }}
-                  className="flex cursor-pointer items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
+                  className="flex items-start justify-between gap-3 p-4 hover:bg-white/3 active:bg-white/5"
                 >
-                  <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/appointments/${a.id}`)}
+                    className="min-w-0 flex-1 cursor-pointer text-left"
+                  >
                     <div className="flex items-baseline gap-2">
                       <span className="font-mono text-sm font-semibold text-text">{formatDate(a.appointment_date)}</span>
                       <span className="font-mono text-xs text-muted">{formatTime(a.appointment_date)}</span>
@@ -185,27 +181,8 @@ export default function Appointments() {
                         Dr. {a.doctor_first_name} {a.doctor_last_name}
                       </div>
                     )}
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton
-                      label="Edit"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditTarget(a)
-                      }}
-                    >
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton
-                      label="Delete"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(a)
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  </button>
+                  <RowActions onEdit={() => setEditTarget(a)} onDelete={() => setDeleteTarget(a)} />
                 </div>
               ))}
             </div>
@@ -250,14 +227,7 @@ export default function Appointments() {
                         <Badge tone={a.status}>{statusLabel(a.status)}</Badge>
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(a)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => setDeleteTarget(a)}>
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </div>
+                        <RowActions className="flex justify-end gap-1" onEdit={() => setEditTarget(a)} onDelete={() => setDeleteTarget(a)} />
                       </td>
                     </tr>
                   ))}

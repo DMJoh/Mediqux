@@ -3,6 +3,21 @@ const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
+// Returns a {status, error} response to send if the caller can't access an
+// appointment already looked up as `existingRows`, or null if they can
+// proceed. Shared by PUT and DELETE, which fetch the row via different
+// queries (DELETE's is combined with a linked-test-results count) but apply
+// the same not-found/ownership checks to the result.
+function appointmentOwnershipError(existingRows, patientFilter) {
+  if (existingRows.length === 0) {
+    return { status: 404, error: 'Appointment not found' };
+  }
+  if (!patientFilterAllows(patientFilter, existingRows[0].patient_id)) {
+    return { status: 403, error: 'Access denied' };
+  }
+  return null;
+}
+
 // Get upcoming appointments (for dashboard) - must be before /:id route
 router.get('/dashboard/upcoming', addPatientFilter, async (req, res) => {
   try {
@@ -300,14 +315,15 @@ router.put('/:id', addPatientFilter, async (req, res) => {
     }
 
     const existing = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [id]);
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Appointment not found'
-      });
+    const ownershipError = appointmentOwnershipError(existing.rows, req.patientFilter);
+    if (ownershipError) {
+      return res.status(ownershipError.status).json({ success: false, error: ownershipError.error });
     }
 
-    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
+    // Also validate the new patient_id itself — without this, a caller could
+    // reassign an appointment they own onto a patient they don't have access
+    // to, planting attacker-controlled notes/diagnosis into that patient's record.
+    if (!patientFilterAllows(req.patientFilter, patient_id)) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
@@ -375,15 +391,9 @@ router.delete('/:id', addPatientFilter, async (req, res) => {
       WHERE a.id = $1
       GROUP BY a.patient_id
     `, [id]);
-    if (existing.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Appointment not found'
-      });
-    }
-
-    if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    const ownershipError = appointmentOwnershipError(existing.rows, req.patientFilter);
+    if (ownershipError) {
+      return res.status(ownershipError.status).json({ success: false, error: ownershipError.error });
     }
 
     if (Number.parseInt(existing.rows[0].linked_count, 10) > 0) {

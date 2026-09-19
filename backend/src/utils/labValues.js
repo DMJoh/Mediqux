@@ -6,7 +6,7 @@ const MAX_ABS_VALUE = 10_000_000;
 // than erroring, since a manually-typed lab report commonly has a stray
 // non-numeric entry that shouldn't block saving the rest.
 function isValidLabValue(labValue) {
-  if (!labValue || !labValue.parameter_name) return false;
+  if (!labValue?.parameter_name) return false;
   if (labValue.value === null || labValue.value === undefined || labValue.value === '') return false;
   const numVal = Number.parseFloat(labValue.value);
   return !Number.isNaN(numVal) && Math.abs(numVal) < MAX_ABS_VALUE;

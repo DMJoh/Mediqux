@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { ACCENTS, getStoredAccent, setAccent } from '../lib/accent'
+import { ACCENTS, getStoredAccent, setAccent as persistAccent } from '../lib/accent'
 import { usePageHeader } from '../lib/pageHeader'
 
 export default function Settings() {
-  const [accent, setAccentState] = useState(getStoredAccent)
+  const [accent, setAccent] = useState(getStoredAccent)
 
   usePageHeader({
     title: 'Settings',
@@ -12,8 +12,8 @@ export default function Settings() {
   })
 
   function choose(id) {
+    persistAccent(id)
     setAccent(id)
-    setAccentState(id)
   }
 
   return (

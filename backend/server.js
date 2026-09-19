@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 require('dotenv').config({ quiet: true });
 
 const rateLimit = require('express-rate-limit');
@@ -38,10 +39,26 @@ const PORT = process.env.PORT || 3000;
 // every new user has to stop and think about.
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 
-// CORS Configuration - Allow all origins
-// Security is handled by JWT authentication layer
+// helmet() alone (no custom CSP): this is a JSON API plus a handful of
+// file-view/download routes, not an HTML-rendering app, so the default CSP
+// would have nothing to actually restrict — but the rest of the default
+// header set (X-Content-Type-Options: nosniff in particular) matters here,
+// since diagnostic-study/lab-report attachments are served inline with a
+// caller-supplied mime type at upload time.
+app.use(helmet());
+
+// The frontend never makes a cross-origin request to this backend — Caddy
+// proxies /api same-origin in production, and Vite's dev proxy does the same
+// in dev (see frontend/src/lib/api.js's getApiBaseUrl). So the previous
+// `origin: true` (reflect every Origin) wasn't serving any real browser use
+// case for this app, only widening the surface for a browser-based client on
+// some other origin to make credentialed requests here. Default is now no
+// cross-origin browser access at all; CORS_ORIGIN lets an admin explicitly
+// allow one or more origins (comma-separated) for a use case that needs it
+// (a separate dashboard, a mobile web wrapper on its own origin, etc).
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(o => o.trim()).filter(Boolean);
 app.use(cors({
-  origin: true, // Allow all origins
+  origin: allowedOrigins.length > 0 ? allowedOrigins : false,
   credentials: true,
   exposedHeaders: ['Content-Disposition', 'Content-Type', 'Content-Length']
 }));
@@ -74,32 +91,9 @@ app.use('/api/auth', authLimiter, authRoutes);
 // reaches this middleware.
 app.use(apiLimiter);
 
-// System database connectivity check (enhanced with Sequelize)
-app.get('/api/system/database', async (req, res) => {
-  try {
-    // Test Sequelize connection
-    await sequelize.authenticate();
-    const [results] = await sequelize.query('SELECT NOW() as current_time, version() as postgres_version');
-    
-    res.json({
-      success: true,
-      message: 'Database connection successful (Sequelize)',
-      orm: 'Sequelize',
-      data: results[0]
-    });
-  } catch (error) {
-    logger.error('Database test failed', { error: error.message, stack: error.stack });
-    res.status(500).json({
-      success: false,
-      error: 'Database connection failed',
-      details: error.message
-    });
-  }
-});
-
 // Protected routes (authentication required)
 const usersRoutes = require('./src/routes/users');
-const { authenticateToken } = require('./src/middleware/auth');
+const { authenticateToken, requireAdmin } = require('./src/middleware/auth');
 const patientRoutes = require('./src/routes/patients');
 const doctorRoutes = require('./src/routes/doctors');
 const institutionRoutes = require('./src/routes/institutions');
@@ -121,10 +115,44 @@ app.use('/api/prescriptions', authenticateToken, prescriptionRoutes);
 app.use('/api/test-results', authenticateToken, testResultRoutes);
 app.use('/api/diagnostic-studies', authenticateToken, diagnosticStudiesRoutes);
 
+// System database connectivity check (enhanced with Sequelize) — admin-only:
+// it echoes the raw Postgres version and driver error text on failure, which
+// shouldn't be handed to an unauthenticated caller.
+app.get('/api/system/database', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    // Test Sequelize connection
+    await sequelize.authenticate();
+    const [results] = await sequelize.query('SELECT NOW() as current_time, version() as postgres_version');
+
+    res.json({
+      success: true,
+      message: 'Database connection successful (Sequelize)',
+      orm: 'Sequelize',
+      data: results[0]
+    });
+  } catch (error) {
+    logger.error('Database test failed', { error: error.message, stack: error.stack });
+    res.status(500).json({
+      success: false,
+      error: 'Database connection failed',
+      details: error.message
+    });
+  }
+});
+
 // Enhanced health check with system info
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'Server running',
+    // APP_VERSION is baked into the image at build time from the GitHub
+    // Release tag, or a -dev.<sha> suffix for develop-branch builds (see
+    // backend/Dockerfile + .github/workflows/docker-build.yml) — this is the
+    // real, immutable-per-image version. Its Dockerfile default ("dev")
+    // covers any Docker build with no explicit build-arg, docker-compose.dev.yml
+    // included, so package.json's version — a rough in-development indicator,
+    // not what actually shipped — is only ever seen running outside Docker
+    // entirely (e.g. `node server.js` directly on a bare host).
+    version: process.env.APP_VERSION || require('./package.json').version,
     timestamp: new Date(),
     nodeVersion: process.version,
     uptime: process.uptime(),

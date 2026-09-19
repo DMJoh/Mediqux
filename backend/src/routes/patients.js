@@ -3,6 +3,16 @@ const router = express.Router();
 const db = require('../database/db');
 const { addPatientFilter, patientFilterClause, patientFilterAllows } = require('../middleware/auth');
 
+// Returns a 404 error to send if the caller can't access this patient id, or
+// null if they can — shared by GET /:id, PUT, and DELETE. 404 (not 403) is
+// deliberate: a non-admin shouldn't learn a patient id exists at all.
+function patientAccessError(patientFilter, id) {
+  if (!patientFilterAllows(patientFilter, id)) {
+    return { status: 404, error: 'Patient not found' };
+  }
+  return null;
+}
+
 // Get all patients (with RBAC filtering)
 router.get('/', addPatientFilter, async (req, res) => {
   try {
@@ -35,12 +45,9 @@ router.get('/', addPatientFilter, async (req, res) => {
 router.get('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!patientFilterAllows(req.patientFilter, id)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Patient not found'
-      });
+    const accessError = patientAccessError(req.patientFilter, id);
+    if (accessError) {
+      return res.status(accessError.status).json({ success: false, error: accessError.error });
     }
 
     const result = await db.query(`
@@ -141,11 +148,9 @@ router.put('/:id', addPatientFilter, async (req, res) => {
       emergency_contact_phone
     } = req.body;
 
-    if (!patientFilterAllows(req.patientFilter, id)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Patient not found'
-      });
+    const accessError = patientAccessError(req.patientFilter, id);
+    if (accessError) {
+      return res.status(accessError.status).json({ success: false, error: accessError.error });
     }
 
     const result = await db.query(`
@@ -192,12 +197,9 @@ router.put('/:id', addPatientFilter, async (req, res) => {
 router.delete('/:id', addPatientFilter, async (req, res) => {
   try {
     const { id } = req.params;
-
-    if (!patientFilterAllows(req.patientFilter, id)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Patient not found'
-      });
+    const accessError = patientAccessError(req.patientFilter, id);
+    if (accessError) {
+      return res.status(accessError.status).json({ success: false, error: accessError.error });
     }
 
     const result = await db.query(`

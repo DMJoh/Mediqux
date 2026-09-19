@@ -1,7 +1,7 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
+const path = require('node:path');
+const fs = require('node:fs').promises;
 const { randomBytes } = require('node:crypto');
 const router = express.Router();
 const db = require('../database/db');
@@ -9,6 +9,27 @@ const { authenticateToken, addPatientFilter, patientFilterClause, patientFilterA
 const { safeUnlinkUpload } = require('../utils/uploads');
 const { isValidLabValue } = require('../utils/labValues');
 const { generatePdfFilename } = require('../utils/pdfFilename');
+
+// Validates an optional appointment_id (test_results.appointment_id is
+// nullable, unlike prescriptions.js where it's required) against the
+// caller's patient access — without this, a caller could attach any
+// appointment_id to their own test result, and a later read of that test
+// result (which joins appointments for appointment_date/appointment_type)
+// would leak another patient's appointment details. Returns null when
+// appointment_id is absent or the check passes; an error object otherwise.
+async function checkOptionalAppointmentAccess(appointmentId, patientFilter) {
+  if (!appointmentId) {
+    return null;
+  }
+  const result = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
+  if (result.rows.length === 0) {
+    return { status: 400, error: 'Appointment not found' };
+  }
+  if (!patientFilterAllows(patientFilter, result.rows[0].patient_id)) {
+    return { status: 403, error: 'Access denied' };
+  }
+  return null;
+}
 
 router.get('/panels', async (req, res) => {
   try {
@@ -82,7 +103,7 @@ router.post('/panels', async (req, res) => {
   try {
     const { name, description, category = 'Blood', parameters = [] } = req.body;
     
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Panel name is required' 
@@ -115,7 +136,7 @@ router.post('/panels', async (req, res) => {
       
       if (parameters && parameters.length > 0) {
         for (const param of parameters) {
-          if (param.parameter_name && param.parameter_name.trim()) {
+          if (param.parameter_name?.trim()) {
             await db.query(
               `INSERT INTO lab_panel_parameters 
                (panel_id, parameter_name, unit, reference_min, reference_max, gender_specific, aliases) 
@@ -180,7 +201,7 @@ router.put('/panels/:id', async (req, res) => {
     const panelId = req.params.id;
     const { name, description, category } = req.body;
     
-    if (!name || !name.trim()) {
+    if (!name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Panel name is required' 
@@ -289,7 +310,7 @@ router.post('/panels/:id/parameters', async (req, res) => {
       aliases 
     } = req.body;
     
-    if (!parameter_name || !parameter_name.trim()) {
+    if (!parameter_name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Parameter name is required' 
@@ -363,7 +384,7 @@ router.put('/panels/:panelId/parameters/:parameterId', async (req, res) => {
       aliases 
     } = req.body;
     
-    if (!parameter_name || !parameter_name.trim()) {
+    if (!parameter_name?.trim()) {
       return res.status(400).json({ 
         success: false, 
         message: 'Parameter name is required' 
@@ -781,7 +802,7 @@ router.post('/upload', upload.single('pdfFile'), authenticateToken, addPatientFi
     console.error('Error uploading lab report:', error);
     
     // Clean up uploaded file on error
-    if (req.file && req.file.path) {
+    if (req.file?.path) {
       await safeUnlinkUpload(req.file.path);
     }
     
@@ -911,7 +932,12 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
         error: 'Patient not found'
       });
     }
-    
+
+    const appointmentAccessError = await checkOptionalAppointmentAccess(appointment_id, req.patientFilter);
+    if (appointmentAccessError) {
+      return res.status(appointmentAccessError.status).json({ success: false, error: appointmentAccessError.error });
+    }
+
     const client = await db.getClient();
     
     try {
@@ -1011,6 +1037,15 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
 
     if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
       return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Also validate the new appointment_id itself — without this, a caller
+    // could attach another patient's appointment to a test result they own,
+    // and a later read of it (which joins appointments for
+    // appointment_date/appointment_type) would leak that patient's data.
+    const appointmentAccessError = await checkOptionalAppointmentAccess(appointment_id, req.patientFilter);
+    if (appointmentAccessError) {
+      return res.status(appointmentAccessError.status).json({ success: false, error: appointmentAccessError.error });
     }
 
     const client = await db.getClient();
@@ -1243,7 +1278,7 @@ router.get('/:id/download', authenticateToken, addPatientFilter, async (req, res
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Stream the file
-    const fileStream = require('fs').createReadStream(pdf_file_path);
+    const fileStream = require('node:fs').createReadStream(pdf_file_path);
     fileStream.pipe(res);
     
   } catch (error) {
@@ -1284,7 +1319,7 @@ router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) =>
     const { pdf_file_path, test_name, test_date, first_name, last_name } = result.rows[0];
 
     // Check if file exists
-    if (!require('fs').existsSync(pdf_file_path)) {
+    if (!require('node:fs').existsSync(pdf_file_path)) {
       return res.status(404).json({
         success: false,
         error: 'PDF file not found on server'
@@ -1299,7 +1334,7 @@ router.get('/:id/view', authenticateToken, addPatientFilter, async (req, res) =>
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     
     // Stream the file
-    const fileStream = require('fs').createReadStream(pdf_file_path);
+    const fileStream = require('node:fs').createReadStream(pdf_file_path);
     fileStream.pipe(res);
     
   } catch (error) {

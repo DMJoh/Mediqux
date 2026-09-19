@@ -4,6 +4,13 @@ import { Dialog } from '../ui/Dialog'
 import { Field, TextInput } from '../ui/Field'
 import { Button } from '../ui/Button'
 
+function computeErrors({ password, confirm }) {
+  const next = {}
+  if (password.length < 6) next.password = 'Password must be at least 6 characters'
+  else if (password !== confirm) next.confirm = 'Passwords do not match'
+  return next
+}
+
 /** Admin resetting another user's password — separate from UserFormDialog since the
  * backend exposes it as its own endpoint (PUT /users/:id/reset-password), not part of
  * the general update route. Unlike the legacy page, this adds a confirm field since
@@ -11,13 +18,6 @@ import { Button } from '../ui/Button'
 export function ResetPasswordDialog({ open, onOpenChange, user, onSubmit, saving }) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-
-  function computeErrors({ password, confirm }) {
-    const next = {}
-    if (password.length < 6) next.password = 'Password must be at least 6 characters'
-    else if (password !== confirm) next.confirm = 'Passwords do not match'
-    return next
-  }
 
   const { errors, touch, guardSubmit } = useFieldValidation({ password, confirm }, computeErrors)
 
