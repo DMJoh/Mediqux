@@ -5,6 +5,42 @@ All notable changes to Mediqux will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-19
+
+Security-focused release. An external report of a cross-patient data leak in the Conditions feature led to a full audit of every route for the same class of bug, turning up three more instances plus a second, related gap (reassignment onto a record you don't own). All of it is fixed here, along with new tooling so this class of bug gets caught automatically going forward.
+
+### 🔒 Security
+
+- **Cross-patient PHI leak via `GET /api/conditions/:id`** (GHSA-37f5-3f8c-qxww) — this endpoint joins conditions to appointments by fuzzy-matching diagnosis text, with no check that the matched appointment belonged to a patient the caller could access. Any authenticated non-admin account could read another patient's name, appointment date, and diagnosis just by looking up a common condition. Reported externally with a working PoC; fixed by scoping the join to the caller's `patientFilter`, applied consistently across the condition's `GET /`, `GET /:id`, and `DELETE /:id` routes.
+- **The same leak pattern in two more places**, found while auditing for the report above: `GET /api/medications/:id` (leaked another patient's prescription dosage/frequency/duration), and `GET /api/diagnostic-studies/:id/view` (served another patient's imaging/PDF attachment with no ownership check at all — the RBAC middleware was wired in but never actually checked). Both fixed the same way.
+- **Reassignment IDOR** — `PUT` routes that let a record's owning patient/appointment be changed checked ownership of the *existing* value but never the *new* one, so a caller who legitimately owned a record could reassign it onto a patient or appointment they had no access to, planting attacker-controlled data into someone else's record. Fixed across `appointments.js`, `diagnostic-studies.js`, `prescriptions.js`, and `test-results.js` (the last of which was missing an appointment-ownership check on both create and update, not just reassignment).
+- **`/api/system/database` was fully unauthenticated** — echoed the raw Postgres version and driver error details to anyone, logged-in or not. Now requires an admin token, matching every other diagnostic endpoint.
+- **Hardcoded JWT secret fallback removed** — a missing `JWT_SECRET` used to silently fall back to a string baked into the source; the server now fails to start instead, matching the existing database-credentials check.
+- **CORS tightened** — previously reflected every request's `Origin` header with credentials enabled. The bundled frontend never actually needs cross-origin access (same-origin proxy in both dev and prod), so the default is now no cross-origin browser access at all, with a new `CORS_ORIGIN` variable for anyone who genuinely needs to allow another origin.
+- **Added `helmet()`** to the backend and a `Content-Security-Policy` header to the frontend's Caddy config — concretely relevant here since diagnostic-study/lab-report attachments are served inline with a caller-supplied MIME type, and `X-Content-Type-Options: nosniff` is the mitigation against a browser sniffing that content into something more dangerous than its declared type.
+- **GitHub Actions pinned to commit SHAs** across every workflow (previously mutable version tags like `@v7`), closing a supply-chain gap where a compromised or force-moved tag could pull in unreviewed code during CI.
+
+### 🐛 Bug Fixes
+
+- A first attempt at scoping conditions' `DELETE /:id` usage-count guard to the caller's own patients was itself a bug: that guard exists to protect the shared condition catalog's referential integrity, not to prevent disclosure, so scoping it let a non-admin delete a condition still referenced by other patients' appointments. Reverted to unscoped, caught by a follow-up review before it reached users.
+- Reassigning a prescription to a different (still-accessible) patient's appointment updated the linked `patient_medications` row's medication/status but left its `patient_id` pointing at the old patient.
+- A zero-patient-access account got a 403 for an existing prescription ID but a 404 for a nonexistent one — a minor existence oracle. Both now return a uniform 403 before any database lookup.
+
+### 🔧 Code Quality
+
+- Consolidated several duplicated patterns flagged by SonarQube: the name/ICD-uniqueness checks and array-field normalization repeated across `medications.js`/`conditions.js`/`institutions.js`, the ownership-check boilerplate in `patients.js`/`appointments.js`, the public-user response shape in `auth.js`, and the join-clause construction in `medications.js`.
+- Extracted a shared `UserRowActions` component for the Users page's Edit/Reset-Password/Delete row actions, plus `RowActions` (nine other list pages' Edit/Delete actions) and `PhysicianLink` (two detail pages' doctor-link display).
+- Resolved the batch of SonarQube maintainability findings from the 2.0.0 rewrite: nested ternaries, `AppShell`'s cognitive complexity, `div[role="button"]` rows replaced with real `<button>` elements (with a proper "stretched button" pattern where a row also contains real links), and assorted optional-chaining/import-style cleanups.
+
+### 🧪 Testing
+
+- Closed the largest test-coverage gaps in `test-results.js` and `diagnostic-studies.js` — both files' multer mocks never actually attached a file, so the real upload/replace/cleanup code paths were structurally untestable regardless of how much else was covered.
+- Added regression tests for every fix above, asserting on the actual SQL/params sent to the database (not just response status codes), since a fully-mocked `db.query` can't otherwise prove a patient-scoping filter is really being applied.
+
+### 🔁 CI/CD
+
+- **Added Semgrep to CI**, running alongside the existing CodeQL and Sonar scans: the standard `security-audit`/`owasp-top-ten`/`secrets` rulesets, plus a custom rule (`mediqux-missing-patient-scoping`) that flags any route touching a patient-linked table without the app's own RBAC pattern nearby — the exact bug class behind this release's advisories — and a second custom rule (`mediqux-missing-reassignment-check`) for the new-foreign-key-not-validated pattern. Findings upload as SARIF to GitHub Code Scanning.
+
 ## [2.0.0] - 2026-09-13
 
 > ⚠️ **This release has breaking changes for existing deployments.** Read "Breaking Changes" and "Upgrading from 1.x" below before you pull the new images.
