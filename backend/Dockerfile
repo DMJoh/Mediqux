@@ -19,6 +19,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Set by docker-build.yml from the GitHub Release tag (or a -dev.<sha> suffix
+# for develop-branch builds) — this is the actual displayed app version, not
+# package.json's, which is a rough in-development indicator only. Baked in at
+# build time so it's immutable per image and needs no runtime lookup.
+ARG APP_VERSION=dev
+ENV APP_VERSION=$APP_VERSION
+
 COPY --from=builder /app/node_modules ./node_modules
 
 COPY --chown=node:node . .
