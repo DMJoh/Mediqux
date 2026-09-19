@@ -57,13 +57,6 @@ jobs:
           type=raw,value=latest,enable=${{ github.event.release.target_commitish == 'main' }}
 
     - name: Determine app version
-      # For a release, this is the actual GitHub Release tag (the same value
-      # docker/metadata-action already derived for the image tags above) — the
-      # real source of truth. For a plain develop-branch push there's no
-      # release yet, so this builds a distinguishable pre-release identifier
-      # instead: package.json's in-progress version plus the short commit SHA,
-      # so two develop builds are never confused for the same code even if
-      # package.json wasn't bumped between them.
       id: version
       run: |
         if [ "${{ github.event_name }}" = "release" ]; then
