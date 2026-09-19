@@ -71,4 +71,4 @@ No backfill — existing installs keep their current (shared-status) rows as-is;
 
 ## Open items
 
-None. Everything identified in this file has been fixed or verified as correct/non-issue. Full test suite (`npm test`) is green: 427/427.
+- **Transitive dependency vulnerabilities via `sequelize`/`sequelize-cli`** (`npm audit`: 13 findings — `qs`, `underscore`, `uuid`, `validator`) — Sequelize is retained only for migrations, not runtime request handling, so none of these are reachable from any HTTP-facing code path; low practical exploitability. Not fixed yet because `npm audit fix --force` wants to downgrade `sequelize` to a 3.x major version, which is itself a breaking change worth doing deliberately (e.g. dropping Sequelize entirely in favor of a plain migration runner) rather than as an incidental `audit fix`. Dependabot already tracks these; revisit when convenient rather than urgently.
