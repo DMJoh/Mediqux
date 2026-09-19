@@ -27,6 +27,25 @@ function patientAccessSummary(user) {
   return patients.map((p) => `${p.first_name} ${p.last_name}`).join(', ')
 }
 
+/** Edit/Reset password/Delete icon-button triple used on both the mobile card
+ * and desktop table row — RowActions doesn't fit here since this page has a
+ * third action mixed in. */
+function UserRowActions({ onEdit, onResetPassword, onDelete, className = 'flex shrink-0 gap-1' }) {
+  return (
+    <div className={className}>
+      <IconButton label="Edit" onClick={onEdit}>
+        <Pencil size={14} />
+      </IconButton>
+      <IconButton label="Reset password" onClick={onResetPassword}>
+        <KeyRound size={14} />
+      </IconButton>
+      <IconButton label="Delete" onClick={onDelete}>
+        <Trash2 size={14} />
+      </IconButton>
+    </div>
+  )
+}
+
 export default function Users() {
   const { user: currentUser } = useAuth()
   const { data: users, isLoading } = useList()
@@ -143,17 +162,7 @@ export default function Users() {
                     </div>
                     <div className="mt-1.5 text-xs text-muted">{patientAccessSummary(u)}</div>
                   </div>
-                  <div className="flex shrink-0 gap-1">
-                    <IconButton label="Edit" onClick={() => setEditTarget(u)}>
-                      <Pencil size={14} />
-                    </IconButton>
-                    <IconButton label="Reset password" onClick={() => setResetTarget(u)}>
-                      <KeyRound size={14} />
-                    </IconButton>
-                    <IconButton label="Delete" onClick={() => requestDelete(u)}>
-                      <Trash2 size={14} />
-                    </IconButton>
-                  </div>
+                  <UserRowActions onEdit={() => setEditTarget(u)} onResetPassword={() => setResetTarget(u)} onDelete={() => requestDelete(u)} />
                 </div>
               ))}
             </div>
@@ -190,17 +199,12 @@ export default function Users() {
                       </td>
                       <td className="px-5 py-3 text-muted">{formatDate(u.last_login) ?? 'Never'}</td>
                       <td className="px-5 py-3">
-                        <div className="flex justify-end gap-1">
-                          <IconButton label="Edit" onClick={() => setEditTarget(u)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                          <IconButton label="Reset password" onClick={() => setResetTarget(u)}>
-                            <KeyRound size={14} />
-                          </IconButton>
-                          <IconButton label="Delete" onClick={() => requestDelete(u)}>
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </div>
+                        <UserRowActions
+                          className="flex justify-end gap-1"
+                          onEdit={() => setEditTarget(u)}
+                          onResetPassword={() => setResetTarget(u)}
+                          onDelete={() => requestDelete(u)}
+                        />
                       </td>
                     </tr>
                   ))}
