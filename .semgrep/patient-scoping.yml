@@ -15,17 +15,22 @@ rules:
 
       If this route intentionally has no patient-level RBAC (e.g. it only
       returns shared reference data, or scoping happens elsewhere), add a
-      `// nosemgrep: mediqux-missing-patient-scoping` comment on the
-      `router.<method>(...)` line explaining why.
+      `// nosemgrep: semgrep.mediqux-missing-patient-scoping` comment on the
+      same line as the query explaining why.
     patterns:
       - pattern-either:
-          - pattern: router.$METHOD($ROUTE, $$$ARGS, async ($REQ, $RES) => { ... })
-          - pattern: router.$METHOD($ROUTE, async ($REQ, $RES) => { ... })
+          - pattern: router.$METHOD($ROUTE, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.$METHOD($ROUTE, $MW, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.$METHOD($ROUTE, $MW1, $MW2, async ($REQ, $RES) => { $...BODY })
+          - pattern: router.$METHOD($ROUTE, $MW1, $MW2, $MW3, async ($REQ, $RES) => { $...BODY })
       - metavariable-regex:
           metavariable: $METHOD
           regex: ^(get|post|put|delete)$
+      - metavariable-pattern:
+          metavariable: $...BODY
+          patterns:
+            - pattern-regex: (appointments|prescriptions|diagnostic_studies|test_results|lab_values|patient_medications)
       - pattern-not-regex: (addPatientFilter|patientFilterClause|patientFilterAllows|requireAdmin)
-      - pattern-regex: (appointments|prescriptions|diagnostic_studies|test_results|lab_values|patient_medications)
     paths:
       include:
         - "**/backend/src/routes/*.js"

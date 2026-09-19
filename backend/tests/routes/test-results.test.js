@@ -697,6 +697,27 @@ describe('POST / (create test result)', () => {
     expect(res.status).toBe(403);
     expect(db.query).not.toHaveBeenCalled();
   });
+
+  // Without this check, a caller could attach any appointment_id to a test
+  // result for a patient they DO own, and a later read of it (which joins
+  // appointments for appointment_date/appointment_type) would leak another
+  // patient's appointment details.
+  it("returns 403 when the appointment_id belongs to a patient the caller can't access", async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] })              // patient check (patient_id: 5, accessible)
+      .mockResolvedValueOnce({ rows: [{ patient_id: 99 }] });    // appointment belongs to patient 99
+    const res = await request(filteredApp).post('/').send({ ...validBody, appointment_id: 'apt-1' });
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when the appointment_id does not exist', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: 5 }] }) // patient check
+      .mockResolvedValueOnce({ rows: [] });          // appointment not found
+    const res = await request(filteredApp).post('/').send({ ...validBody, appointment_id: 'apt-missing' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/appointment not found/i);
+  });
 });
 
 // ─── POST /:id/lab-values ─────────────────────────────────────────────────
@@ -829,6 +850,21 @@ describe('PUT /:id (update test result)', () => {
   it('returns 403 when a scoped user tries to update another patient\'s test result', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ patient_id: 99 }] }); // ownership check
     const res = await request(filteredApp).put('/1').send({ test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01' });
+    expect(res.status).toBe(403);
+  });
+
+  // A scoped user owns this test result (patient 5), but tries to attach
+  // another patient's appointment_id via the request body — without
+  // validating the new value, this would let them plant a cross-patient
+  // appointment link, leaking that patient's appointment_date/type on
+  // later reads.
+  it('returns 403 when reassigning appointment_id to another patient\'s appointment', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ patient_id: 5 }] })    // ownership check
+      .mockResolvedValueOnce({ rows: [{ patient_id: 99 }] });  // new appointment belongs to patient 99
+    const res = await request(filteredApp).put('/1').send({
+      test_name: 'CBC', test_type: 'blood', test_date: '2024-01-01', appointment_id: 'apt-1',
+    });
     expect(res.status).toBe(403);
   });
 });

@@ -362,10 +362,9 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete medical condition
-// nosemgrep: semgrep.mediqux-missing-patient-scoping -- referential-integrity guard on
-// a shared/global catalog row, not a PHI read; see the comment below.
-router.delete('/:id', async (req, res) => {
+// Delete medical condition — referential-integrity guard on a shared/global
+// catalog row, not a PHI read; see the comment below.
+router.delete('/:id', async (req, res) => { // nosemgrep: semgrep.mediqux-missing-patient-scoping
   try {
     const { id } = req.params;
 

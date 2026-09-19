@@ -295,12 +295,10 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete medication
-// nosemgrep: semgrep.mediqux-missing-patient-scoping -- referential-integrity guard on
-// a shared/global catalog row (medications), not a PHI read: it only checks
-// whether the medication is referenced anywhere, same reasoning as
-// conditions.js's DELETE guard.
-router.delete('/:id', async (req, res) => {
+// Delete medication — referential-integrity guard on a shared/global catalog
+// row, not a PHI read: it only checks whether the medication is referenced
+// anywhere, same reasoning as conditions.js's DELETE guard.
+router.delete('/:id', async (req, res) => { // nosemgrep: semgrep.mediqux-missing-patient-scoping
   try {
     const { id } = req.params;
 

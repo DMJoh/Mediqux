@@ -10,6 +10,27 @@ const { safeUnlinkUpload } = require('../utils/uploads');
 const { isValidLabValue } = require('../utils/labValues');
 const { generatePdfFilename } = require('../utils/pdfFilename');
 
+// Validates an optional appointment_id (test_results.appointment_id is
+// nullable, unlike prescriptions.js where it's required) against the
+// caller's patient access — without this, a caller could attach any
+// appointment_id to their own test result, and a later read of that test
+// result (which joins appointments for appointment_date/appointment_type)
+// would leak another patient's appointment details. Returns null when
+// appointment_id is absent or the check passes; an error object otherwise.
+async function checkOptionalAppointmentAccess(appointmentId, patientFilter) {
+  if (!appointmentId) {
+    return null;
+  }
+  const result = await db.query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
+  if (result.rows.length === 0) {
+    return { status: 400, error: 'Appointment not found' };
+  }
+  if (!patientFilterAllows(patientFilter, result.rows[0].patient_id)) {
+    return { status: 403, error: 'Access denied' };
+  }
+  return null;
+}
+
 router.get('/panels', async (req, res) => {
   try {
     const result = await db.query(`
@@ -911,7 +932,12 @@ router.post('/', authenticateToken, addPatientFilter, async (req, res) => {
         error: 'Patient not found'
       });
     }
-    
+
+    const appointmentAccessError = await checkOptionalAppointmentAccess(appointment_id, req.patientFilter);
+    if (appointmentAccessError) {
+      return res.status(appointmentAccessError.status).json({ success: false, error: appointmentAccessError.error });
+    }
+
     const client = await db.getClient();
     
     try {
@@ -1011,6 +1037,15 @@ router.put('/:id', authenticateToken, addPatientFilter, async (req, res) => {
 
     if (!patientFilterAllows(req.patientFilter, existing.rows[0].patient_id)) {
       return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Also validate the new appointment_id itself — without this, a caller
+    // could attach another patient's appointment to a test result they own,
+    // and a later read of it (which joins appointments for
+    // appointment_date/appointment_type) would leak that patient's data.
+    const appointmentAccessError = await checkOptionalAppointmentAccess(appointment_id, req.patientFilter);
+    if (appointmentAccessError) {
+      return res.status(appointmentAccessError.status).json({ success: false, error: appointmentAccessError.error });
     }
 
     const client = await db.getClient();
