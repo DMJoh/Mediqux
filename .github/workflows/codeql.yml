@@ -16,8 +16,13 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (javascript-typescript)
+    name: Analyze
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
 
     steps:
       - name: Checkout repository
@@ -26,7 +31,7 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@c23de5a82f64bb08c6d9f28844551440ca298e76 # v4.38.1
         with:
-          languages: javascript-typescript
+          languages: ${{ matrix.language }}
           queries: security-and-quality
 
       - name: Autobuild
@@ -35,4 +40,4 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@c23de5a82f64bb08c6d9f28844551440ca298e76 # v4.38.1
         with:
-          category: /language:javascript-typescript
+          category: /language:${{ matrix.language }}
