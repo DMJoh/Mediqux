@@ -32,7 +32,7 @@
   "devDependencies": {
     "jest": "^30.5.1",
     "nodemon": "^3.1.14",
-    "supertest": "^7.0.0"
+    "supertest": "^7.3.0"
   },
   "engines": {
     "node": ">=24.0.0"
